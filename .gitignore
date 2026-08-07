@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# Never commit the vendor's recovered application source. Documenting a protocol
+# for interoperability is one thing; redistributing BKON's code is another.
+docs/_reference_/
+*.apk
+*.dex
