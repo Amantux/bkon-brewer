@@ -7,6 +7,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.helpers.config_validation as cv
@@ -15,8 +16,9 @@ from .const import (
     SIGNAL_EVENT, CONF_ADDRESS, CONF_KB_PATH, CONF_SIMULATE, DEFAULT_KB_FILENAME, DOMAIN,
     SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
-    SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW)
-from . import advisor, concierge
+    SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
+    CONF_LIGHTRAG_URL, CONF_LIGHTRAG_KEY, CONF_RAG_MODE)
+from . import advisor, concierge, rag_backend
 from .coordinator import BrewerCoordinator
 from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
@@ -63,6 +65,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DEFAULT_KB_FILENAME)
         store["kb"] = await hass.async_add_executor_job(
             KnowledgeBase.from_file, kb_path)
+    # Optional LightRAG upgrade. Rebuilt on every setup so options edits take
+    # effect on reload; absent URL means the local retriever is the whole story.
+    opts = {**entry.data, **entry.options}
+    url = opts.get(CONF_LIGHTRAG_URL)
+    store["rag"] = (
+        rag_backend.LightRagBackend(
+            url, api_key=opts.get(CONF_LIGHTRAG_KEY),
+            mode=opts.get(CONF_RAG_MODE, rag_backend.DEFAULT_MODE))
+        if url else None)
     store[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _register_services(hass)
@@ -167,7 +178,14 @@ def _register_services(hass: HomeAssistant) -> None:
         kb: KnowledgeBase = hass.data[DOMAIN].get("kb")
         recipes = {r["name"]: library.get(r["id"]) for r in library.list()}
         reply = concierge.respond(call.data["message"], recipes, kb)
-        out = {"kind": reply.kind, "response": reply.text}
+        if reply.kind == "answer":
+            session = async_get_clientsession(hass)
+            text, src = await rag_backend.answer_with_fallback(
+                session, hass.data[DOMAIN].get("rag"), kb, call.data["message"])
+            reply.text = text
+            out = {"kind": reply.kind, "response": text, "source": src}
+        else:
+            out = {"kind": reply.kind, "response": reply.text}
         if reply.new_steps is not None:
             out["recipe"] = reply.recipe_name
             out["steps"] = [{"type": str(st.type), "values": st.values}

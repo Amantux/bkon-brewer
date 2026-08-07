@@ -11,9 +11,10 @@ from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import intent
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import concierge
+from . import concierge, rag_backend
 from .const import DOMAIN
 from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
@@ -48,6 +49,13 @@ class BkonConciergeAgent(conversation.ConversationEntity):
                    if library else {})
 
         reply = concierge.respond(user_input.text, recipes, kb)
+        if reply.kind == "answer":
+            # Same LightRAG-then-local path the ask service uses, so Assist and
+            # the service never diverge on how a question is answered.
+            session = async_get_clientsession(self.hass)
+            text, _src = await rag_backend.answer_with_fallback(
+                session, store.get("rag"), kb, user_input.text)
+            reply.text = text
 
         response = intent.IntentResponse(language=user_input.language)
         response.async_set_speech(reply.text)

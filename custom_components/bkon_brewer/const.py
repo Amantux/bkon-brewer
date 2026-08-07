@@ -6,6 +6,9 @@ DOMAIN = "bkon_brewer"
 CONF_ADDRESS = "address"
 CONF_SIMULATE = "simulate"
 CONF_KB_PATH = "kb_path"
+CONF_LIGHTRAG_URL = "lightrag_url"
+CONF_LIGHTRAG_KEY = "lightrag_api_key"
+CONF_RAG_MODE = "rag_mode"
 DEFAULT_KB_FILENAME = "bkon_brewer_kb.json"
 
 # Services

@@ -1,0 +1,48 @@
+# Stand up Ollama + a LightRAG server on any box on your network (a NUC, a
+# spare Pi, a server). The integration then points at the LightRAG URL.
+#
+# On the Home Assistant host itself, prefer the add-on in deploy/addon/ so the
+# Supervisor manages it. This compose file is for running the pair elsewhere.
+#
+#   docker compose up -d
+#   # then pull the models Ollama will serve (once):
+#   docker exec -it ollama ollama pull nomic-embed-text
+#   docker exec -it ollama ollama pull qwen2.5:3b-instruct
+#
+# Model choice for a Raspberry Pi 5 / CM5 (aarch64, ~15 GB RAM):
+#   embeddings : nomic-embed-text   (small, fast, CPU-fine)
+#   generation : qwen2.5:3b-instruct or llama3.2:3b   (usable on CPU)
+# Drop to qwen2.5:1.5b if generation is too slow; raise to 7b only with a GPU.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports: ["11434:11434"]
+    volumes: ["ollama:/root/.ollama"]
+
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    container_name: lightrag
+    restart: unless-stopped
+    depends_on: [ollama]
+    ports: ["9621:9621"]
+    environment:
+      # --- credentialling: the key the integration must present ---
+      LIGHTRAG_API_KEY: "${LIGHTRAG_API_KEY:-change-me}"
+      # --- Ollama as both the LLM and the embedding provider ---
+      LLM_BINDING: "ollama"
+      LLM_BINDING_HOST: "http://ollama:11434"
+      LLM_MODEL: "qwen2.5:3b-instruct"
+      EMBEDDING_BINDING: "ollama"
+      EMBEDDING_BINDING_HOST: "http://ollama:11434"
+      EMBEDDING_MODEL: "nomic-embed-text"
+      EMBEDDING_DIM: "768"
+    volumes:
+      - "lightrag:/app/data/rag_storage"
+      - "./inputs:/app/data/inputs"
+
+volumes:
+  ollama:
+  lightrag:

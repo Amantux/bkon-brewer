@@ -5,10 +5,14 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow)
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_ADDRESS, CONF_SIMULATE, DOMAIN
+from .const import (
+    CONF_ADDRESS, CONF_LIGHTRAG_KEY, CONF_LIGHTRAG_URL, CONF_RAG_MODE,
+    CONF_SIMULATE, DOMAIN)
 
 
 class BkonBrewerConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -75,3 +79,38 @@ class BkonBrewerConfigFlow(ConfigFlow, domain=DOMAIN):
                 "hint": "Enter the brewer's Bluetooth MAC, or tick Simulate to "
                         "explore the interface with no hardware."
             })
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(entry: ConfigEntry) -> "BkonOptionsFlow":
+        return BkonOptionsFlow()
+
+
+class BkonOptionsFlow(OptionsFlow):
+    """Configure the LightRAG upgrade. Leave the URL blank to use the built-in
+    local retriever, which needs no server and no model."""
+
+    async def async_step_init(self, user_input=None) -> ConfigFlowResult:
+        if user_input is not None:
+            # An empty URL clears the upgrade rather than storing "".
+            cleaned = {k: v for k, v in user_input.items() if v not in ("", None)}
+            return self.async_create_entry(title="", data=cleaned)
+        cur = {**self.config_entry.data, **self.config_entry.options}
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Optional(CONF_LIGHTRAG_URL,
+                             default=cur.get(CONF_LIGHTRAG_URL, "")): selector.TextSelector(),
+                vol.Optional(CONF_LIGHTRAG_KEY,
+                             default=cur.get(CONF_LIGHTRAG_KEY, "")): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
+                vol.Optional(CONF_RAG_MODE,
+                             default=cur.get(CONF_RAG_MODE, "hybrid")): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=["hybrid", "local", "global", "mix", "naive"],
+                        mode=selector.SelectSelectorMode.DROPDOWN)),
+            }),
+            description_placeholders={
+                "hint": "Point this at your LightRAG server (e.g. "
+                        "http://homeassistant.local:9621). The API key is the "
+                        "one you set on the server."})
