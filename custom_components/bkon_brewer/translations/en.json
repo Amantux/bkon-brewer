@@ -32,6 +32,18 @@
     "brew_saved": {
       "name": "Brew a saved recipe",
       "description": "Brew a saved recipe"
+    },
+    "lint_recipe": {
+      "name": "Check a recipe",
+      "description": "Check a recipe"
+    },
+    "diagnose": {
+      "name": "Diagnose a problem",
+      "description": "Diagnose a problem"
+    },
+    "build_recipe": {
+      "name": "Build a recipe",
+      "description": "Build a recipe"
     }
   }
 }

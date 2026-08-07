@@ -49,7 +49,7 @@ class BkonConciergeAgent(conversation.ConversationEntity):
                    if library else {})
 
         reply = concierge.respond(user_input.text, recipes, kb)
-        if reply.kind == "answer":
+        if reply.kind == "answer" and not reply.composed:
             # Same LightRAG-then-local path the ask service uses, so Assist and
             # the service never diverge on how a question is answered.
             session = async_get_clientsession(self.hass)

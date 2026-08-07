@@ -157,3 +157,42 @@ customize_recipe:
       required: false
       selector:
         text:
+lint_recipe:
+  name: Check a recipe for problems
+  description: >-
+    Inspect a saved recipe before brewing — size limit, missing steps,
+    out-of-range values — and report each problem with a fix.
+  fields:
+    name:
+      name: Recipe
+      required: true
+      selector:
+        text:
+diagnose:
+  name: Diagnose an error or problem
+  description: >-
+    Explain a brewer error code (like C:3 M:5), a status, or a described
+    symptom, with a likely cause and a next step.
+  fields:
+    text:
+      name: Code or symptom
+      required: true
+      example: "C:3 M:5"
+      selector:
+        text:
+build_recipe:
+  name: Build a recipe from a description
+  description: >-
+    Create a starter recipe from a short description (e.g. "strong bold cup" or
+    "delicate green tea"). Optionally save it.
+  fields:
+    description:
+      name: Description
+      required: true
+      selector:
+        text:
+    save_as:
+      name: Save as
+      required: false
+      selector:
+        text:

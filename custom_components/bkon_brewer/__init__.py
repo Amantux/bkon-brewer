@@ -17,8 +17,9 @@ from .const import (
     SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
     SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
+    SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
     CONF_LIGHTRAG_URL, CONF_LIGHTRAG_KEY, CONF_RAG_MODE)
-from . import advisor, concierge, rag_backend
+from . import advisor, concierge, diagnostics, rag_backend, templates, tools
 from .coordinator import BrewerCoordinator
 from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
@@ -178,7 +179,7 @@ def _register_services(hass: HomeAssistant) -> None:
         kb: KnowledgeBase = hass.data[DOMAIN].get("kb")
         recipes = {r["name"]: library.get(r["id"]) for r in library.list()}
         reply = concierge.respond(call.data["message"], recipes, kb)
-        if reply.kind == "answer":
+        if reply.kind == "answer" and not reply.composed:
             session = async_get_clientsession(hass)
             text, src = await rag_backend.answer_with_fallback(
                 session, hass.data[DOMAIN].get("rag"), kb, call.data["message"])
@@ -213,6 +214,41 @@ def _register_services(hass: HomeAssistant) -> None:
             out["saved_as"] = await library.async_put(save_as, raw)
             _notify_library_changed(hass)
         return out
+
+    async def _lint(call: ServiceCall) -> dict:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        recipes = {r["name"]: library.get(r["id"]) for r in library.list()}
+        return tools.execute_tool(
+            "lint_recipe", {"name": call.data["name"]}, recipes=recipes)
+
+    async def _diagnose(call: ServiceCall) -> dict:
+        kb = hass.data[DOMAIN].get("kb")
+        return tools.execute_tool("diagnose", {"text": call.data["text"]}, kb=kb)
+
+    async def _build(call: ServiceCall) -> dict:
+        out = tools.execute_tool(
+            "build_recipe", {"description": call.data["description"]})
+        save_as = call.data.get("save_as")
+        if save_as and "steps" in out:
+            library: RecipeLibrary = hass.data[DOMAIN]["library"]
+            out["saved_as"] = await library.async_put(save_as, out["steps"])
+            _notify_library_changed(hass)
+        return out
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_LINT, _lint,
+        schema=vol.Schema({vol.Required("name"): cv.string}),
+        supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(
+        DOMAIN, SERVICE_DIAGNOSE, _diagnose,
+        schema=vol.Schema({vol.Required("text"): cv.string}),
+        supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(
+        DOMAIN, SERVICE_BUILD, _build,
+        schema=vol.Schema({
+            vol.Required("description"): cv.string,
+            vol.Optional("save_as"): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL)
 
     hass.services.async_register(
         DOMAIN, SERVICE_ASK, _ask,

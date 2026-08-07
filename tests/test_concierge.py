@@ -70,6 +70,15 @@ concierge.respond("make Morning Cup stronger", RECIPES, KB)
 check("original recipe untouched",
       int(RECIPES["Morning Cup"][2].values["ps"]), before)
 
+print("\nfaults and error codes route to diagnosis, composed so the service keeps it")
+r = concierge.respond("it says not sealed", RECIPES, KB)
+check("fault -> composed answer", r.composed, True)
+check("with a fix", "seat" in r.text.lower() or "seal" in r.text.lower(), True)
+r = concierge.respond("what does C:3 M:5 mean", RECIPES, KB)
+check("error code -> composed", r.composed, True)
+r = concierge.respond("how do I descale?", RECIPES, KB)
+check("a plain document question is NOT composed (goes to RAG)", r.composed, False)
+
 print("\ngraceful degradation")
 r = concierge.respond("how do I descale?", RECIPES, KnowledgeBase([]))
 check("no index -> says so, does not crash", "don't have the BKON documents" in r.text, True)

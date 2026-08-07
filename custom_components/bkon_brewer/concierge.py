@@ -21,7 +21,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from . import advisor
+# An error code (C:x M:y) or an obvious fault phrase routes to diagnosis rather
+# than plain retrieval -- the person wants a fix, not a paragraph.
+_ERROR_RE = re.compile(r"C\s*:?\s*\d+\s*M\s*:?\s*\d+", re.IGNORECASE)
+_FAULT_WORDS = ("not sealed", "won't start", "wont start", "error", "fault",
+                "stuck", "leak", "no water", "won't brew", "wont brew")
+
+from . import advisor, diagnostics
 from .protocol import recipe as R
 
 _QUESTION_WORDS = ("how", "what", "why", "when", "where", "which", "who",
@@ -34,6 +40,10 @@ class Reply:
     kind: str = "answer"                       # answer | customise | clarify
     recipe_name: str | None = None
     new_steps: list[R.Step] | None = field(default=None)
+    #: True when the text is a finished answer (a diagnosis, a clarify) that must
+    #: NOT be re-run through the RAG backend. Only a plain document question
+    #: (composed=False) goes to LightRAG/local retrieval in the service layer.
+    composed: bool = False
 
 
 def respond(message: str, recipes: dict[str, list[R.Step]], kb) -> Reply:
@@ -69,6 +79,15 @@ def respond(message: str, recipes: dict[str, list[R.Step]], kb) -> Reply:
                 f"{_describe_intents(intents)}:\n")
         return Reply(head + result.summary(), kind="customise",
                      recipe_name=named, new_steps=result.steps)
+
+    # A fault or an error code wants diagnosis (cause + fix), not retrieval.
+    low = text.lower()
+    if _ERROR_RE.search(text) or any(w in low for w in _FAULT_WORDS):
+        d = diagnostics.diagnose(text, kb=kb)
+        body = f"**{d.summary}**\n{d.cause}\n\nFix: {d.fix}"
+        if d.source:
+            body += f"\n  — {d.source}"
+        return Reply(body, kind="answer", composed=True)
 
     # Otherwise it is a question for the documents.
     return _as_question(text, kb)

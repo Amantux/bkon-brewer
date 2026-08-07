@@ -22,6 +22,9 @@ SERVICE_DELETE_RECIPE = "delete_recipe"
 SERVICE_BREW_SAVED = "brew_saved"
 SERVICE_ASK = "ask"
 SERVICE_CUSTOMIZE = "customize_recipe"
+SERVICE_LINT = "lint_recipe"
+SERVICE_DIAGNOSE = "diagnose"
+SERVICE_BUILD = "build_recipe"
 
 # Dispatcher signal carrying parsed BrewerEvents to entities.
 SIGNAL_EVENT = f"{DOMAIN}_event"
