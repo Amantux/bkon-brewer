@@ -236,3 +236,15 @@ import_recipes:
       default: false
       selector:
         boolean:
+download_recipes:
+  name: Download recipes as text
+  description: >-
+    Write a readable text file of all recipes to /config/www, downloadable at
+    /local/bkon/<filename> in your browser. Good for saving or sharing.
+  fields:
+    filename:
+      name: File name
+      default: bkon_recipes.txt
+      required: false
+      selector:
+        text:

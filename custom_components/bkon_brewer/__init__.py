@@ -18,7 +18,8 @@ from .const import (
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
     SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
-    SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, DEFAULT_RECIPE_DIR,
+    SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
+    DEFAULT_RECIPE_DIR,
     CONF_LIGHTRAG_URL, CONF_LIGHTRAG_KEY, CONF_RAG_MODE)
 from . import advisor, concierge, diagnostics, rag_backend, recipe_files, templates, tools
 from .coordinator import BrewerCoordinator
@@ -271,6 +272,35 @@ def _register_services(hass: HomeAssistant) -> None:
         _notify_library_changed(hass)
         report["read_errors"] = read_errors
         return report
+
+    async def _download(call: ServiceCall) -> dict:
+        """Write a readable recipes .txt to /config/www for download.
+
+        Home Assistant serves /config/www at /local, so the file is reachable in
+        a browser without any extra server. Returns the path and the URL.
+        """
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        records = library.export_dict()["recipes"]
+        text = recipe_files.to_text(records)
+        www = hass.config.path("www", "bkon")
+        fname = call.data.get("filename", "bkon_recipes.txt")
+
+        def _write() -> str:
+            import os
+            os.makedirs(www, exist_ok=True)
+            path = os.path.join(www, fname)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return path
+
+        path = await hass.async_add_executor_job(_write)
+        return {"path": path, "url": f"/local/bkon/{fname}",
+                "recipes": len(records), "bytes": len(text)}
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_DOWNLOAD, _download,
+        schema=vol.Schema({vol.Optional("filename"): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL)
 
     hass.services.async_register(
         DOMAIN, SERVICE_GET, _get_recipe,

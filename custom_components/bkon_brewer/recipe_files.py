@@ -63,6 +63,60 @@ def write_recipes(directory: str, records: list[dict], *,
             "total": len(keep), "directory": str(d)}
 
 
+# Unit labels for the text form, from docs/INTEL.md. A plain reader should see
+# "205 °F" and "250 ml", not "tmp: 205" and "fwv: 250".
+_UNITS = {"tmp": "°F", "fwv": "ml", "rwv": "ml", "dl": "s", "tm": "s",
+          "ps": "", "bt": "s"}
+_KEY_NAMES = {"tmp": "temperature", "fwv": "fill", "rwv": "rinse",
+              "dl": "pause", "tm": "time", "ps": "pressure", "det": "detect",
+              "manstop": "manual-stop", "bt": "brew", "text": "prompt"}
+_STEP_NAMES = {"start": "Start", "fr": "Fill", "vc": "Vacuum", "pg": "Purge",
+               "dialog": "Dialog", "bo": "Brew out"}
+
+
+def to_text(records: list[dict]) -> str:
+    """Render the whole library as one readable text document, for download.
+
+    A plain .txt anyone can open, print, or paste -- names, steps spelled out
+    with their units, and each recipe's Bluetooth byte size. Deliberately not
+    JSON: this is the human copy, the files are the machine copy.
+    """
+    from .protocol import recipe as R           # local: keep the module import-light
+    lines = ["BKON Brewer — Recipes", "=" * 40, ""]
+    if not records:
+        lines.append("(no recipes)")
+        return "\n".join(lines) + "\n"
+    for rec in records:
+        name = rec.get("name", "(unnamed)")
+        steps_raw = rec.get("steps", [])
+        lines.append(name)
+        lines.append("-" * len(name))
+        for i, st in enumerate(steps_raw, 1):
+            typ = st.get("type", "?")
+            label = _STEP_NAMES.get(typ, typ)
+            parts = []
+            for k, v in st.get("values", {}).items():
+                if k == "text":
+                    parts.append(f'"{v}"')
+                elif k in ("det", "manstop"):
+                    if str(v) not in ("0", "0.0", "False", ""):
+                        parts.append(_KEY_NAMES.get(k, k))
+                else:
+                    unit = _UNITS.get(k, "")
+                    parts.append(f"{_KEY_NAMES.get(k, k)} {v}{unit}".rstrip())
+            detail = ", ".join(parts)
+            lines.append(f"  {i}. {label}" + (f": {detail}" if detail else ""))
+        try:
+            size = len(R.encode(
+                [R.Step(R.StepType(s["type"]), dict(s.get("values", {})))
+                 for s in steps_raw]).encode("utf-8"))
+            lines.append(f"  ({size} of {R.MAX_RECIPE_BYTES} bytes)")
+        except Exception:                        # noqa: BLE001
+            lines.append("  (could not size — check the steps)")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def read_recipes(directory: str) -> tuple[list[dict], list[str]]:
     """Read every `*.json` back into records. Returns (records, errors).
 

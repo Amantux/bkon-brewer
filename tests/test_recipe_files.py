@@ -79,6 +79,15 @@ with tempfile.TemporaryDirectory() as d:
     check("bad files reported", len(errors), 2)
     check("error names the file", any("broken.json" in e for e in errors), True)
 
+print("\nto_text renders a readable document with units")
+txt = F.to_text(RECORDS)
+check("has a header", "BKON Brewer" in txt, True)
+check("names each recipe", "Morning Cup" in txt and "Espresso Style" in txt, True)
+check("spells out step names", "Start" in txt and "Vacuum" in txt, True)
+check("shows units", "°F" in txt, True)
+check("shows a byte size", "bytes" in txt, True)
+check("empty library is handled", "no recipes" in F.to_text([]), True)
+
 print("\nreading a missing directory is an error, not a crash")
 recs, errs = F.read_recipes("/nonexistent/place")
 check("empty records", recs, [])

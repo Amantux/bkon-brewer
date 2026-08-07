@@ -39,10 +39,11 @@ class RecipeLibrary:
         self._recipes = data.get("recipes", {})
         self._loaded = True
         if not self._recipes:
-            # Seed one editable example so the library is never an empty screen.
-            # It is a real, valid recipe, not a placeholder -- brewing it does
-            # something sensible, and editing it teaches the shape.
-            self._recipes = {"example_pour_over": _EXAMPLE}
+            # Seed from the bundled default recipes so a fresh install opens on a
+            # real starter set, not an empty screen. These ship with the
+            # integration (defaults/) and are the same recipes checked into the
+            # repo; the user edits, adds and exports from here.
+            self._recipes = _load_defaults()
             await self.async_save()
 
     async def async_save(self) -> None:
@@ -162,6 +163,25 @@ class RecipeLibrary:
 
 def _to_steps(raw: list[dict[str, Any]]) -> list[R.Step]:
     return [R.Step(R.StepType(s["type"]), dict(s.get("values", {}))) for s in raw]
+
+
+def _load_defaults() -> dict[str, dict[str, Any]]:
+    """Read the bundled default recipes. Falls back to the built-in example if
+    the directory is missing, so a fresh install is never empty."""
+    import json
+    from pathlib import Path
+    out: dict[str, dict[str, Any]] = {}
+    d = Path(__file__).parent / "defaults"
+    if d.exists():
+        for f in sorted(d.glob("*.json")):
+            try:
+                rec = json.loads(f.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                continue
+            name = rec.get("name")
+            if name and isinstance(rec.get("steps"), list):
+                out[_slug(name)] = {"name": name, "steps": rec["steps"]}
+    return out or {"example_pour_over": _EXAMPLE}
 
 
 _EXAMPLE: dict[str, Any] = {

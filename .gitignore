@@ -8,3 +8,4 @@ docs/_reference_/
 # Local knowledge-base index — contains vendor document text, never committed.
 bkon_brewer_kb.json
 scripts/_archive/
+.github/workflows/

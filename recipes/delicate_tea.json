@@ -1,0 +1,34 @@
+{
+  "name": "Delicate / Tea",
+  "steps": [
+    {
+      "type": "start",
+      "values": {
+        "tmp": "175"
+      }
+    },
+    {
+      "type": "fr",
+      "values": {
+        "dl": 10,
+        "fwv": 250,
+        "rwv": 20
+      }
+    },
+    {
+      "type": "vc",
+      "values": {
+        "ps": 20,
+        "tm": 3
+      }
+    },
+    {
+      "type": "pg",
+      "values": {
+        "det": 0,
+        "ps": 40,
+        "tm": 8
+      }
+    }
+  ]
+}

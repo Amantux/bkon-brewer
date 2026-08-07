@@ -1,0 +1,34 @@
+{
+  "name": "Large Cup",
+  "steps": [
+    {
+      "type": "start",
+      "values": {
+        "tmp": "200"
+      }
+    },
+    {
+      "type": "fr",
+      "values": {
+        "dl": 12,
+        "fwv": 320,
+        "rwv": 40
+      }
+    },
+    {
+      "type": "vc",
+      "values": {
+        "ps": 24,
+        "tm": 5
+      }
+    },
+    {
+      "type": "pg",
+      "values": {
+        "det": 1,
+        "ps": 50,
+        "tm": 10
+      }
+    }
+  ]
+}

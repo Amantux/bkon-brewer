@@ -28,6 +28,7 @@ SERVICE_BUILD = "build_recipe"
 SERVICE_GET = "get_recipe"
 SERVICE_EXPORT = "export_recipes"
 SERVICE_IMPORT = "import_recipes"
+SERVICE_DOWNLOAD = "download_recipes"
 CONF_RECIPE_DIR = "recipe_dir"
 DEFAULT_RECIPE_DIR = "bkon_recipes"
 
