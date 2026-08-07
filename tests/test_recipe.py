@@ -115,6 +115,20 @@ except r.RecipeTooLarge as ex:
     check("and the message says what to do",
           "Consolidate" in str(ex), True)
 
+print("\nwire form is XML step-tags, matching what the app converts JSON to")
+# The app builds tags dynamically (type.toUpperCase()), so a whole recipe on the
+# wire looks like the manual command literal, concatenated -- not JSON.
+wire = r.encode_wire([r.start(205), r.fill(250, rinse_volume_ml=30),
+                      r.purge(50, 10, detect=True)])
+check("starts with the Start tag", wire.startswith("<START><TMP>205</TMP></START>"), True)
+check("fill values are uppercased tags", "<FR><FWV>250</FWV><RWV>30</RWV></FR>" in wire, True)
+check("purge matches the app's own tag form",
+      "<PG><PS>50</PS><TM>10</TM><DET>1</DET></PG>" in wire, True)
+check("brew-out is appended in tag form", wire.endswith("<BO><BT>4</BT></BO>"), True)
+check("no JSON leaks into the wire form", "{" not in wire and "[" not in wire, True)
+check("the JSON encode is still available for the size check",
+      r.encode([r.start(205)]).startswith("["), True)
+
 print("\nframing")
 check("abort frame", r.ABORT, "{msg:1:<ABORT></ABORT>}")
 check("cancel frame", r.CANCEL, "{msg:1:<CANCEL></CANCEL>}")

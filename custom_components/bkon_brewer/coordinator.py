@@ -66,10 +66,12 @@ class BrewerCoordinator:
         or malformed recipe fails loudly at the call site rather than half-way
         through a write with the brewer left in an unknown state.
         """
-        payload = R.validate(steps)               # raises RecipeTooLarge early
+        R.validate(steps)                         # size-check on JSON, raises early
         self.current_step = 0
         self.last_error = None
-        await self._transport.async_send(R.frame(payload))
+        # Sent as the XML step-tag form the app converts to, not the JSON it
+        # measures. See recipe.encode_wire.
+        await self._transport.async_send(R.frame(R.encode_wire(steps)))
         self._set_status(STATUS_BREWING)
 
     async def async_manual_purge(self, pressure: int = 50, time: int = 10,

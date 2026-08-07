@@ -191,8 +191,31 @@ def prepare(steps: list[Step]) -> list[dict[str, Any]]:
 
 
 def encode(steps: list[Step]) -> str:
-    """The JSON payload handed to the transport."""
+    """The JSON form of a prepared recipe.
+
+    This is what the vendor app measures against the 599-byte limit -- it checks
+    the length of JSON.stringify(prepRecipe(...)) -- so it is what `validate`
+    sizes. It is NOT what goes on the wire; see encode_wire.
+    """
     return json.dumps(prepare(steps), separators=(",", ":"))
+
+
+def encode_wire(steps: list[Step]) -> str:
+    """The XML step-tag form a full recipe actually goes on the wire as.
+
+    The vendor app hands the native layer a JSON recipe; the native layer parses
+    it (getJSONArray / getJSONObject in the app) and builds XML tags from it by
+    uppercasing each step type and value key (toUpperCase). So a recipe on the
+    wire is the same tag form as a manual command --
+    <START><TMP>205</TMP></START><FR>...</FR>... -- concatenated, not JSON.
+
+    This is inferred from the app binary, not yet confirmed on hardware; see
+    docs/PROTOCOL.md. But every command the machine is known to accept (ABORT,
+    CANCEL, the manual purge) is this tag form, and there are no static step-tag
+    literals in the app because they are built dynamically -- so the recipe is
+    almost certainly tags too, and JSON was the wrong guess.
+    """
+    return "".join(encode_xml(step) for step in prepare(steps))
 
 
 def encode_xml(step: dict[str, Any]) -> str:
