@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+- Ingress now serves the project wiki (BKON RAG panel) instead of a bare status
+  page: a readable, self-contained UI in the Home Assistant sidebar, matching
+  how the sibling add-ons serve a webroot. The key-guarded API is unchanged.
+
 ## 0.4.0
 - Home Assistant ingress: a status page in the sidebar (BKON RAG panel),
   authenticated by HA. The key-guarded API stays reachable on port 9621 for the

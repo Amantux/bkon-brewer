@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BKON Brewer — Wiki</title>
+<style>
+  :root {
+    --bg:#efece5; --panel:#fff; --panel-2:#f6f2ec; --ink:#241f1a; --ink-soft:#6d6358;
+    --ink-faint:#9c9184; --line:#e2dccf; --line-2:#cfc6b6; --accent:#a8621f;
+    --t-start:#c6552f; --t-fill:#3873bd; --t-vacuum:#1a8d7d; --t-purge:#b5851b; --t-dialog:#745bb0;
+    --good:#3c8f54; --warn:#bd8a1f;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --shadow:0 1px 2px rgba(40,30,15,.06),0 8px 24px rgba(40,30,15,.07);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#171310; --panel:#221d18; --panel-2:#1c1712; --ink:#ede6db; --ink-soft:#a99d8d;
+    --ink-faint:#766a5b; --line:#322b23; --line-2:#43392f; --accent:#d0863f;
+    --t-start:#e26a41; --t-fill:#5b93d6; --t-vacuum:#33ae9a; --t-purge:#d6a53a; --t-dialog:#9a80cf;
+    --good:#4fae66; --warn:#d6a53a; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }}
+  :root[data-theme="light"]{--bg:#efece5;--panel:#fff;--panel-2:#f6f2ec;--ink:#241f1a;--ink-soft:#6d6358;--ink-faint:#9c9184;--line:#e2dccf;--line-2:#cfc6b6;--accent:#a8621f;--good:#3c8f54;--warn:#bd8a1f;--shadow:0 1px 2px rgba(40,30,15,.06),0 8px 24px rgba(40,30,15,.07);}
+  :root[data-theme="dark"]{--bg:#171310;--panel:#221d18;--panel-2:#1c1712;--ink:#ede6db;--ink-soft:#a99d8d;--ink-faint:#766a5b;--line:#322b23;--line-2:#43392f;--accent:#d0863f;--good:#4fae66;--warn:#d6a53a;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);}
+
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  @media (max-width:800px){.layout{grid-template-columns:1fr}nav.side{position:static!important;height:auto!important;border-right:0!important;border-bottom:1px solid var(--line)}}
+
+  nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);
+    background:var(--panel-2);padding:20px 14px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:0 6px}
+  .mark{width:34px;height:34px;border-radius:9px;flex:none;position:relative;
+    background:radial-gradient(circle at 32% 28%,var(--accent),color-mix(in srgb,var(--accent) 60%,#000));box-shadow:var(--shadow)}
+  .mark::after{content:"";position:absolute;inset:9px 11px auto 11px;height:2.5px;border-radius:3px;
+    background:rgba(255,255,255,.85);box-shadow:0 5px 0 rgba(255,255,255,.5),0 10px 0 rgba(255,255,255,.28)}
+  .brand b{font-size:15px;letter-spacing:-.01em}
+  .brand span{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  nav.side a{display:block;padding:7px 10px;border-radius:7px;color:var(--ink-soft);text-decoration:none;font-size:13.5px;font-weight:500}
+  nav.side a:hover{background:var(--panel);color:var(--ink)}
+  nav.side a.active{background:var(--accent);color:#fff}
+  nav.side .grp{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:16px 10px 4px}
+
+  main{max-width:820px;padding:36px 40px 80px;width:100%}
+  @media (max-width:800px){main{padding:24px 20px 60px}}
+  section{scroll-margin-top:20px;display:none}
+  section.on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+  @media (prefers-reduced-motion:reduce){section.on{animation:none}}
+
+  h1{font-size:27px;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+  .lede{font-size:16px;color:var(--ink-soft);margin:0 0 28px;max-width:60ch}
+  h2{font-size:19px;letter-spacing:-.01em;margin:34px 0 12px;padding-top:8px}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--ink)}
+  p{margin:0 0 14px;max-width:66ch}
+  a{color:var(--accent)}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);padding:1.5px 6px;border-radius:5px;border:1px solid var(--line)}
+  pre{font-family:var(--mono);font-size:12.5px;line-height:1.55;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:10px;padding:14px 16px;overflow-x:auto;margin:0 0 18px}
+  pre code{background:none;border:0;padding:0}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+
+  table{border-collapse:collapse;width:100%;margin:6px 0 20px;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+  td code{font-size:11.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);margin:0 0 18px}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:2px 8px;border-radius:5px;
+    color:var(--dot);background:color-mix(in srgb,var(--dot) 12%,transparent);border:1px solid color-mix(in srgb,var(--dot) 30%,transparent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){.grid2{grid-template-columns:1fr}}
+  .note{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent);
+    padding:10px 14px;border-radius:0 8px 8px 0;font-size:13.5px;margin:0 0 18px}
+  .flow{display:flex;flex-direction:column;gap:6px;margin:8px 0 20px}
+  .flow .row{display:flex;gap:10px;align-items:baseline;font-size:13.5px}
+  .flow .d{width:9px;height:9px;border-radius:3px;background:var(--dot);flex:none;align-self:center}
+  .stat{display:flex;gap:22px;flex-wrap:wrap;margin:0 0 22px}
+  .stat div{font-family:var(--mono)}
+  .stat b{display:block;font-size:22px;color:var(--accent)}
+  .stat span{font-size:11px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-faint)}
+  .themebtn{position:fixed;bottom:16px;right:16px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);
+    width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:16px;box-shadow:var(--shadow);z-index:20}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand"><div class="mark"></div><div><b>BKON Brewer</b><span>Project wiki</span></div></div>
+    <a data-nav="overview" class="active">Overview</a>
+    <a data-nav="quickstart">Quick start</a>
+    <div class="grp">Using it</div>
+    <a data-nav="entities">Entities</a>
+    <a data-nav="services">Services</a>
+    <a data-nav="concierge">Concierge</a>
+    <a data-nav="recipes">Recipes &amp; git</a>
+    <a data-nav="longer">Longer recipes</a>
+    <div class="grp">Under the hood</div>
+    <a data-nav="architecture">Architecture</a>
+    <a data-nav="protocol">Protocol</a>
+    <a data-nav="rag">Semantic Q&amp;A</a>
+    <a data-nav="fidelity">Fidelity &amp; status</a>
+  </nav>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="overview" class="on">
+      <div class="eyebrow">Home Assistant · BKON Craft Brewer</div>
+      <h1>Control, build, and troubleshoot your brewer — from Home Assistant</h1>
+      <p class="lede">A local-first integration reverse-engineered from the vendor app for
+      hardware you own: brew over Bluetooth, tune recipes in plain language, and ask the
+      machine's own manuals what a fault means.</p>
+      <div class="stat">
+        <div><b>19</b><span>services</span></div>
+        <div><b>6</b><span>entities</span></div>
+        <div><b>252</b><span>tests passing</span></div>
+        <div><b>0</b><span>cloud dependencies to brew</span></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3 style="margin-top:0">Brew &amp; control</h3>
+          <p style="margin:0">Send a recipe, purge, abort, answer the machine's prompts — all
+          over local Bluetooth through an ESPHome proxy.</p></div>
+        <div class="card"><h3 style="margin-top:0">Build &amp; tune recipes</h3>
+          <p style="margin:0">Start from a grounded template, then say "stronger" or "less
+          bitter" and watch the vacuum and steep move.</p></div>
+        <div class="card"><h3 style="margin-top:0">Ask the manuals</h3>
+          <p style="margin:0">"How do I descale?" · "What's C:3 M:5?" — answered from the
+          brewer's own service documents.</p></div>
+        <div class="card"><h3 style="margin-top:0">Yours, in git</h3>
+          <p style="margin:0">Recipes are files you can export, diff, commit, and load back —
+          or push to the machine's own menu format.</p></div>
+      </div>
+    </section>
+
+    <!-- QUICK START -->
+    <section id="quickstart">
+      <h1>Quick start</h1>
+      <p class="lede">The shortest path from installed to brewing.</p>
+      <div class="flow">
+        <div class="row" style="--dot:var(--t-start)"><span class="d"></span><span><b>1. Add the integration.</b> Settings → Devices &amp; Services → BKON Brewer. It discovers the machine over Bluetooth, or tick <em>Simulate</em> to explore with no hardware.</span></div>
+        <div class="row" style="--dot:var(--t-fill)"><span class="d"></span><span><b>2. Open a recipe.</b> Four grounded defaults are ready (Classic Pour Over, two teas, medium-roast coffee). Read one with <code>get_recipe</code>.</span></div>
+        <div class="row" style="--dot:var(--t-vacuum)"><span class="d"></span><span><b>3. Brew it.</b> <code>bkon_brewer.brew_saved</code> with the recipe name — from a dashboard button, an automation, or Assist.</span></div>
+        <div class="row" style="--dot:var(--t-purge)"><span class="d"></span><span><b>4. Tune it.</b> Ask the concierge <em>"make it stronger"</em> and save the result.</span></div>
+        <div class="row" style="--dot:var(--t-dialog)"><span class="d"></span><span><b>5. (Optional) Smarter answers.</b> Install the LightRAG add-on for semantic Q&amp;A — see <a data-nav="rag" href="#">Semantic Q&amp;A</a>.</span></div>
+      </div>
+      <div class="note">No brewer yet? The integration runs in <b>Simulate</b> mode — every
+      entity, button, and service works against a scripted brewer, so you can learn the whole
+      interface before the hardware arrives.</div>
+    </section>
+
+    <!-- ENTITIES -->
+    <section id="entities">
+      <h1>Entities</h1>
+      <p class="lede">One <b>BKON Brewer</b> device, updated the instant the machine sends
+      something (local push, not polling).</p>
+      <table>
+        <tr><th>Entity</th><th>Tells you</th></tr>
+        <tr><td><code>sensor · status</code></td><td>idle → brewing → waiting for operator → complete / error</td></tr>
+        <tr><td><code>sensor · current step</code></td><td>which step of the brew is running</td></tr>
+        <tr><td><code>sensor · dialog</code></td><td>the brewer's outstanding prompt, if any</td></tr>
+        <tr><td><code>sensor · last error</code></td><td>the last fault, in plain words</td></tr>
+        <tr><td><code>sensor · recipe library</code></td><td>recipe count, each with its Bluetooth byte size</td></tr>
+        <tr><td><code>button · abort / manual purge</code></td><td>one-tap actions</td></tr>
+      </table>
+    </section>
+
+    <!-- SERVICES -->
+    <section id="services">
+      <h1>Services</h1>
+      <p class="lede">Everything is a service, so it composes into automations, scripts, and
+      dashboards.</p>
+      <h2>Brewing</h2>
+      <table>
+        <tr><td><code>brew</code></td><td>Send a recipe (a list of steps)</td></tr>
+        <tr><td><code>brew_saved</code></td><td>Brew a saved recipe by name</td></tr>
+        <tr><td><code>manual_purge</code> · <code>abort</code></td><td>Single actions</td></tr>
+        <tr><td><code>respond_dialog</code></td><td>Answer a brewer prompt</td></tr>
+        <tr><td><code>send_raw</code></td><td>Developer escape hatch — hand-framed bytes</td></tr>
+      </table>
+      <h2>Recipes</h2>
+      <table>
+        <tr><td><code>save_recipe</code> · <code>get_recipe</code> · <code>delete_recipe</code></td><td>Create / read / delete</td></tr>
+        <tr><td><code>build_recipe</code></td><td>Build from a description ("strong bold cup")</td></tr>
+        <tr><td><code>customize_recipe</code></td><td>Adjust from feedback ("stronger", "less bitter")</td></tr>
+        <tr><td><code>lint_recipe</code></td><td>Check for problems before brewing</td></tr>
+      </table>
+      <h2>Files, git &amp; the machine</h2>
+      <table>
+        <tr><td><code>export_recipes</code> · <code>import_recipes</code></td><td>One JSON per recipe — git-diffable</td></tr>
+        <tr><td><code>download_recipes</code></td><td>A readable .txt at <code>/local/bkon/…</code></td></tr>
+        <tr><td><code>export_menu</code></td><td>A machine menu file — for <a data-nav="longer" href="#">longer recipes</a></td></tr>
+      </table>
+      <h2>Concierge</h2>
+      <table>
+        <tr><td><code>ask</code></td><td>A question, or a recipe tweak, in plain language</td></tr>
+        <tr><td><code>diagnose</code></td><td>An error code or symptom → cause and fix</td></tr>
+      </table>
+    </section>
+
+    <!-- CONCIERGE -->
+    <section id="concierge">
+      <h1>The concierge</h1>
+      <p class="lede">Talk to it by voice through Assist, or with the <code>ask</code> service.
+      It figures out what you want and routes accordingly.</p>
+      <div class="card">
+        <p style="margin:0 0 10px"><span class="pill" style="--dot:var(--t-vacuum)">tune</span>
+        <em>"make my Morning Cup stronger"</em></p>
+        <p style="margin:0">Deepens the vacuum and lengthens the steep — grounded in the RAIN
+        guide's own relationships, bounded to the documented ranges — previews the change,
+        and never overwrites without you saving.</p>
+      </div>
+      <div class="card">
+        <p style="margin:0 0 10px"><span class="pill" style="--dot:var(--t-fill)">answer</span>
+        <em>"how do I descale the machine?"</em></p>
+        <p style="margin:0">Answered from the brewer's service documents, with the source named.
+        Built-in keyword retrieval by default; semantic when the add-on is installed.</p>
+      </div>
+      <div class="card">
+        <p style="margin:0 0 10px"><span class="pill" style="--dot:var(--t-purge)">diagnose</span>
+        <em>"it says not sealed"</em> · <em>"what's C:3 M:5?"</em></p>
+        <p style="margin:0">Cause and next step: <em>"Chamber not sealed — reseat the chamber;
+        a vacuum can't form if it isn't."</em></p>
+      </div>
+      <p>The trick it gets right: <em>"make my cup stronger"</em> tunes a recipe, but
+      <em>"how do I make coffee stronger?"</em> answers a question — both contain "stronger".
+      When it's genuinely ambiguous, it asks rather than guessing.</p>
+    </section>
+
+    <!-- RECIPES -->
+    <section id="recipes">
+      <h1>Recipes &amp; git</h1>
+      <p class="lede">Recipes are durable, named objects in the app's own schema — and files
+      you can put in version control.</p>
+      <h2>The step types</h2>
+      <div class="flow">
+        <div class="row" style="--dot:var(--t-start)"><span class="d"></span><span><b>Start</b> — heat to a temperature (°F)</span></div>
+        <div class="row" style="--dot:var(--t-fill)"><span class="d"></span><span><b>Fill</b> — fill &amp; rinse volumes (ml), atmospheric pause (<code>ap</code>)</span></div>
+        <div class="row" style="--dot:var(--t-vacuum)"><span class="d"></span><span><b>Vacuum</b> — strength (kPa) &amp; hold time — the machine's signature</span></div>
+        <div class="row" style="--dot:var(--t-purge)"><span class="d"></span><span><b>Purge</b> — pressure, hold, detection</span></div>
+        <div class="row" style="--dot:var(--t-dialog)"><span class="d"></span><span><b>Dialog</b> — pause and prompt the operator</span></div>
+      </div>
+      <h2>The git round-trip</h2>
+      <pre><code>bkon_brewer.export_recipes   # one JSON per recipe, deterministic
+git add recipes/ &amp;&amp; git commit   # a recipe edit is a one-file diff
+bkon_brewer.import_recipes   # load them back, each validated</code></pre>
+      <p>Export is byte-stable, so re-exporting an unchanged library leaves git clean, and
+      editing one recipe is a one-file change a reviewer can read.</p>
+    </section>
+
+    <!-- LONGER -->
+    <section id="longer">
+      <h1>Longer recipes</h1>
+      <p class="lede">A Bluetooth brew is capped at 599 bytes. Loading a recipe as a
+      <b>file</b> is not.</p>
+      <table>
+        <tr><th>Path</th><th>Transport</th><th>Size limit</th></tr>
+        <tr><td>Brew now</td><td>Bluetooth</td><td><b>599 bytes</b></td></tr>
+        <tr><td>Menu file</td><td>USB — Service Menu → Update Recipe File</td><td>none observed</td></tr>
+      </table>
+      <p><code>bkon_brewer.export_menu</code> writes all recipes as one menu file in the
+      machine's own format. Copy it to a thumb drive, load it through the Service Menu, and a
+      recipe with many steps that would never fit a Bluetooth brew lives in the on-board menu
+      instead.</p>
+      <div class="note">The exact on-USB folder layout isn't fully confirmed. The service uses
+      the machine's own recipe-object shape; capture a real "Export to Recipe File" from the
+      unit to verify the surrounding layout before relying on it.</div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture">
+      <h1>Architecture</h1>
+      <p class="lede">Local-first. The cloud is optional and only touches question-answering.</p>
+      <pre><code>You ─ voice / dashboard / service call
+              │
+    ┌─────────┴──────────┐
+    │  HA integration    │   entities · services · concierge
+    └────┬───────────┬───┘
+         │ Bluetooth  │ HTTP (optional)
+         ▼            ▼
+    The brewer    LightRAG add-on ── Ollama / Anthropic / OpenAI
+  (Nordic UART    (local embeddings,   (generation)
+   via a proxy)    graph retrieval)</code></pre>
+      <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
+      recipe schema — is <b>pure and tested</b> (252 assertions, no dependencies). I/O layers
+      are thin and clearly marked where they're unverified against hardware.</p>
+      <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
+      Bluetooth proxy — transparent to the integration.</p>
+    </section>
+
+    <!-- PROTOCOL -->
+    <section id="protocol">
+      <h1>Protocol</h1>
+      <p class="lede">Nordic UART, with an XML-tag payload the machine parses.</p>
+      <table>
+        <tr><th>Role</th><th>UUID</th></tr>
+        <tr><td>Write (host → brewer)</td><td><code>6e400002-…</code></td></tr>
+        <tr><td>Notify (brewer → host)</td><td><code>6e400003-…</code></td></tr>
+      </table>
+      <h3>A recipe on the wire</h3>
+      <pre><code>{msg:1:&lt;START&gt;&lt;TMP&gt;205&lt;/TMP&gt;&lt;/START&gt;&lt;FR&gt;&lt;FWV&gt;250&lt;/FWV&gt;…&lt;/FR&gt;…&lt;BO&gt;&lt;BT&gt;4&lt;/BT&gt;&lt;/BO&gt;}</code></pre>
+      <p>Each step's type and value keys are uppercased into tags and concatenated — the same
+      form as a manual command, not JSON. Events come back as <code>stepCompleted</code>,
+      <code>recipeCompleted</code>, <code>dialog:…</code>, <code>is_connected:0/1</code>.</p>
+      <h3>Still needs a real brewer</h3>
+      <p>Some of this is inferred from the app binary and awaits a hardware capture: the recipe
+      wire form (well-evidenced), the dialog-response frame (the <code>msg:3</code> lead), and
+      BLE chunking. The <code>send_raw</code> service is the test hook.</p>
+    </section>
+
+    <!-- RAG -->
+    <section id="rag">
+      <h1>Semantic Q&amp;A</h1>
+      <p class="lede">Optional upgrade: a graph-RAG service that reads the documents
+      semantically and writes answers with a model you choose. Local embeddings; the cloud is
+      used only for generation.</p>
+      <table>
+        <tr><th>Part</th><th>Where</th><th>Why</th></tr>
+        <tr><td>Embeddings</td><td><b>Local</b> (bundled, CPU)</td><td>Cheap, private, no server</td></tr>
+        <tr><td>Generation</td><td>Ollama / Anthropic / OpenAI-compatible</td><td>A Pi can't run a big model; pick a provider</td></tr>
+        <tr><td>Orchestration</td><td>Local (LightRAG)</td><td>Graph retrieval + generation</td></tr>
+      </table>
+      <p>The upgrade can never be a downgrade: every question falls back to the built-in
+      retriever if the service is slow or down. Provider selection is a config change — no
+      vendor SDK is baked in — following the same pattern as the sibling apps.</p>
+      <p>Set it up via the add-on (this page's own home is served through that add-on's Home
+      Assistant ingress). Full steps in the add-on docs and <code>docs/RAG.md</code>.</p>
+    </section>
+
+    <!-- FIDELITY -->
+    <section id="fidelity">
+      <h1>Fidelity &amp; status</h1>
+      <p class="lede">How faithful this is to the app, and what's proven versus inferred.</p>
+      <h3>Matches the app</h3>
+      <p>Framing, the recipe serialization rules, the recipe schema, the 599-byte basis, and
+      the step-progress model all match the vendor app, checked against its recovered source.</p>
+      <h3>Fixed by auditing</h3>
+      <p>The brew path was sending JSON; the app converts recipes to XML step-tags. Corrected —
+      the manual-command path was always right.</p>
+      <h3>Honest unknowns</h3>
+      <p>The dialog-response frame and BLE chunking need a hardware capture. None of it has
+      touched a real brewer yet; the pure logic is tested, the I/O is marked where it's
+      inferred.</p>
+      <h3>Provenance</h3>
+      <p>No vendor application source or document text is in the repository. The document index
+      is built locally and git-ignored; facts (units, error codes) are folded in from the
+      owner's own archive.</p>
+      <footer>BKON Brewer · a private, local-first Home Assistant integration ·
+      252 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+    </section>
+  </main>
+</div>
+<button class="themebtn" id="theme" title="Toggle theme">◑</button>
+<script>
+  const nav=document.querySelectorAll('nav.side a[data-nav]');
+  const secs=document.querySelectorAll('section');
+  function show(id){
+    secs.forEach(s=>s.classList.toggle('on',s.id===id));
+    nav.forEach(a=>a.classList.toggle('active',a.dataset.nav===id));
+    document.querySelector('main').scrollTo(0,0);
+    window.scrollTo(0,0);
+    if(location.hash!=='#'+id) history.replaceState(null,'','#'+id);
+  }
+  document.querySelectorAll('[data-nav]').forEach(a=>a.addEventListener('click',e=>{
+    e.preventDefault(); show(a.dataset.nav);
+  }));
+  const start=(location.hash||'#overview').slice(1);
+  if(document.getElementById(start)) show(start);
+  // theme toggle
+  const root=document.documentElement, btn=document.getElementById('theme');
+  btn.addEventListener('click',()=>{
+    const cur=root.getAttribute('data-theme')
+      || (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+</script>
+</body>
+</html>

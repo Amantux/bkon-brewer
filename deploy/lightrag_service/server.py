@@ -32,7 +32,7 @@ from contextlib import asynccontextmanager
 
 import numpy as np
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastembed import TextEmbedding
 from lightrag import LightRAG, QueryParam
 from lightrag.utils import EmbeddingFunc
@@ -123,40 +123,26 @@ def _guard(x_api_key: str | None, authorization: str | None) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
-@app.get("/", response_class=HTMLResponse)
-async def status_page():
-    """Human status page, served through Home Assistant ingress.
+WEBROOT = os.getenv("WEBROOT", "/app/webroot")
 
-    Ingress authenticates the viewer (it is the Supervisor proxy), so this page
-    needs no API key -- unlike /query and /documents/text, which the integration
-    reaches directly over the LAN and which stay key-guarded. It is read-only:
-    a place to confirm the service is up and which provider it is using, not a
-    control surface.
+
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    """The project wiki, served through Home Assistant ingress.
+
+    Ingress authenticates the viewer (the Supervisor proxy), so this is open --
+    unlike /query and /documents/text, which the integration reaches over the
+    LAN and which stay key-guarded. Static, self-contained, read-only.
     """
+    index = os.path.join(WEBROOT, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
     provider = _provider.name if _provider else "not started"
-    ready = "ready" if _rag is not None else "starting"
-    return f"""<!doctype html><meta charset=utf-8>
-<title>BKON LightRAG</title>
-<style>
-  body{{font-family:system-ui,sans-serif;max-width:34rem;margin:3rem auto;
-  padding:0 1rem;color:#222;background:#faf8f4}}
-  @media(prefers-color-scheme:dark){{body{{color:#e8e2d8;background:#181511}}
-  .card{{background:#221d18!important;border-color:#332b23!important}}}}
-  h1{{font-size:1.3rem}} .card{{border:1px solid #e2dccf;border-radius:10px;
-  padding:1rem 1.2rem;background:#fff}} .row{{display:flex;justify-content:space-between;
-  padding:.35rem 0;border-bottom:1px solid #0001}} .row:last-child{{border:0}}
-  code{{font-family:ui-monospace,monospace}} .ok{{color:#3c8f54;font-weight:600}}
-</style>
-<h1>&#9749; BKON LightRAG</h1>
-<p>Graph retrieval for the BKON concierge. This is the status page; the API is
-consumed by the Home Assistant integration.</p>
-<div class=card>
-  <div class=row><span>Service</span><span class=ok>{ready}</span></div>
-  <div class=row><span>Generation provider</span><code>{provider}</code></div>
-  <div class=row><span>Embeddings</span><code>{EMBED_MODEL}</code> (local)</div>
-</div>
-<p style="color:#8a7f70;font-size:.85rem;margin-top:1.5rem">Point the BKON
-integration at this add-on's host on port 9621 with the service API key.</p>"""
+    return HTMLResponse(
+        f"<!doctype html><meta charset=utf-8><title>BKON LightRAG</title>"
+        f"<body style='font-family:system-ui;max-width:34rem;margin:3rem auto'>"
+        f"<h1>&#9749; BKON LightRAG</h1><p>Service up. Provider: <code>{provider}</code>. "
+        f"Wiki asset missing.</p>")
 
 
 @app.get("/health")

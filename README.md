@@ -1,5 +1,7 @@
 # BKON Craft Brewer — Home Assistant integration
 
+**[Project wiki →](docs/README.md)** — architecture, services, recipes, protocol, and status in one place.
+
 Control a BKON Craft Brewer from Home Assistant over Bluetooth, and build
 recipes without the vendor app or its cloud account.
 

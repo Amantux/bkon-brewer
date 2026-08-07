@@ -1,5 +1,5 @@
 name: BKON LightRAG
-version: "0.4.0"
+version: "0.5.0"
 slug: bkon_lightrag
 description: Graph-RAG service for the BKON Brewer concierge — local embeddings, pluggable generation (Ollama / Anthropic / OpenAI-compatible).
 url: https://github.com/Amantux/bkon-brewer/tree/main/deploy/addon

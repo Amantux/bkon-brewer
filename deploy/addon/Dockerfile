@@ -12,6 +12,7 @@ COPY lightrag_service/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY lightrag_service/ /app/
+COPY addon/webroot/ /app/webroot/
 COPY addon/run.sh /run.sh
 RUN chmod a+x /run.sh
 WORKDIR /app
