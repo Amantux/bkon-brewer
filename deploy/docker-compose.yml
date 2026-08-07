@@ -1,48 +1,26 @@
-# Stand up Ollama + a LightRAG server on any box on your network (a NUC, a
-# spare Pi, a server). The integration then points at the LightRAG URL.
+# Run the self-contained BKON LightRAG service on any box. Embeddings are local
+# (bundled in the image); generation uses your Ollama Cloud subscription, so no
+# local model server is needed at all.
 #
-# On the Home Assistant host itself, prefer the add-on in deploy/addon/ so the
-# Supervisor manages it. This compose file is for running the pair elsewhere.
+#   SERVICE_KEY=your-secret  OLLAMA_CLOUD_KEY=your-ollama-key  docker compose up -d
 #
-#   docker compose up -d
-#   # then pull the models Ollama will serve (once):
-#   docker exec -it ollama ollama pull nomic-embed-text
-#   docker exec -it ollama ollama pull qwen2.5:3b-instruct
-#
-# Model choice for a Raspberry Pi 5 / CM5 (aarch64, ~15 GB RAM):
-#   embeddings : nomic-embed-text   (small, fast, CPU-fine)
-#   generation : qwen2.5:3b-instruct or llama3.2:3b   (usable on CPU)
-# Drop to qwen2.5:1.5b if generation is too slow; raise to 7b only with a GPU.
+# Then point the integration at http://<this-host>:9621 with SERVICE_KEY.
 
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
+  bkon-lightrag:
+    build:
+      context: .
+      dockerfile: lightrag_service/Dockerfile.standalone
+    container_name: bkon-lightrag
     restart: unless-stopped
-    ports: ["11434:11434"]
-    volumes: ["ollama:/root/.ollama"]
-
-  lightrag:
-    image: ghcr.io/hkuds/lightrag:latest
-    container_name: lightrag
-    restart: unless-stopped
-    depends_on: [ollama]
     ports: ["9621:9621"]
     environment:
-      # --- credentialling: the key the integration must present ---
-      LIGHTRAG_API_KEY: "${LIGHTRAG_API_KEY:-change-me}"
-      # --- Ollama as both the LLM and the embedding provider ---
-      LLM_BINDING: "ollama"
-      LLM_BINDING_HOST: "http://ollama:11434"
-      LLM_MODEL: "qwen2.5:3b-instruct"
-      EMBEDDING_BINDING: "ollama"
-      EMBEDDING_BINDING_HOST: "http://ollama:11434"
-      EMBEDDING_MODEL: "nomic-embed-text"
-      EMBEDDING_DIM: "768"
-    volumes:
-      - "lightrag:/app/data/rag_storage"
-      - "./inputs:/app/data/inputs"
+      LIGHTRAG_API_KEY: "${SERVICE_KEY:-change-me}"
+      OLLAMA_HOST: "https://ollama.com"
+      OLLAMA_API_KEY: "${OLLAMA_CLOUD_KEY:?set your Ollama Cloud API key}"
+      LLM_MODEL: "${LLM_MODEL:-gpt-oss:120b}"
+      WORKING_DIR: "/data/rag_storage"
+    volumes: ["lightrag:/data/rag_storage"]
 
 volumes:
-  ollama:
   lightrag:

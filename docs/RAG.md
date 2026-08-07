@@ -1,52 +1,50 @@
-# Semantic RAG with LightRAG + Ollama
+# Semantic RAG: local embeddings + Ollama Cloud
 
-The concierge answers questions two ways, and the second is an optional upgrade
-over the first.
+The concierge answers questions two ways.
 
-**Built-in (always on).** A TF-IDF retriever over the local index. No server, no
-model, no configuration — it ships working and needs nothing. It matches on
-words, so it is fast and explainable but literal: "the coffee tastes burnt" will
-not find a passage about "over-extraction" unless the words overlap.
+**Built-in (always on).** A TF-IDF retriever over the local index — no server,
+no model, nothing to configure. It matches on words: fast and explainable, but
+literal.
 
-**LightRAG + Ollama (optional).** A graph RAG server that understands the
-documents semantically and writes an answer with a local LLM, so looser phrasing
-works and the reply reads like prose rather than a quoted paragraph. Everything
-runs on your own hardware — Ollama serves the model, LightRAG does the retrieval,
-and nothing leaves your network.
+**LightRAG (optional upgrade).** A self-contained graph-RAG service that
+understands the documents semantically and writes an answer with a large model.
+The upgrade can never be a downgrade: **every question falls back to the
+built-in retriever** if the service is unreachable.
 
-The upgrade can never be a downgrade: **every question falls back to the built-in
-retriever** if the LightRAG server is slow, down, restarting, or misconfigured.
-You get a less fluent answer, never an error.
+## The architecture, and why it splits the way it does
+
+One service (`deploy/lightrag_service/`) does the whole job:
+
+| Part | Where it runs | Why |
+|---|---|---|
+| **Embeddings** | **Local**, bundled (`fastembed`, ONNX, CPU) | Cheap, private, and needs no server — the model downloads once and runs forever. This is the "ship the embeddings complete" half. |
+| **Generation** | **Ollama Cloud** | A Pi cannot run a useful LLM; the cloud subscription can. Only the prompt leaves the network. |
+| **Orchestration** | Local (LightRAG) | Wires graph retrieval to generation. |
+
+So retrieval is entirely local and self-contained; the cloud is used only for
+the one thing a Pi genuinely can't do. Nothing about the documents is stored in
+the cloud — only the prompt for each question is sent, to your own subscription.
 
 ## Standing it up
 
-The models and server run as a sidecar — they cannot live inside Home
-Assistant's core container. Two supported ways:
+**On the Home Assistant host** — install `deploy/addon/` as a local add-on
+(copy it into your `/addons` share, then Settings → Add-ons → local repository).
+Set three options:
 
-**On the Home Assistant host** — install the add-on in `deploy/addon/` as a
-local add-on (copy it into your `/addons` share, then Settings → Add-ons → the
-local repository). It runs the LightRAG server; point its `ollama_url` at an
-Ollama you provide (a community Ollama add-on, or another machine).
+- `service_api_key` — the key the integration presents to this service.
+- `ollama_cloud_key` — your Ollama Cloud API key.
+- `llm_model` — a model your plan serves, e.g. `gpt-oss:120b` or
+  `qwen3-coder:480b-cloud`. Cloud models often carry a `-cloud` suffix.
 
-**On any other box** — `deploy/docker-compose.yml` brings up Ollama and LightRAG
-together:
+**On any other box** —
 
 ```bash
 cd deploy
-LIGHTRAG_API_KEY=your-secret docker compose up -d
-docker exec -it ollama ollama pull nomic-embed-text
-docker exec -it ollama ollama pull qwen2.5:3b-instruct
+SERVICE_KEY=your-secret OLLAMA_CLOUD_KEY=your-ollama-key docker compose up -d
 ```
 
-### Models for a Raspberry Pi 5 / CM5 (aarch64, ~15 GB RAM)
-
-| Role | Model | Why |
-|---|---|---|
-| Embeddings | `nomic-embed-text` | Small, CPU-fast, 768-dim |
-| Generation | `qwen2.5:3b-instruct` or `llama3.2:3b` | Usable on CPU |
-
-Drop generation to `qwen2.5:1.5b` if it is too slow; only go to 7B with a GPU.
-Embedding is cheap; generation is the part a Pi feels.
+The first start downloads the small embedding model (~a few dozen MB); after
+that it is offline for embeddings.
 
 ## Feeding it the documents
 
@@ -58,20 +56,25 @@ python3 scripts/ingest_lightrag.py --kb bkon_brewer_kb.json \
     --url http://homeassistant.local:9621 --key your-secret
 ```
 
-The document text is yours to index for your own machine; it is never committed
-to this repository and never sent anywhere but your own server.
+LightRAG builds its graph in the background; a few hundred passages take a few
+minutes on first ingest (each passage is embedded locally and the graph is
+extended by the cloud model). The document text is yours to index for your own
+machine; it is never committed to this repository.
 
 ## Pointing the integration at it
 
 Settings → Devices & Services → BKON → **Configure**:
 
-- **LightRAG URL** — e.g. `http://homeassistant.local:9621`. Blank = built-in
-  retriever only.
-- **API key** — the `LIGHTRAG_API_KEY` you set on the server. Stored in the
-  config entry, never in code.
-- **Mode** — `hybrid` (graph + vector, the sensible default), or `local` /
-  `global` / `mix` / `naive`.
+- **LightRAG URL** — `http://homeassistant.local:9621`. Blank = built-in only.
+- **API key** — the `service_api_key` above. Stored in the config entry.
+- **Mode** — `hybrid` (default), or `local` / `global` / `mix` / `naive`.
 
-Once set, `ask`, the `bkon_brewer.ask` service, and the Assist concierge all use
-LightRAG, falling back to local automatically. Ask something and check the
-`source` field of the response — `lightrag` or `local` — to see which answered.
+Ask something and check the response's `source` field — `lightrag` or `local` —
+to see which path answered.
+
+## Cost and privacy note
+
+Generation runs on your Ollama Cloud plan, so each question is a cloud request
+(billed per your subscription). Embeddings and retrieval are local and free.
+If the plan lapses or the key is wrong, questions keep working — they just fall
+back to the local retriever and the `source` reads `local`.
