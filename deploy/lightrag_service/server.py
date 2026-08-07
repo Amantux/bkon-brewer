@@ -6,10 +6,11 @@ One process that does the whole job:
                     Ollama. The model downloads once (~a few dozen MB) and then
                     runs on CPU forever. This is the "ship the embeddings
                     complete" part: nothing external is needed for retrieval.
-  * generation   -- Ollama Cloud. The only thing that leaves the network, and
-                    only the prompt does. This is where the subscription is
-                    used, and why a Pi that could never run a 3B model locally
-                    can still give written answers.
+  * generation   -- the pluggable provider layer (providers/): Ollama (local or
+                    Cloud), Anthropic, or any OpenAI-compatible endpoint,
+                    selected by AI_PROVIDER. The only thing that leaves the
+                    network, and only the prompt does. A Pi that could never run
+                    a useful model locally points this at a cloud subscription.
   * orchestration-- LightRAG as a library, wiring the two together into graph
                     retrieval plus generation.
 
@@ -34,9 +35,9 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastembed import TextEmbedding
 from lightrag import LightRAG, QueryParam
 from lightrag.utils import EmbeddingFunc
-from ollama import AsyncClient
 
 from contract import authorized, clean_answer
+from providers.config import build_provider
 
 logging.basicConfig(level=logging.INFO)
 _LOG = logging.getLogger("bkon_lightrag")
@@ -45,12 +46,10 @@ _LOG = logging.getLogger("bkon_lightrag")
 API_KEY = os.getenv("LIGHTRAG_API_KEY", "")
 WORKING_DIR = os.getenv("WORKING_DIR", "/data/rag_storage")
 
-# Ollama Cloud. The host is the cloud endpoint; the key is the subscription's.
-# Model names on the cloud carry a size and often a "-cloud" suffix; the
-# operator sets whichever their plan serves.
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "https://ollama.com")
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-oss:120b")
+# Generation goes through the pluggable provider layer (providers/), selected
+# by AI_PROVIDER: ollama (local or cloud), anthropic, or any OpenAI-compatible
+# endpoint. Per the edibl chat-and-providers spec -- no vendor SDK is imported
+# here, and switching provider is a config change.
 
 # Local embedding model. bge-small is 384-dim, fast on CPU, and good enough for
 # a few hundred short passages. Kept small on purpose -- embedding quality
@@ -60,7 +59,7 @@ EMBED_DIM = int(os.getenv("EMBED_DIM", "384"))
 
 _embedder: TextEmbedding | None = None
 _rag: LightRAG | None = None
-_ollama: AsyncClient | None = None
+_provider = None
 
 
 async def _embed(texts: list[str]) -> np.ndarray:
@@ -73,27 +72,26 @@ async def _embed(texts: list[str]) -> np.ndarray:
 
 async def _llm(prompt: str, system_prompt: str | None = None,
                history_messages: list | None = None, **_) -> str:
-    """Generate with Ollama Cloud. The only outbound call in the service."""
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    for m in history_messages or []:
-        messages.append(m)
-    messages.append({"role": "user", "content": prompt})
-    resp = await _ollama.chat(model=LLM_MODEL, messages=messages)
-    return resp["message"]["content"]
+    """Generate via the selected provider. The only outbound call here.
+
+    LightRAG asks for a single completion; the provider layer decides which
+    vendor serves it. History, when present, folds into the prompt since this
+    layer is single-turn -- LightRAG carries its own context."""
+    if history_messages:
+        prior = "\n".join(m.get("content", "") for m in history_messages)
+        prompt = f"{prior}\n{prompt}" if prior else prompt
+    return await _provider.complete(prompt, system=system_prompt)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Warm the embedder and LightRAG once, at startup, not per request."""
-    global _embedder, _rag, _ollama
+    global _embedder, _rag, _provider
     _LOG.info("loading local embedder %s (%d-dim)", EMBED_MODEL, EMBED_DIM)
     _embedder = TextEmbedding(EMBED_MODEL)
 
-    headers = {"Authorization": f"Bearer {OLLAMA_API_KEY}"} if OLLAMA_API_KEY else None
-    _ollama = AsyncClient(host=OLLAMA_HOST, headers=headers)
-    _LOG.info("LLM via Ollama Cloud: %s at %s", LLM_MODEL, OLLAMA_HOST)
+    _provider = build_provider()                     # raises if misconfigured
+    _LOG.info("LLM provider: %s", _provider.name)
 
     os.makedirs(WORKING_DIR, exist_ok=True)
     _rag = LightRAG(
@@ -126,8 +124,9 @@ def _guard(x_api_key: str | None, authorization: str | None) -> None:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "llm": LLM_MODEL, "embed": EMBED_MODEL,
-            "ready": _rag is not None}
+    return {"status": "ok",
+            "provider": _provider.name if _provider else None,
+            "embed": EMBED_MODEL, "ready": _rag is not None}
 
 
 @app.post("/query")

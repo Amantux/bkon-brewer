@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Provider selection, config namespacing, and the SSRF guard.
+
+    python3 tests/test_providers.py
+
+Applies the edibl chat-and-providers spec to BKON. The three things the spec
+says are "where the bodies are buried" get the coverage: never send a secret to
+the wrong endpoint (per-provider namespacing), never trust a user base URL (SSRF
+guard), and a misconfigured provider fails loudly rather than half-working.
+
+Adapters lazy-import their SDKs, so building a provider must NOT require the SDK
+installed -- only actually calling it would. That is asserted here.
+"""
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "deploy" / "lightrag_service"))
+
+from providers.base import ProviderError            # noqa: E402
+from providers.config import build_provider, llm_url_ok  # noqa: E402
+
+_pass = _fail = 0
+
+
+def check(name, got, want):
+    global _pass, _fail
+    if got == want:
+        _pass += 1; print(f"  ok   {name}")
+    else:
+        _fail += 1; print(f"  FAIL {name}: got {got!r}, want {want!r}")
+
+
+print("SSRF guard — the base URL you must never trust")
+check("no url is fine (vendor default)", llm_url_ok(None), True)
+check("loopback allowed", llm_url_ok("http://127.0.0.1:11434"), True)
+check("localhost name allowed", llm_url_ok("http://localhost:9621"), True)
+check("LAN allowed", llm_url_ok("http://192.168.1.50:11434"), True)
+check("a real DNS name allowed", llm_url_ok("https://ollama.com"), True)
+check("cloud metadata REFUSED", llm_url_ok("http://169.254.169.254/latest"), False)
+check("link-local REFUSED", llm_url_ok("http://[fe80::1]/"), False)
+check("ipv4-mapped metadata REFUSED",
+      llm_url_ok("http://[::ffff:169.254.169.254]/"), False)
+
+print("\nprovider selection")
+p = build_provider({"AI_PROVIDER": "ollama", "OLLAMA_MODEL": "gpt-oss:120b",
+                    "OLLAMA_API_KEY": "k"})
+check("ollama builds", p.name, "ollama")
+check("and is available", p.available(), True)
+
+p = build_provider({"AI_PROVIDER": "anthropic",
+                    "ANTHROPIC_API_KEY": "sk-ant", "ANTHROPIC_MODEL": "claude-sonnet-5"})
+check("anthropic builds", p.name, "anthropic")
+
+p = build_provider({"AI_PROVIDER": "openai", "OPENAI_MODEL": "gpt-4o-mini",
+                    "OPENAI_API_KEY": "sk", "OPENAI_BASE_URL": "https://api.groq.com/openai/v1"})
+check("openai-compatible builds with a custom base url", p.name, "openai")
+
+print("\nper-provider namespacing — a key for one vendor never reaches another")
+# Only the anthropic key is set; selecting ollama must not silently borrow it.
+try:
+    build_provider({"AI_PROVIDER": "anthropic", "OLLAMA_MODEL": "x"})
+    check("anthropic without its own key is refused", False, True)
+except ProviderError:
+    check("anthropic without its own key is refused", True, True)
+
+print("\nmisconfiguration fails loudly")
+def err(env):
+    try: build_provider(env); return None
+    except ProviderError as e: return str(e)
+check("unknown provider named", "Unknown AI_PROVIDER" in (err({"AI_PROVIDER": "gemini"}) or ""), True)
+check("anthropic needs a key",
+      "not fully configured" in (err({"AI_PROVIDER": "anthropic", "ANTHROPIC_MODEL": "m"}) or ""), True)
+check("SSRF base url refused at build",
+      "link-local" in (err({"AI_PROVIDER": "ollama", "OLLAMA_MODEL": "m",
+                            "OLLAMA_BASE_URL": "http://169.254.169.254"}) or ""), True)
+
+print("\nbuilding a provider does not require its SDK installed (lazy import)")
+# anthropic/openai SDKs are not installed in this test env; building must work.
+try:
+    build_provider({"AI_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "k",
+                    "ANTHROPIC_MODEL": "claude-sonnet-5"})
+    check("anthropic builds without the sdk present", True, True)
+except ImportError:
+    check("anthropic builds without the sdk present", False, True)
+
+print(f"\n{_pass} passed, {_fail} failed")
+sys.exit(1 if _fail else 0)

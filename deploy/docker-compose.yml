@@ -1,10 +1,12 @@
 # Run the self-contained BKON LightRAG service on any box. Embeddings are local
-# (bundled in the image); generation uses your Ollama Cloud subscription, so no
-# local model server is needed at all.
+# (bundled). Generation is pluggable via AI_PROVIDER — set the matching
+# <PROVIDER>_MODEL / _API_KEY / _BASE_URL. Examples:
 #
-#   SERVICE_KEY=your-secret  OLLAMA_CLOUD_KEY=your-ollama-key  docker compose up -d
+#   Ollama Cloud:  AI_PROVIDER=ollama    OLLAMA_MODEL=gpt-oss:120b     OLLAMA_API_KEY=...
+#   Anthropic:     AI_PROVIDER=anthropic ANTHROPIC_MODEL=claude-sonnet-5 ANTHROPIC_API_KEY=...
+#   Local Ollama:  AI_PROVIDER=ollama    OLLAMA_MODEL=llama3.2:3b      OLLAMA_BASE_URL=http://ollama:11434
 #
-# Then point the integration at http://<this-host>:9621 with SERVICE_KEY.
+#   SERVICE_KEY=... AI_PROVIDER=ollama OLLAMA_MODEL=gpt-oss:120b OLLAMA_API_KEY=... docker compose up -d
 
 services:
   bkon-lightrag:
@@ -16,9 +18,15 @@ services:
     ports: ["9621:9621"]
     environment:
       LIGHTRAG_API_KEY: "${SERVICE_KEY:-change-me}"
-      OLLAMA_HOST: "https://ollama.com"
-      OLLAMA_API_KEY: "${OLLAMA_CLOUD_KEY:?set your Ollama Cloud API key}"
-      LLM_MODEL: "${LLM_MODEL:-gpt-oss:120b}"
+      AI_PROVIDER: "${AI_PROVIDER:-ollama}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-}"
+      OLLAMA_API_KEY: "${OLLAMA_API_KEY:-}"
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-}"
+      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-}"
       WORKING_DIR: "/data/rag_storage"
     volumes: ["lightrag:/data/rag_storage"]
 

@@ -18,12 +18,34 @@ One service (`deploy/lightrag_service/`) does the whole job:
 | Part | Where it runs | Why |
 |---|---|---|
 | **Embeddings** | **Local**, bundled (`fastembed`, ONNX, CPU) | Cheap, private, and needs no server — the model downloads once and runs forever. This is the "ship the embeddings complete" half. |
-| **Generation** | **Ollama Cloud** | A Pi cannot run a useful LLM; the cloud subscription can. Only the prompt leaves the network. |
+| **Generation** | **Pluggable** — Ollama (local/Cloud), Anthropic, or any OpenAI-compatible endpoint | A Pi cannot run a useful LLM; a cloud model can. Only the prompt leaves the network. Switching vendor is a config change. |
 | **Orchestration** | Local (LightRAG) | Wires graph retrieval to generation. |
 
 So retrieval is entirely local and self-contained; the cloud is used only for
 the one thing a Pi genuinely can't do. Nothing about the documents is stored in
 the cloud — only the prompt for each question is sent, to your own subscription.
+
+## Choosing the model provider
+
+Generation follows the same pluggable-provider pattern the sibling apps use
+(Edibl / HomeHoard / myMeal): the service never imports a vendor SDK directly,
+so selecting Ollama vs Anthropic vs an OpenAI-compatible endpoint is a config
+change, and the unused SDKs need not be installed.
+
+Set `ai_provider` (add-on) or `AI_PROVIDER` (compose), then the matching
+namespaced fields — `<PROVIDER>_MODEL`, `<PROVIDER>_API_KEY`, and an optional
+`<PROVIDER>_BASE_URL`. Namespacing is deliberate: one vendor's key can never be
+sent to another's endpoint on a switch.
+
+| Provider | Model example | Notes |
+|---|---|---|
+| `ollama` | `gpt-oss:120b` (Cloud) or `llama3.2:3b` (local) | Cloud when no base URL; local by pointing the base URL at your Ollama |
+| `anthropic` | `claude-sonnet-5` | Needs an Anthropic API key |
+| `openai` | `gpt-4o-mini`, or any compatible model | Point the base URL at OpenAI, Groq, vLLM, LM Studio, … |
+
+Any user-supplied base URL is SSRF-guarded: loopback and LAN are allowed, but a
+link-local or cloud-metadata address (169.254.169.254, fe80::) is refused before
+a client is built.
 
 ## Standing it up
 
