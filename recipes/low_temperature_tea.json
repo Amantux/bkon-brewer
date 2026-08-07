@@ -1,0 +1,157 @@
+{
+  "code": "",
+  "description": "Delicate teas and light roasts at 175 °F. Three vacuums on the guide's ladder (24, 26, 25 kPa) with a 14-second final steep.",
+  "dsp_name": "Low-Temperature Tea",
+  "image": "",
+  "name": "Low-Temperature Tea",
+  "notes": "",
+  "sequences": {
+    "portions": [
+      {
+        "name": "small",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "175"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "14",
+              "fwv": "188",
+              "rwv": "22"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "26",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "25",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "0",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "medium",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "175"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "14",
+              "fwv": "250",
+              "rwv": "30"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "26",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "25",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "0",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "large",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "175"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "14",
+              "fwv": "312",
+              "rwv": "38"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "26",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "25",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "0",
+              "tm": "10"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "status": "1"
+}

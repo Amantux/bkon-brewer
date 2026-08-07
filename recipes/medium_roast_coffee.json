@@ -1,0 +1,115 @@
+{
+  "code": "",
+  "description": "Medium-roast coffee: a single weak vacuum held four seconds to void CO2, per the guide's coffee base. Nudge the vacuum time to taste.",
+  "dsp_name": "Medium Roast Coffee",
+  "image": "",
+  "name": "Medium Roast Coffee",
+  "notes": "",
+  "sequences": {
+    "portions": [
+      {
+        "name": "small",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "200"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "10",
+              "fwv": "180",
+              "rwv": "30"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "1",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "medium",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "200"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "10",
+              "fwv": "240",
+              "rwv": "40"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "1",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "large",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "200"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "10",
+              "fwv": "300",
+              "rwv": "50"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "1",
+              "tm": "10"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "status": "1"
+}

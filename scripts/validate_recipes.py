@@ -37,7 +37,20 @@ def check_file(path: Path) -> str | None:
         return f"not valid JSON: {ex}"
     if not isinstance(data, dict) or not data.get("name"):
         return "missing a name"
-    steps = data.get("steps")
+    # Accept the app's recipe-object schema (portions) or our flat {name, steps}.
+    if isinstance(data.get("sequences"), dict):
+        portions = data["sequences"].get("portions", [])
+        if not portions:
+            return "no portions"
+        steps = portions[0].get("sequences", [])
+        # storage keys -> wire keys so the encoder sees what it expects
+        for st in steps:
+            v = st.get("values", {})
+            for a, b in (("purgedet", "det"), ("purgecontr", "contr")):
+                if a in v:
+                    v[b] = v.pop(a)
+    else:
+        steps = data.get("steps")
     if not isinstance(steps, list) or not steps:
         return "missing steps"
     try:

@@ -91,14 +91,15 @@ def start(temperature_f: float) -> Step:
 
 def fill(fill_volume_ml: int, rinse_volume_ml: int = 0,
          pause_seconds: int = 0) -> Step:
-    """Fill and rinse volumes in millilitres; pause in seconds.
+    """Fill and rinse volumes in millilitres; atmospheric pause in seconds.
 
-    Confirmed from the RAIN guide: fill and rinse are both measured in ml
-    (a downward fill vs a sideward rinse), and the steep/pause is in seconds at
-    atmospheric pressure.
+    Confirmed from the app's menu data and the RAIN guide: fill and rinse are in
+    ml, and a fill's steep pause is the `ap` (atmospheric pause) key -- NOT `dl`,
+    which is the purge delay. Getting this wrong stores the pause where the
+    firmware does not read it, and the steep silently does nothing.
     """
     return Step(StepType.FILL, {"fwv": fill_volume_ml, "rwv": rinse_volume_ml,
-                                "dl": pause_seconds})
+                                "ap": pause_seconds})
 
 
 def vacuum(strength_kpa: int, time_seconds: int) -> Step:

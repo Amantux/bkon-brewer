@@ -156,12 +156,13 @@ def _adjust_vacuum(steps, delta_kpa, changes, label):
 
 
 def _adjust_steep(steps, delta_s, changes, label):
-    """Steep time lives in two places: the fill's atmospheric pause (dl) and the
-    vacuum hold (tm). Both are 'steep' in the guide's sense, so both move."""
+    """Steep time lives in two places: the fill's atmospheric pause (`ap`) and
+    the vacuum hold (`tm`). Both are 'steep' in the guide's sense, so both
+    move."""
     touched = 0
     for s in _fill_steps(steps):
-        cur = int(float(s.values.get("dl", 0)))
-        s.values["dl"] = max(TIME_MIN, cur + delta_s)
+        cur = int(float(s.values.get("ap", 0)))     # fill's steep is `ap`
+        s.values["ap"] = max(TIME_MIN, cur + delta_s)
         touched += 1
     for s in _vac_steps(steps):
         cur = int(float(s.values.get("tm", 0)))

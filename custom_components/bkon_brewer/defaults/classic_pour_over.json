@@ -1,0 +1,115 @@
+{
+  "code": "",
+  "description": "Balanced everyday coffee, built on the RAIN base recipe: a 241 ml fill, a gentle 24 kPa vacuum held four seconds, and a short atmospheric steep.",
+  "dsp_name": "Classic Pour Over",
+  "image": "",
+  "name": "Classic Pour Over",
+  "notes": "",
+  "sequences": {
+    "portions": [
+      {
+        "name": "small",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "200"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "15",
+              "fwv": "181",
+              "rwv": "26"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "1",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "medium",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "200"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "15",
+              "fwv": "241",
+              "rwv": "35"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "1",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "large",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "200"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "15",
+              "fwv": "301",
+              "rwv": "44"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "24",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "1",
+              "tm": "10"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "status": "1"
+}

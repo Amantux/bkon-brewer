@@ -85,7 +85,8 @@ class RecipeLibrary:
         if rec is None:
             return None
         return {"id": _slug(rec.get("name", id_or_name)),
-                "name": rec.get("name"), "steps": rec.get("steps", [])}
+                "name": rec.get("name"), "steps": rec.get("steps", []),
+                "description": rec.get("description", "")}
 
     def get(self, id_or_name: str) -> list[R.Step] | None:
         rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
@@ -93,7 +94,8 @@ class RecipeLibrary:
             return None
         return _to_steps(rec["steps"])
 
-    async def async_put(self, name: str, steps: list[dict[str, Any]]) -> str:
+    async def async_put(self, name: str, steps: list[dict[str, Any]],
+                        description: str = "") -> str:
         """Create or overwrite a recipe. Validated before it is stored.
 
         A recipe that cannot encode is rejected at save time, so the library
@@ -101,7 +103,10 @@ class RecipeLibrary:
         """
         R.validate(_to_steps(steps))              # raises before persisting
         rid = _slug(name)
-        self._recipes[rid] = {"name": name, "steps": steps}
+        rec = {"name": name, "steps": steps}
+        if description:
+            rec["description"] = description
+        self._recipes[rid] = rec
         await self.async_save()
         return rid
 
@@ -155,7 +160,10 @@ class RecipeLibrary:
                 updated += 1
             else:
                 added += 1
-            self._recipes[rid] = {"name": name, "steps": steps}
+            rec_out = {"name": name, "steps": steps}
+            if rec.get("description"):
+                rec_out["description"] = rec["description"]
+            self._recipes[rid] = rec_out
         await self.async_save()
         return {"added": added, "updated": updated, "skipped": skipped,
                 "errors": errors}
@@ -166,22 +174,46 @@ def _to_steps(raw: list[dict[str, Any]]) -> list[R.Step]:
 
 
 def _load_defaults() -> dict[str, dict[str, Any]]:
-    """Read the bundled default recipes. Falls back to the built-in example if
-    the directory is missing, so a fresh install is never empty."""
+    """Read the bundled default recipes into the library's flat form.
+
+    The default files are in the app's recipe-object schema (see app_recipe);
+    the first portion becomes the library's steps. Falls back to the built-in
+    example if the directory is missing, so a fresh install is never empty."""
     import json
     from pathlib import Path
+    from . import app_recipe
     out: dict[str, dict[str, Any]] = {}
     d = Path(__file__).parent / "defaults"
     if d.exists():
         for f in sorted(d.glob("*.json")):
             try:
-                rec = json.loads(f.read_text(encoding="utf-8"))
+                obj = json.loads(f.read_text(encoding="utf-8"))
             except (ValueError, OSError):
                 continue
-            name = rec.get("name")
-            if name and isinstance(rec.get("steps"), list):
-                out[_slug(name)] = {"name": name, "steps": rec["steps"]}
+            rec = record_from_any(obj)
+            if rec:
+                out[_slug(rec["name"])] = rec
     return out or {"example_pour_over": _EXAMPLE}
+
+
+def record_from_any(obj: dict) -> dict[str, Any] | None:
+    """Coerce a stored object -- app-schema or our flat form -- into a library
+    record {name, steps, description}. One reader for both shapes so a file can
+    be either, and a hand-authored app recipe imports the same as a flat one."""
+    from . import app_recipe
+    if app_recipe.is_app_recipe(obj):
+        name, steps = app_recipe.from_app_recipe(obj)
+        rec = {"name": name, "steps": steps}
+        if obj.get("description"):
+            rec["description"] = obj["description"]
+        return rec
+    name = obj.get("name")
+    if name and isinstance(obj.get("steps"), list):
+        rec = {"name": name, "steps": obj["steps"]}
+        if obj.get("description"):
+            rec["description"] = obj["description"]
+        return rec
+    return None
 
 
 _EXAMPLE: dict[str, Any] = {

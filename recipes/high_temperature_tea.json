@@ -1,0 +1,157 @@
+{
+  "code": "",
+  "description": "Robust teas at 205 °F. The high-temperature base starts shallower at 20 kPa, ladder 20, 22, 21 kPa.",
+  "dsp_name": "High-Temperature Tea",
+  "image": "",
+  "name": "High-Temperature Tea",
+  "notes": "",
+  "sequences": {
+    "portions": [
+      {
+        "name": "small",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "205"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "12",
+              "fwv": "188",
+              "rwv": "22"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "20",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "22",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "21",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "0",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "medium",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "205"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "12",
+              "fwv": "250",
+              "rwv": "30"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "20",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "22",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "21",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "0",
+              "tm": "10"
+            }
+          }
+        ]
+      },
+      {
+        "name": "large",
+        "sequences": [
+          {
+            "type": "start",
+            "values": {
+              "tmp": "205"
+            }
+          },
+          {
+            "type": "fr",
+            "values": {
+              "ap": "12",
+              "fwv": "312",
+              "rwv": "38"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "20",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "22",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "vc",
+            "values": {
+              "ps": "21",
+              "tm": "4"
+            }
+          },
+          {
+            "type": "pg",
+            "values": {
+              "ps": "50",
+              "purgedet": "0",
+              "tm": "10"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "status": "1"
+}

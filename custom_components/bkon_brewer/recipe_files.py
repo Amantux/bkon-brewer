@@ -36,15 +36,21 @@ def write_recipes(directory: str, records: list[dict], *,
     d.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     keep: set[str] = set()
+    from . import app_recipe
     for rec in records:
         name = (rec.get("name") or "").strip()
         if not name:
             continue
         fname = f"{_slug(name)}.json"
         keep.add(fname)
-        payload = json.dumps(
-            {"name": name, "steps": rec.get("steps", [])},
-            indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        # Write the app's recipe-object shape so a file matches what the app
+        # itself produces -- a single "standard" portion from our flat steps,
+        # with the metadata fields the app carries.
+        obj = app_recipe.to_app_recipe(
+            name, [(app_recipe.DEFAULT_PORTION, rec.get("steps", []))],
+            description=rec.get("description", ""))
+        payload = json.dumps(obj, indent=2, sort_keys=True,
+                             ensure_ascii=False) + "\n"
         path = d / fname
         # Only touch the file if the content actually changed, so mtimes and
         # git status stay quiet on a no-op export.
@@ -135,9 +141,10 @@ def read_recipes(directory: str) -> tuple[list[dict], list[str]]:
         except (ValueError, OSError) as ex:
             errors.append(f"{path.name}: {ex}")
             continue
-        if not isinstance(data, dict) or "name" not in data:
+        from .library import record_from_any
+        rec = record_from_any(data)
+        if rec is None:
             errors.append(f"{path.name}: not a recipe (needs a name and steps)")
             continue
-        records.append({"name": data.get("name"),
-                        "steps": data.get("steps", [])})
+        records.append(rec)
     return records, errors
