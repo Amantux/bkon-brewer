@@ -1,0 +1,86 @@
+brew:
+  name: Brew a recipe
+  description: >-
+    Send a recipe to the brewer as a list of steps. Validated and size-checked
+    before anything reaches the radio, so a bad recipe fails at the call rather
+    than half-way through the brew.
+  fields:
+    address:
+      name: Brewer
+      description: Bluetooth address. Omit if you only have one brewer.
+      required: false
+      selector:
+        text:
+    steps:
+      name: Steps
+      description: >-
+        A list of {type, values}. Types: start, fr (fill), vc (vacuum),
+        pg (purge), dialog. A brew-out is appended automatically.
+      required: true
+      selector:
+        object:
+manual_purge:
+  name: Manual purge
+  description: Run a single purge with the given pressure and hold time.
+  fields:
+    address:
+      name: Brewer
+      required: false
+      selector:
+        text:
+    pressure:
+      name: Pressure
+      default: 50
+      selector:
+        number: { min: 0, max: 100, mode: box }
+    time:
+      name: Hold time (seconds)
+      default: 10
+      selector:
+        number: { min: 0, max: 180, mode: box }
+    detect:
+      name: Detection
+      default: false
+      selector:
+        boolean:
+abort:
+  name: Abort
+  description: Stop the current brew immediately.
+  fields:
+    address:
+      name: Brewer
+      required: false
+      selector:
+        text:
+respond_dialog:
+  name: Answer a dialog
+  description: >-
+    Answer a prompt the brewer is waiting on. Button 0 is cancel and ends the
+    brew. Wire form is unconfirmed against hardware — see docs/PROTOCOL.md.
+  fields:
+    address:
+      name: Brewer
+      required: false
+      selector:
+        text:
+    button:
+      name: Button
+      required: true
+      selector:
+        number: { min: 0, max: 3, mode: box }
+send_raw:
+  name: Send raw frame
+  description: >-
+    Developer escape hatch. Send an already-framed string straight to the
+    brewer, e.g. {msg:1:<PG><PS>50</PS></PG>}. For protocol work only.
+  fields:
+    address:
+      name: Brewer
+      required: false
+      selector:
+        text:
+    payload:
+      name: Payload
+      required: true
+      selector:
+        text:

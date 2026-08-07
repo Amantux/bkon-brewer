@@ -16,7 +16,9 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "custom_components"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _bootstrap                          # noqa: E402
+_bootstrap.install()
 
 from bkon_brewer.protocol import recipe as r      # noqa: E402
 
