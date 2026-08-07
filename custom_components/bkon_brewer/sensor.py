@@ -17,6 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
     async_add_entities([
         StatusSensor(c, entry), StepSensor(c, entry),
         DialogSensor(c, entry), ErrorSensor(c, entry),
+        RecipeLibrarySensor(c, entry),
     ])
 
 
@@ -86,6 +87,32 @@ class DialogSensor(_Base):
         # None, not empty string, when there is no outstanding prompt: an
         # automation can then trigger cleanly on "is not none".
         return self._c.last_dialog
+
+
+class RecipeLibrarySensor(_Base):
+    """The saved recipes, so the library is visible and inspectable in the UI.
+
+    State is the count; the attributes carry each recipe with its encoded byte
+    size against the 599-byte limit -- the number that actually matters when
+    deciding whether a recipe will transmit.
+    """
+
+    _attr_name = "Recipe library"
+    _attr_icon = "mdi:notebook-outline"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._c.address}_library"
+
+    @property
+    def native_value(self) -> int:
+        lib = self.hass.data[DOMAIN].get("library")
+        return len(lib.list()) if lib else 0
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        lib = self.hass.data[DOMAIN].get("library")
+        return {"recipes": lib.list()} if lib else {"recipes": []}
 
 
 class ErrorSensor(_Base):

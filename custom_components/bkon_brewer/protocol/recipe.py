@@ -78,26 +78,41 @@ def _is_zero(value: Any) -> bool:
 # abbreviation that is easy to transpose and impossible to notice transposed.
 
 def start(temperature_f: float) -> Step:
-    """Heat to a temperature.
+    """Heat to a temperature, in degrees Fahrenheit.
 
-    The app rebuilds this step from scratch keeping only a rounded temperature
-    and discarding everything else, so we construct it the same way rather than
+    Units confirmed from BKON/Franke's RAIN development guide: water is
+    delivered to +/-1 degF, over a usable range of roughly 165-210 degF. The
+    app rebuilds this step from scratch keeping only a rounded temperature and
+    discarding everything else, so we construct it the same way rather than
     passing other values through and hoping the firmware ignores them.
     """
     return Step(StepType.START, {"tmp": str(round(temperature_f))})
 
 
-def fill(fill_volume: int, rinse_volume: int = 0, pause: int = 0) -> Step:
-    return Step(StepType.FILL, {"fwv": fill_volume, "rwv": rinse_volume,
-                                "dl": pause})
+def fill(fill_volume_ml: int, rinse_volume_ml: int = 0,
+         pause_seconds: int = 0) -> Step:
+    """Fill and rinse volumes in millilitres; pause in seconds.
+
+    Confirmed from the RAIN guide: fill and rinse are both measured in ml
+    (a downward fill vs a sideward rinse), and the steep/pause is in seconds at
+    atmospheric pressure.
+    """
+    return Step(StepType.FILL, {"fwv": fill_volume_ml, "rwv": rinse_volume_ml,
+                                "dl": pause_seconds})
 
 
-def vacuum(pressure: int, time: int) -> Step:
-    return Step(StepType.VACUUM, {"ps": pressure, "tm": time})
+def vacuum(strength_kpa: int, time_seconds: int) -> Step:
+    """Vacuum strength in kilopascals; duration in seconds.
+
+    The vacuum is the heart of the machine. Confirmed from the RAIN guide:
+    strength is measured in kPa (base recipes sit around 20-24 kPa) and the
+    vacuum is typically held for only a few seconds.
+    """
+    return Step(StepType.VACUUM, {"ps": strength_kpa, "tm": time_seconds})
 
 
-def purge(pressure: int, time: int, delay: int = 0, detect: bool = False,
-          manual_stop: bool = False) -> Step:
+def purge(pressure: int, time_seconds: int, delay_seconds: int = 0,
+          detect: bool = False, manual_stop: bool = False) -> Step:
     """A purge.
 
     `manual_stop` is deliberately not a wire value. The firmware has no such
@@ -105,9 +120,10 @@ def purge(pressure: int, time: int, delay: int = 0, detect: bool = False,
     to stop it themselves, and drops the flag. Replicated in `encode` so the
     behaviour matches rather than silently doing nothing.
     """
-    values: dict[str, Any] = {"ps": pressure, "tm": time, "det": int(detect)}
-    if delay:
-        values["dl"] = delay
+    values: dict[str, Any] = {"ps": pressure, "tm": time_seconds,
+                              "det": int(detect)}
+    if delay_seconds:
+        values["dl"] = delay_seconds
     if manual_stop:
         values["manstop"] = 1
     return Step(StepType.PURGE, values)

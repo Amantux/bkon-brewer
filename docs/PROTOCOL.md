@@ -96,19 +96,31 @@ picker. `start` and `bo` are structural.
 
 ### Value keys
 
-| Key | Meaning | Confidence |
-|---|---|---|
-| `tmp` | Temperature | Certain — Start editor, rounded to integer |
-| `fwv` | Fill water volume | Certain — Fill editor |
-| `rwv` | Rinse water volume | Certain — Fill editor |
-| `dl` | Delay / pause | Certain — labelled "Pause (<3 mins)" |
-| `tm` | Time / hold time | Certain — labelled "Hold Time (<3 mins)" |
-| `ps` | Pressure | High — Purge and Vacuum editors |
-| `det` | Detection toggle | Medium — boolean in the Purge editor |
-| `manstop` | Manual stop | Certain, but **app-side only** — see below |
-| `contr` | Unknown | Low — appears only in the purge literal, as `0` |
-| `bt` | Brew time | Medium — `bo` step, default `4` |
-| `text` | Dialog text | Certain, URL-encoded |
+Units are now **confirmed from BKON/Franke's own service documentation** (the
+RAIN Menu Development Guide and Error Codes reference — see
+[INTEL.md](INTEL.md)), where they were previously read off the app's input
+constraints alone.
+
+| Key | Meaning | Unit | Confidence |
+|---|---|---|---|
+| `tmp` | Temperature | °F | Certain — delivered to ±1 °F; usable ~165–210 °F |
+| `fwv` | Fill water volume | ml | Certain — RAIN guide |
+| `rwv` | Rinse water volume | ml | Certain — RAIN guide |
+| `dl` | Delay / pause | seconds | Certain — "steep at atmospheric pressure, in seconds" |
+| `tm` | Time / hold time | seconds | Certain |
+| `ps` (vacuum) | Vacuum strength | kPa | Certain — base recipes ~20–24 kPa |
+| `ps` (purge) | Purge pressure | (positive, unit unconfirmed) | High — shares the key, opposite direction |
+| `det` | Detection toggle | bool | Medium — boolean in the Purge editor |
+| `manstop` | Manual stop | — | Certain, but **app-side only** — see below |
+| `contr` | Unknown | — | Low — appears only in the purge literal, as `0` |
+| `bt` | Brew time | seconds | Medium — `bo` step, default `4` |
+| `text` | Dialog text | — | Certain, URL-encoded |
+
+The one nuance the docs surface: **`ps` means different physical things on a
+vacuum step and a purge step** — a vacuum pulls *down* (measured in kPa below
+atmosphere), a purge pushes *up*. Same key, opposite sign, and the purge unit is
+not stated where the vacuum's is. The builder labels vacuum pressure as kPa and
+purge pressure generically for that reason.
 
 ### Serialisation rules the app applies
 
@@ -147,11 +159,25 @@ app closes the brew.
 
 ## Errors
 
-`assets/static/error-codes/errors-en.json` is a `module → code → {title, txt}`
-table, keyed as `(C:<code> M:<module>)`. Module 2 codes seen include 20
-(information missing), 30 (incorrect brew data) and 45 (descale finished).
-Worth shipping as a lookup so an integration reports "Descale finished" rather
-than "error 45".
+Errors arrive keyed as `(C:<code> M:<module>)`. Two sources agree on the map:
+the app's own `error-codes/errors-en.json`, and BKON/Franke's Error Codes
+service reference (see [INTEL.md](INTEL.md)), which supplies cleaner labels for
+the hardware faults. The integration ships these as a lookup so a fault reads as
+"Chamber not sealed" rather than "error C:3 M:5". Confirmed labels:
+
+| Code | Meaning |
+|---|---|
+| C:20 M:2 | Information missing |
+| C:30 M:2 | Incorrect brew data |
+| C:45 M:2 | Descale finished |
+| C:1 M:5 | Brew chamber glass not detected |
+| C:3 M:5 | Chamber not sealed |
+| C:11–22 M:5 | Temperature sensor fault (various sensors) |
+| C:40 M:5 | Flow meter fault |
+| C:50 M:5 | LIM communication error |
+
+Any code not in the table still reports its raw identifier, so nothing is
+swallowed.
 
 ## Servings
 
@@ -171,11 +197,16 @@ contributes nothing to actually making coffee.
 
 ## What still needs hardware to confirm
 
+Units were on this list and have been struck off — see [INTEL.md](INTEL.md).
+What remains genuinely needs a live brewer or a BLE capture:
+
 1. Chunking of payloads longer than one BLE write.
 2. What `{msg:N:…}` numbering means.
 3. What `contr` does — it is `0` in the only example.
 4. Whether the brewer emits anything unsolicited (temperature, progress) beyond
    the step/recipe completion events.
-5. Units and legal ranges for `ps`, `fwv`, `rwv` — the app constrains inputs to
-   3 characters and validates times under 3 minutes, but the units are not
-   stated anywhere in the source.
+5. The **purge** pressure unit specifically — the vacuum's kPa is confirmed, but
+   a purge pushes the opposite direction and its unit is not stated.
+6. Legal maximums for each field. The RAIN guide gives typical operating values
+   (fills of ~35–250 ml, vacuums of ~20–24 kPa, steeps of a few to ~15 seconds)
+   but not hard limits.

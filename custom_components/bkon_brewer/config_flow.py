@@ -8,7 +8,7 @@ from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.helpers import selector
 
-from .const import CONF_ADDRESS, DOMAIN
+from .const import CONF_ADDRESS, CONF_SIMULATE, DOMAIN
 
 
 class BkonBrewerConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -55,16 +55,23 @@ class BkonBrewerConfigFlow(ConfigFlow, domain=DOMAIN):
         list, but the final say is theirs.
         """
         if user_input is not None:
-            address = user_input[CONF_ADDRESS]
+            simulate = user_input.get(CONF_SIMULATE, False)
+            # A demo entry needs a unique id too, but its own -- so it can coexist
+            # with a real brewer added later rather than colliding on address.
+            address = "DEMO" if simulate else user_input[CONF_ADDRESS]
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title="BKON Brewer",
-                                           data={CONF_ADDRESS: address})
+            title = "BKON Brewer (demo)" if simulate else "BKON Brewer"
+            return self.async_create_entry(
+                title=title,
+                data={CONF_ADDRESS: address, CONF_SIMULATE: simulate})
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required(CONF_ADDRESS): selector.TextSelector(),
+                vol.Optional(CONF_ADDRESS, default=""): selector.TextSelector(),
+                vol.Optional(CONF_SIMULATE, default=False): selector.BooleanSelector(),
             }),
             description_placeholders={
-                "hint": "Enter the brewer's Bluetooth MAC (AA:BB:CC:DD:EE:FF)."
+                "hint": "Enter the brewer's Bluetooth MAC, or tick Simulate to "
+                        "explore the interface with no hardware."
             })

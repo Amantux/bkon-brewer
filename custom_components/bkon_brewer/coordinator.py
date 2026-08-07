@@ -26,7 +26,8 @@ _LOGGER = logging.getLogger(__name__)
 class BrewerCoordinator:
     """One brewer: its link, its status, and the things you can ask it to do."""
 
-    def __init__(self, hass: HomeAssistant, address: str, name: str) -> None:
+    def __init__(self, hass: HomeAssistant, address: str, name: str,
+                 simulate: bool = False) -> None:
         self.hass = hass
         self.address = address
         self.name = name
@@ -35,7 +36,14 @@ class BrewerCoordinator:
         self.last_dialog: str | None = None
         self.last_error: str | None = None
         self.last_event_at: datetime | None = None
-        self._transport = BrewerTransport(address, self._on_line)
+        if simulate:
+            # Explicit opt-in only; the real Bluetooth path can never reach here
+            # by accident. Lets the whole UI be exercised with no hardware.
+            from ._demo import SimulatedTransport
+            self._transport = SimulatedTransport(address, self._on_line)
+        else:
+            self._transport = BrewerTransport(address, self._on_line)
+        self.simulated = simulate
 
     @property
     def connected(self) -> bool:

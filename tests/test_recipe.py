@@ -77,7 +77,7 @@ print("\nmanual stop never reaches the device")
 # The firmware has no manual-stop concept. The app fakes it with a dialog and
 # drops the flag. A reimplementation that passes manstop through would produce
 # a purge the brewer silently ignores the flag on -- looking like it worked.
-out = r.prepare([r.purge(pressure=50, time=10, manual_stop=True)])
+out = r.prepare([r.purge(pressure=50, time_seconds=10, manual_stop=True)])
 check("manstop is not on the wire", "manstop" in out[0]["values"], False)
 check("it becomes a dialog instead",
       out[0]["values"].get("dialog"), r.MANUAL_STOP_DIALOG)
@@ -121,7 +121,7 @@ check("cancel frame", r.CANCEL, "{msg:1:<CANCEL></CANCEL>}")
 check("arbitrary payload", r.frame("<X></X>"), "{msg:1:<X></X>}")
 
 print("\na realistic recipe round-trips to valid JSON")
-full = [r.start(205), r.fill(250, rinse_volume=30), r.vacuum(50, 30),
+full = [r.start(205), r.fill(250, rinse_volume_ml=30), r.vacuum(50, 30),
         r.purge(50, 10, detect=True), r.dialog("Add grounds")]
 payload = r.validate(full)
 parsed = json.loads(payload)

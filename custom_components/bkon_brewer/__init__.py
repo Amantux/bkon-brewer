@@ -11,9 +11,11 @@ from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    CONF_ADDRESS, DOMAIN, SERVICE_ABORT, SERVICE_BREW, SERVICE_MANUAL_PURGE,
-    SERVICE_RESPOND_DIALOG, SERVICE_SEND_RAW)
+    CONF_ADDRESS, CONF_SIMULATE, DOMAIN, SERVICE_ABORT, SERVICE_BREW,
+    SERVICE_BREW_SAVED, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
+    SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW)
 from .coordinator import BrewerCoordinator
+from .library import RecipeLibrary
 from .protocol import recipe as R
 from .transport import BrewerUnavailable
 
@@ -32,7 +34,9 @@ _STEP_SCHEMA = vol.Schema({
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     address = entry.data[CONF_ADDRESS]
-    coordinator = BrewerCoordinator(hass, address, entry.title)
+    coordinator = BrewerCoordinator(
+        hass, address, entry.title,
+        simulate=entry.data.get(CONF_SIMULATE, False))
 
     try:
         await coordinator.async_start()
@@ -43,7 +47,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # goes.
         raise ConfigEntryNotReady(str(ex)) from ex
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    store = hass.data.setdefault(DOMAIN, {})
+    if "library" not in store:
+        library = RecipeLibrary(hass)
+        await library.async_load()
+        store["library"] = library
+    store[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _register_services(hass)
     return True
@@ -66,7 +75,8 @@ def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[BrewerCoordina
     """
     store: dict = hass.data.get(DOMAIN, {})
     wanted = call.data.get("address")
-    out = [c for c in store.values() if wanted in (None, c.address)]
+    out = [c for c in store.values()
+           if isinstance(c, BrewerCoordinator) and wanted in (None, c.address)]
     if not out:
         raise vol.Invalid(f"No BKON brewer matching {wanted!r}")
     return out
@@ -125,6 +135,38 @@ def _register_services(hass: HomeAssistant) -> None:
             vol.Optional("address"): cv.string,
             vol.Required("button"): vol.Coerce(int),
         }))
+    async def _save_recipe(call: ServiceCall) -> None:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        await library.async_put(call.data["name"], call.data["steps"])
+
+    async def _delete_recipe(call: ServiceCall) -> None:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        await library.async_delete(call.data["name"])
+
+    async def _brew_saved(call: ServiceCall) -> None:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        steps = library.get(call.data["name"])
+        if steps is None:
+            raise vol.Invalid(f"No saved recipe named {call.data['name']!r}")
+        for c in _coordinators(hass, call):
+            await c.async_brew(steps)
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_SAVE_RECIPE, _save_recipe,
+        schema=vol.Schema({
+            vol.Required("name"): cv.string,
+            vol.Required("steps"): [_STEP_SCHEMA],
+        }))
+    hass.services.async_register(
+        DOMAIN, SERVICE_DELETE_RECIPE, _delete_recipe,
+        schema=vol.Schema({vol.Required("name"): cv.string}))
+    hass.services.async_register(
+        DOMAIN, SERVICE_BREW_SAVED, _brew_saved,
+        schema=vol.Schema({
+            vol.Optional("address"): cv.string,
+            vol.Required("name"): cv.string,
+        }))
+
     hass.services.async_register(
         DOMAIN, SERVICE_SEND_RAW, _send_raw,
         schema=vol.Schema({

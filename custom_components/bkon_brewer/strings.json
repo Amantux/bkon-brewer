@@ -10,11 +10,28 @@
       },
       "user": {
         "description": "{hint}",
-        "data": { "address": "Bluetooth address" }
+        "data": {
+          "address": "Bluetooth address",
+          "simulate": "Simulate (no hardware yet)"
+        }
       }
     },
     "abort": {
       "already_configured": "This brewer is already set up."
+    }
+  },
+  "services": {
+    "save_recipe": {
+      "name": "Save a recipe",
+      "description": "Save a recipe"
+    },
+    "delete_recipe": {
+      "name": "Delete a recipe",
+      "description": "Delete a recipe"
+    },
+    "brew_saved": {
+      "name": "Brew a saved recipe",
+      "description": "Brew a saved recipe"
     }
   }
 }

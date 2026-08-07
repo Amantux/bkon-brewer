@@ -84,3 +84,41 @@ send_raw:
       required: true
       selector:
         text:
+save_recipe:
+  name: Save a recipe
+  description: Create or overwrite a named recipe in the library. Rejected if it cannot encode.
+  fields:
+    name:
+      name: Name
+      required: true
+      selector:
+        text:
+    steps:
+      name: Steps
+      description: List of {type, values}. A brew-out is appended automatically at brew time.
+      required: true
+      selector:
+        object:
+delete_recipe:
+  name: Delete a recipe
+  description: Remove a saved recipe from the library.
+  fields:
+    name:
+      name: Name
+      required: true
+      selector:
+        text:
+brew_saved:
+  name: Brew a saved recipe
+  description: Brew a recipe from the library by name.
+  fields:
+    address:
+      name: Brewer
+      required: false
+      selector:
+        text:
+    name:
+      name: Recipe name
+      required: true
+      selector:
+        text:

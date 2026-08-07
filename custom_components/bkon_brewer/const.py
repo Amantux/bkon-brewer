@@ -4,6 +4,7 @@ from __future__ import annotations
 DOMAIN = "bkon_brewer"
 
 CONF_ADDRESS = "address"
+CONF_SIMULATE = "simulate"
 
 # Services
 SERVICE_BREW = "brew"
@@ -11,6 +12,9 @@ SERVICE_MANUAL_PURGE = "manual_purge"
 SERVICE_ABORT = "abort"
 SERVICE_RESPOND_DIALOG = "respond_dialog"
 SERVICE_SEND_RAW = "send_raw"
+SERVICE_SAVE_RECIPE = "save_recipe"
+SERVICE_DELETE_RECIPE = "delete_recipe"
+SERVICE_BREW_SAVED = "brew_saved"
 
 # Dispatcher signal carrying parsed BrewerEvents to entities.
 SIGNAL_EVENT = f"{DOMAIN}_event"

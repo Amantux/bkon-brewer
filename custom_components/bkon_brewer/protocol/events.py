@@ -116,25 +116,35 @@ def describe_error(module: int | str, code: int | str) -> str:
     return ERROR_MESSAGES.get(key, f"Brewer error C:{code} M:{module}")
 
 
-# Paraphrased from the vendor app's error table. Only the actionable meaning is
-# kept; the raw identifier is always available alongside via BrewerEvent.code.
-# Anything not listed degrades to "Brewer error C:x M:y", which is still useful.
+# Concise descriptions keyed by the (module, code) identifiers the firmware
+# reports. Labels for modules 2 and 5 are confirmed against BKON/Franke's own
+# service documentation; the rest come from the app's error table. The raw
+# identifier is always available via BrewerEvent.code, and anything unlisted
+# degrades to "Brewer error C:x M:y", which is still legible.
 ERROR_MESSAGES: dict[str, str] = {
     # module 2 - brew data
-    "2:20": "Brew information incomplete or missing. Restart the machine and "
-            "pick a different brew; if it persists, re-send the recipe.",
-    "2:30": "Incorrect brew data. Restart the machine and pick a different "
-            "brew; if it persists, re-send the recipe.",
+    "2:20": "Brew information missing. Restart and pick a different brew; if it "
+            "persists, re-send the recipe.",
+    "2:30": "Incorrect brew data. Restart and pick a different brew; if it "
+            "persists, re-send the recipe.",
     "2:45": "Descale finished. Empty and clean the pitcher.",
-    # module 4
+    # module 5 - hardware / sensors (labels confirmed from the service docs)
+    "5:1": "Brew chamber glass not detected — check the chamber is in place.",
+    "5:3": "Chamber not sealed — check the chamber is seated and closed.",
+    "5:11": "Temperature sensor fault.",
+    "5:12": "Temperature sensor fault.",
+    "5:13": "Temperature sensor fault.",
+    "5:16": "Temperature sensor fault.",
+    "5:17": "Temperature sensor fault.",
+    "5:18": "Temperature sensor fault.",
+    "5:19": "Temperature sensor fault.",
+    "5:22": "Temperature sensor fault.",
+    "5:40": "Flow meter fault — check the water supply and connection.",
+    "5:50": "LIM communication error — the machine lost contact with a module.",
+    # module 4 / 7 - cycle and comms (from the app's error table)
     "4:4": "Machine reported a fault. Restart and try again.",
     "4:70": "Machine communication error.",
-    # module 5 - largely hardware/sensor faults; kept generic on purpose,
-    # because guessing a specific cause we cannot verify would mislead.
-    "5:40": "Water supply problem — check the reservoir and connection.",
-    "5:50": "Temperature sensor fault.",
-    # module 7 - cycle/state faults
-    "7:41": "Brew cycle could not start. Check that the pitcher is seated.",
+    "7:41": "Brew cycle could not start. Check the pitcher is seated.",
     "7:50": "Brew was interrupted.",
     "7:60": "Cleaning or descale cycle required.",
 }
