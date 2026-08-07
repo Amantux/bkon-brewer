@@ -248,3 +248,22 @@ download_recipes:
       required: false
       selector:
         text:
+export_menu:
+  name: Export a device menu file
+  description: >-
+    Write all recipes as one menu file in the machine's own format, downloadable
+    at /local/bkon/<file>. Load it via the machine's Service Menu > Update Recipe
+    File (USB) — this path is not limited to 599 bytes like a Bluetooth brew, so
+    it allows longer recipes.
+  fields:
+    menu_name:
+      name: Menu name
+      required: false
+      selector:
+        text:
+    filename:
+      name: File name
+      default: bkon_menu.json
+      required: false
+      selector:
+        text:

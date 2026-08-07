@@ -19,9 +19,9 @@ from .const import (
     SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
     SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
-    DEFAULT_RECIPE_DIR,
+    SERVICE_EXPORT_MENU, DEFAULT_RECIPE_DIR,
     CONF_LIGHTRAG_URL, CONF_LIGHTRAG_KEY, CONF_RAG_MODE)
-from . import advisor, concierge, diagnostics, rag_backend, recipe_files, templates, tools
+from . import advisor, app_recipe, concierge, diagnostics, rag_backend, recipe_files, templates, tools
 from .coordinator import BrewerCoordinator
 from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
@@ -296,6 +296,49 @@ def _register_services(hass: HomeAssistant) -> None:
         path = await hass.async_add_executor_job(_write)
         return {"path": path, "url": f"/local/bkon/{fname}",
                 "recipes": len(records), "bytes": len(text)}
+
+    async def _export_menu(call: ServiceCall) -> dict:
+        """Write all recipes as one device-style MENU file to /config/www.
+
+        The Service Menu's USB "Update Recipe File" path loads a menu file with
+        no Bluetooth 599-byte limit, so this is the route to longer recipes than
+        BLE allows. Each recipe is emitted with all its portions.
+        """
+        import json as _json
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        recipes = []
+        for r in library.list():
+            steps = library.get(r["id"])
+            recipes.append(app_recipe.to_app_recipe(
+                r["name"], [(app_recipe.DEFAULT_PORTION,
+                             [{"type": str(s.type), "values": s.values}
+                              for s in steps])],
+                description=r.get("description", "")))
+        menu = app_recipe.to_menu(
+            call.data.get("menu_name", "Home Assistant Menu"), recipes)
+        www = hass.config.path("www", "bkon")
+        fname = call.data.get("filename", "bkon_menu.json")
+
+        def _write() -> str:
+            import os
+            os.makedirs(www, exist_ok=True)
+            path = os.path.join(www, fname)
+            with open(path, "w", encoding="utf-8") as f:
+                _json.dump(menu, f, indent=2, ensure_ascii=False)
+            return path
+
+        path = await hass.async_add_executor_job(_write)
+        return {"path": path, "url": f"/local/bkon/{fname}",
+                "recipes": len(recipes),
+                "note": "Load via the machine's Service Menu > Update Recipe "
+                        "File (USB). Not limited to 599 bytes like a BLE brew."}
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT_MENU, _export_menu,
+        schema=vol.Schema({
+            vol.Optional("menu_name"): cv.string,
+            vol.Optional("filename"): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL)
 
     hass.services.async_register(
         DOMAIN, SERVICE_DOWNLOAD, _download,

@@ -47,6 +47,16 @@ check("named picks it", A.from_app_recipe(multi, "large")[1][0]["values"]["tmp"]
 check("unknown portion falls back to first",
       A.from_app_recipe(multi, "nope")[1][0]["values"]["tmp"], "180")
 
+print("\nmenu wrapper (the file-path form, no 599 BLE limit)")
+r1 = A.to_app_recipe("Big Recipe", [("standard", [{"type": "start", "values": {"tmp": "200"}}])])
+menu = A.to_menu("My Menu", [r1], category="Home Assistant")
+check("menu has a description", menu["description"], "My Menu")
+check("wraps recipes under a category",
+      menu["recipes"][0]["name"], "Home Assistant")
+check("the recipe object is inside the category",
+      menu["recipes"][0]["recipes"][0]["name"], "Big Recipe")
+check("category carries the app's color field", "color" in menu["recipes"][0], True)
+
 print("\nshape detection")
 check("app object recognised", A.is_app_recipe(app), True)
 check("flat form is not app-schema", A.is_app_recipe({"name": "x", "steps": []}), False)

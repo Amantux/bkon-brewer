@@ -95,6 +95,32 @@ def to_app_recipe(name: str, portions: list[tuple[str, list[dict]]], *,
     }
 
 
+def to_menu(description: str, recipes: list[dict], *,
+            category: str = "Home Assistant") -> dict:
+    """Wrap app-schema recipe objects into a full menu object.
+
+    The device holds an on-board MENU (menu -> category -> recipe), loaded as a
+    file via the Service Menu's "Update Recipe File" from USB -- a path with no
+    Bluetooth 599-byte limit, because it is a file, not a characteristic write.
+    This builds that menu object so the integration can produce a loadable file
+    for longer recipes than BLE allows.
+
+    The exact on-USB folder layout the Service Menu expects is not fully
+    confirmed from the recovered material (see docs/LONGER_RECIPES.md); this
+    produces the recipe/menu OBJECT shape the app itself uses, which is the
+    payload inside that layout.
+    """
+    return {
+        "description": description,
+        "config": "n",
+        "recipes": [{
+            "color": "#00ff00",
+            "name": category,
+            "recipes": recipes,
+        }],
+    }
+
+
 def is_app_recipe(obj: dict) -> bool:
     """Does this look like an app recipe object (vs our flat {name, steps})?"""
     return isinstance(obj, dict) and "sequences" in obj \
