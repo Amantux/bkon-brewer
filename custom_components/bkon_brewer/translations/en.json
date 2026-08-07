@@ -44,6 +44,18 @@
     "build_recipe": {
       "name": "Build a recipe",
       "description": "Build a recipe"
+    },
+    "get_recipe": {
+      "name": "Get a recipe",
+      "description": "Get a recipe"
+    },
+    "export_recipes": {
+      "name": "Export recipes to files",
+      "description": "Export recipes to files"
+    },
+    "import_recipes": {
+      "name": "Import recipes from files",
+      "description": "Import recipes from files"
     }
   }
 }

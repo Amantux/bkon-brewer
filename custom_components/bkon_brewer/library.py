@@ -74,6 +74,18 @@ class RecipeLibrary:
             })
         return out
 
+    def get_record(self, id_or_name: str) -> dict | None:
+        """The full stored record (name + raw steps) for one recipe, or None.
+
+        The read half of CRUD: get() returns typed Steps for brewing; this
+        returns the plain record for display, export, and round-tripping.
+        """
+        rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
+        if rec is None:
+            return None
+        return {"id": _slug(rec.get("name", id_or_name)),
+                "name": rec.get("name"), "steps": rec.get("steps", [])}
+
     def get(self, id_or_name: str) -> list[R.Step] | None:
         rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
         if rec is None:
@@ -99,6 +111,53 @@ class RecipeLibrary:
             await self.async_save()
             return True
         return False
+
+    # -- git-friendly export / import ------------------------------------
+    # HA's .storage JSON is one opaque blob -- terrible to diff or review in a
+    # pull request. Export writes one file per recipe, stable-keyed and sorted,
+    # so a change to one recipe is a one-file diff a human can read.
+
+    def export_dict(self) -> dict:
+        """The whole library as an ordered, JSON/YAML-round-trippable dict."""
+        return {"version": 1,
+                "recipes": [self.get_record(rid)
+                            for rid in sorted(self._recipes)]}
+
+    async def async_import_records(self, records: list[dict],
+                                   replace: bool = False) -> dict:
+        """Upsert recipes from exported records. Returns a small change report.
+
+        Each record is validated before it lands, so a malformed file cannot
+        poison the library -- a bad recipe is skipped and reported, the good
+        ones still import. `replace` clears first (a mirror of the files);
+        otherwise it is an upsert (files win on a name clash).
+        """
+        added = updated = skipped = 0
+        errors: list[str] = []
+        if replace:
+            self._recipes = {}
+        for rec in records:
+            name = (rec.get("name") or "").strip()
+            steps = rec.get("steps")
+            if not name or not isinstance(steps, list):
+                skipped += 1
+                errors.append(f"{name or '(unnamed)'}: missing name or steps")
+                continue
+            try:
+                R.validate(_to_steps(steps))          # reject before storing
+            except Exception as ex:                   # noqa: BLE001
+                skipped += 1
+                errors.append(f"{name}: {ex}")
+                continue
+            rid = _slug(name)
+            if rid in self._recipes:
+                updated += 1
+            else:
+                added += 1
+            self._recipes[rid] = {"name": name, "steps": steps}
+        await self.async_save()
+        return {"added": added, "updated": updated, "skipped": skipped,
+                "errors": errors}
 
 
 def _to_steps(raw: list[dict[str, Any]]) -> list[R.Step]:

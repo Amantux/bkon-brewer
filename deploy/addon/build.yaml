@@ -1,0 +1,10 @@
+# Debian slim base, matching the sibling add-ons (Edibl/HomeHoard/myMeal). It
+# matters more here than there: fastembed pulls onnxruntime and numpy, whose
+# aarch64 wheels are reliable on Debian and a compile-from-source ordeal on
+# Alpine/musl. Same base = same tested runtime.
+build_from:
+  amd64: python:3.11-slim-bookworm
+  aarch64: python:3.11-slim-bookworm
+labels:
+  org.opencontainers.image.title: BKON LightRAG
+  org.opencontainers.image.source: https://github.com/Amantux/bkon-brewer

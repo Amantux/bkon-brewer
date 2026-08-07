@@ -1,29 +1,39 @@
 name: BKON LightRAG
-version: "0.3.0"
+version: "0.4.0"
 slug: bkon_lightrag
-description: >-
-  Self-contained graph-RAG service for the BKON Brewer concierge. Embeddings run
-  locally (bundled). Generation is pluggable — Ollama (local or Cloud),
-  Anthropic, or any OpenAI-compatible endpoint — selected here.
-arch: [aarch64, amd64]
+description: Graph-RAG service for the BKON Brewer concierge — local embeddings, pluggable generation (Ollama / Anthropic / OpenAI-compatible).
+url: https://github.com/Amantux/bkon-brewer/tree/main/deploy/addon
+image: ghcr.io/amantux/bkon-lightrag-{arch}
+arch:
+  - amd64
+  - aarch64
 init: false
-startup: services
+startup: application
 boot: auto
+ingress: true
+ingress_port: 9621
+panel_icon: mdi:coffee-maker
+panel_title: BKON RAG
+apparmor: bkon_lightrag
+homeassistant_api: false
+hassio_api: false
 ports:
-  9621/tcp: 9621
+  9621/tcp: null
 ports_description:
-  9621/tcp: LightRAG HTTP API (point the integration here)
+  9621/tcp: LightRAG API — map only for the BKON integration / LAN access
+map:
+  - share:rw
 options:
-  service_api_key: "change-me"
+  service_api_key: ""
   ai_provider: "ollama"
   model: "gpt-oss:120b"
   api_key: ""
   base_url: ""
+  log_level: INFO
 schema:
-  service_api_key: str
+  service_api_key: password
   ai_provider: "list(ollama|anthropic|openai)"
   model: str
-  api_key: password
+  api_key: password?
   base_url: "str?"
-map:
-  - share:rw
+  log_level: list(DEBUG|INFO|WARNING|ERROR)?

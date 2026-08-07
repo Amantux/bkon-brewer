@@ -18,8 +18,9 @@ from .const import (
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
     SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
+    SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, DEFAULT_RECIPE_DIR,
     CONF_LIGHTRAG_URL, CONF_LIGHTRAG_KEY, CONF_RAG_MODE)
-from . import advisor, concierge, diagnostics, rag_backend, templates, tools
+from . import advisor, concierge, diagnostics, rag_backend, recipe_files, templates, tools
 from .coordinator import BrewerCoordinator
 from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
@@ -234,6 +235,57 @@ def _register_services(hass: HomeAssistant) -> None:
             out["saved_as"] = await library.async_put(save_as, out["steps"])
             _notify_library_changed(hass)
         return out
+
+    def _recipe_dir(call: ServiceCall) -> str:
+        # Default under the config dir so it is on the same volume and easy to
+        # git-init; an absolute path in the call overrides it.
+        d = call.data.get("directory")
+        return d if d else hass.config.path(DEFAULT_RECIPE_DIR)
+
+    async def _get_recipe(call: ServiceCall) -> dict:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        rec = library.get_record(call.data["name"])
+        if rec is None:
+            return {"found": False, "error": f"no recipe named {call.data['name']!r}"}
+        steps = library.get(rec["id"])
+        problems = tools.execute_tool("lint_recipe", {"name": rec["id"]},
+                                      recipes={rec["id"]: steps})
+        return {"found": True, **rec, "ok": problems.get("ok"),
+                "problems": problems.get("problems", [])}
+
+    async def _export(call: ServiceCall) -> dict:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        records = library.export_dict()["recipes"]
+        directory = _recipe_dir(call)
+        report = await hass.async_add_executor_job(
+            recipe_files.write_recipes, directory, records)
+        return report
+
+    async def _import(call: ServiceCall) -> dict:
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        directory = _recipe_dir(call)
+        records, read_errors = await hass.async_add_executor_job(
+            recipe_files.read_recipes, directory)
+        report = await library.async_import_records(
+            records, replace=call.data.get("replace", False))
+        _notify_library_changed(hass)
+        report["read_errors"] = read_errors
+        return report
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_GET, _get_recipe,
+        schema=vol.Schema({vol.Required("name"): cv.string}),
+        supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT, _export,
+        schema=vol.Schema({vol.Optional("directory"): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL)
+    hass.services.async_register(
+        DOMAIN, SERVICE_IMPORT, _import,
+        schema=vol.Schema({
+            vol.Optional("directory"): cv.string,
+            vol.Optional("replace", default=False): cv.boolean}),
+        supports_response=SupportsResponse.OPTIONAL)
 
     hass.services.async_register(
         DOMAIN, SERVICE_LINT, _lint,

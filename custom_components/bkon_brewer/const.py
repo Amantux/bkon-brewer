@@ -25,6 +25,11 @@ SERVICE_CUSTOMIZE = "customize_recipe"
 SERVICE_LINT = "lint_recipe"
 SERVICE_DIAGNOSE = "diagnose"
 SERVICE_BUILD = "build_recipe"
+SERVICE_GET = "get_recipe"
+SERVICE_EXPORT = "export_recipes"
+SERVICE_IMPORT = "import_recipes"
+CONF_RECIPE_DIR = "recipe_dir"
+DEFAULT_RECIPE_DIR = "bkon_recipes"
 
 # Dispatcher signal carrying parsed BrewerEvents to entities.
 SIGNAL_EVENT = f"{DOMAIN}_event"

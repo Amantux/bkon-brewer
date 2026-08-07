@@ -1,0 +1,31 @@
+configuration:
+  service_api_key:
+    name: Service API key
+    description: >-
+      The key the BKON integration presents to this service. Set the same value
+      in the integration's options. Leave blank only on a fully trusted network.
+  ai_provider:
+    name: Generation provider
+    description: >-
+      Who generates the written answers. Ollama (local or Cloud), Anthropic, or
+      any OpenAI-compatible endpoint. Embeddings always run locally regardless.
+  model:
+    name: Model
+    description: >-
+      The model to generate with, e.g. gpt-oss:120b for Ollama Cloud or
+      claude-sonnet-5 for Anthropic.
+  api_key:
+    name: Provider API key
+    description: The API key for the chosen provider. Not needed for a local Ollama.
+  base_url:
+    name: Provider base URL
+    description: >-
+      Override the endpoint. Blank means the vendor default (Ollama Cloud for
+      Ollama). Point at http://your-host:11434 for a local Ollama, or an
+      OpenAI-compatible server's URL. Link-local and metadata addresses are
+      refused.
+  log_level:
+    name: Log level
+    description: How much the service logs.
+network:
+  9621/tcp: LightRAG API — map only for the integration or LAN access

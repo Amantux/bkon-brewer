@@ -196,3 +196,43 @@ build_recipe:
       required: false
       selector:
         text:
+get_recipe:
+  name: Get a recipe
+  description: Read one saved recipe — its steps, plus a quick problem check.
+  fields:
+    name:
+      name: Recipe
+      required: true
+      selector:
+        text:
+export_recipes:
+  name: Export recipes to files
+  description: >-
+    Write the recipe library to a directory as one JSON file per recipe, ready
+    to commit to git. Deterministic output, so an unchanged library re-exports
+    to a clean git status. Defaults to the bkon_recipes folder in your config.
+  fields:
+    directory:
+      name: Directory
+      description: Absolute path. Leave empty for <config>/bkon_recipes.
+      required: false
+      selector:
+        text:
+import_recipes:
+  name: Import recipes from files
+  description: >-
+    Read recipes back from a directory of JSON files into the library. Upserts
+    by default; enable Replace to mirror the files exactly (deletes recipes not
+    present in the files).
+  fields:
+    directory:
+      name: Directory
+      required: false
+      selector:
+        text:
+    replace:
+      name: Replace
+      description: Clear the library first, so it exactly matches the files.
+      default: false
+      selector:
+        boolean:
