@@ -5,6 +5,8 @@ DOMAIN = "bkon_brewer"
 
 CONF_ADDRESS = "address"
 CONF_SIMULATE = "simulate"
+CONF_KB_PATH = "kb_path"
+DEFAULT_KB_FILENAME = "bkon_brewer_kb.json"
 
 # Services
 SERVICE_BREW = "brew"
@@ -15,6 +17,8 @@ SERVICE_SEND_RAW = "send_raw"
 SERVICE_SAVE_RECIPE = "save_recipe"
 SERVICE_DELETE_RECIPE = "delete_recipe"
 SERVICE_BREW_SAVED = "brew_saved"
+SERVICE_ASK = "ask"
+SERVICE_CUSTOMIZE = "customize_recipe"
 
 # Dispatcher signal carrying parsed BrewerEvents to entities.
 SIGNAL_EVENT = f"{DOMAIN}_event"

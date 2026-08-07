@@ -6,22 +6,26 @@ import logging
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    CONF_ADDRESS, CONF_SIMULATE, DOMAIN, SERVICE_ABORT, SERVICE_BREW,
-    SERVICE_BREW_SAVED, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
+    SIGNAL_EVENT, CONF_ADDRESS, CONF_KB_PATH, CONF_SIMULATE, DEFAULT_KB_FILENAME, DOMAIN,
+    SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
+    SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
     SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW)
+from . import advisor, concierge
 from .coordinator import BrewerCoordinator
+from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
 from .protocol import recipe as R
 from .transport import BrewerUnavailable
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON, Platform.CONVERSATION]
 
 # A recipe passed to the brew service: a list of {type, values} dicts, the same
 # shape the protocol layer consumes. Kept permissive here and validated for real
@@ -52,6 +56,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         library = RecipeLibrary(hass)
         await library.async_load()
         store["library"] = library
+    if "kb" not in store:
+        # The index lives in the config dir by default. Absent is fine -- the
+        # concierge just says questions are unavailable until it is built.
+        kb_path = entry.data.get(CONF_KB_PATH) or hass.config.path(
+            DEFAULT_KB_FILENAME)
+        store["kb"] = await hass.async_add_executor_job(
+            KnowledgeBase.from_file, kb_path)
     store[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _register_services(hass)
@@ -64,6 +75,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator: BrewerCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.async_stop()
     return unloaded
+
+
+def _notify_library_changed(hass: HomeAssistant) -> None:
+    """Nudge entities to re-read the library after a save or delete.
+
+    The library sensor is push-based like everything else here, so a change made
+    through a service (not the brewer) needs an explicit signal or the UI keeps
+    showing the old count until the next brewer event.
+    """
+    from .protocol.events import BrewerEvent, EventType
+    for c in hass.data.get(DOMAIN, {}).values():
+        if isinstance(c, BrewerCoordinator):
+            async_dispatcher_send(
+                hass, f"{SIGNAL_EVENT}_{c.address}",
+                BrewerEvent(EventType.UNKNOWN, raw="library:changed"))
 
 
 def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[BrewerCoordinator]:
@@ -135,13 +161,63 @@ def _register_services(hass: HomeAssistant) -> None:
             vol.Optional("address"): cv.string,
             vol.Required("button"): vol.Coerce(int),
         }))
+    async def _ask(call: ServiceCall) -> dict:
+        """Answer a question or preview a recipe tweak. Returns response data."""
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        kb: KnowledgeBase = hass.data[DOMAIN].get("kb")
+        recipes = {r["name"]: library.get(r["id"]) for r in library.list()}
+        reply = concierge.respond(call.data["message"], recipes, kb)
+        out = {"kind": reply.kind, "response": reply.text}
+        if reply.new_steps is not None:
+            out["recipe"] = reply.recipe_name
+            out["steps"] = [{"type": str(st.type), "values": st.values}
+                            for st in reply.new_steps]
+        return out
+
+    async def _customize(call: ServiceCall) -> dict:
+        """Apply feedback to a saved recipe; optionally save the result."""
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        name = call.data["name"]
+        steps = library.get(name)
+        if steps is None:
+            raise vol.Invalid(f"No saved recipe named {name!r}")
+        result = advisor.customize(steps, call.data["feedback"])
+        out = {
+            "changed": result.changed,
+            "summary": result.summary(),
+            "steps": [{"type": str(st.type), "values": st.values}
+                      for st in result.steps],
+        }
+        save_as = call.data.get("save_as")
+        if save_as and result.changed:
+            raw = [{"type": str(st.type), "values": st.values}
+                   for st in result.steps]
+            out["saved_as"] = await library.async_put(save_as, raw)
+            _notify_library_changed(hass)
+        return out
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_ASK, _ask,
+        schema=vol.Schema({vol.Required("message"): cv.string}),
+        supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(
+        DOMAIN, SERVICE_CUSTOMIZE, _customize,
+        schema=vol.Schema({
+            vol.Required("name"): cv.string,
+            vol.Required("feedback"): cv.string,
+            vol.Optional("save_as"): cv.string,
+        }),
+        supports_response=SupportsResponse.OPTIONAL)
+
     async def _save_recipe(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
         await library.async_put(call.data["name"], call.data["steps"])
+        _notify_library_changed(hass)
 
     async def _delete_recipe(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
         await library.async_delete(call.data["name"])
+        _notify_library_changed(hass)
 
     async def _brew_saved(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]

@@ -122,3 +122,38 @@ brew_saved:
       required: true
       selector:
         text:
+ask:
+  name: Ask the concierge
+  description: >-
+    Ask a question about your BKON (answered from the service documents) or
+    describe a tweak to a saved recipe. Returns the answer as response data.
+  fields:
+    message:
+      name: Message
+      required: true
+      example: How do I descale the machine?
+      selector:
+        text:
+customize_recipe:
+  name: Customize a recipe from feedback
+  description: >-
+    Adjust a saved recipe with plain language — stronger, less bitter, hotter,
+    bigger, faster. Optionally save the result under a new name.
+  fields:
+    name:
+      name: Recipe
+      required: true
+      selector:
+        text:
+    feedback:
+      name: Feedback
+      required: true
+      example: make it a bit stronger and less bitter
+      selector:
+        text:
+    save_as:
+      name: Save result as
+      description: Leave empty to only preview the change.
+      required: false
+      selector:
+        text:

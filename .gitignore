@@ -5,3 +5,6 @@ __pycache__/
 docs/_reference_/
 *.apk
 *.dex
+# Local knowledge-base index — contains vendor document text, never committed.
+bkon_brewer_kb.json
+scripts/_archive/
