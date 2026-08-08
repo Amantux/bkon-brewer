@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.1
+- **The tasting journal is now readable by MCP, automations and voice.** It was
+  living only in the browser, where nothing else could see it. It is stored on
+  the recipe in Home Assistant and exposed on the **recipe library sensor's
+  attributes**, so any MCP client reading that entity gets the whole
+  change → flavour history without a new integration surface.
+- New **`bkon_brewer.add_tasting_note`** service so MCP, an automation or the
+  studio can all write to the *same* journal — it is only useful as one history.
+- **Saving from the studio publishes its journal** to Home Assistant, which is
+  what makes it visible to everything else. Journals are capped at 20 entries so
+  a sensor attribute cannot bloat the state machine.
+
 ## 0.9.0 — the studio comes first
 - **Reorganised around the studio.** It is now the landing page, with
   **Diagnose** and **Settings** beside it; the whole wiki moved behind one

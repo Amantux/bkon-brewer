@@ -16,7 +16,7 @@ from .const import (
     SIGNAL_EVENT, CONF_ADDRESS, CONF_KB_PATH, CONF_SIMULATE, DEFAULT_KB_FILENAME, DOMAIN,
     SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
-    SERVICE_EXPORT_BBP, SERVICE_RATE_RECIPE, SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
+    SERVICE_ADD_NOTE, SERVICE_EXPORT_BBP, SERVICE_RATE_RECIPE, SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
     SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
     SERVICE_EXPORT_MENU, DEFAULT_RECIPE_DIR,
@@ -449,7 +449,35 @@ def _register_services(hass: HomeAssistant) -> None:
             await library.async_rate(call.data["name"],
                                      rating=call.data.get("rating"),
                                      notes=call.data.get("notes"))
+        # The studio keeps its journal in the browser; a save is how it reaches
+        # Home Assistant, and therefore MCP.
+        for e in call.data.get("journal") or []:
+            await library.async_note(
+                call.data["name"], changes=e.get("changes") or [],
+                taste=e.get("taste", ""), rating=e.get("rating"),
+                when=e.get("when", ""))
         _notify_library_changed(hass)
+
+    async def _add_note(call: ServiceCall) -> dict:
+        """Record one tasting-journal entry against a recipe.
+
+        Exposed as a service so the studio, an automation, or an MCP client can
+        all write to the same journal -- it is only useful as one history, not
+        one per surface.
+        """
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        entry = await library.async_note(
+            call.data["name"],
+            changes=call.data.get("changes") or [],
+            taste=call.data.get("taste", ""),
+            rating=call.data.get("rating"),
+            when=call.data.get("when", ""))
+        if entry is None:
+            raise vol.Invalid(f"No saved recipe named {call.data['name']!r}")
+        _notify_library_changed(hass)
+        rec = library.get_record(call.data["name"])
+        return {"name": rec["name"], "entry": entry,
+                "journal": rec.get("journal", [])}
 
     async def _rate_recipe(call: ServiceCall) -> dict:
         """Save the user's rating (1-5, 0 clears) and/or notes for a recipe."""
@@ -484,7 +512,18 @@ def _register_services(hass: HomeAssistant) -> None:
             vol.Required("steps"): [_STEP_SCHEMA],
             vol.Optional("rating"): vol.All(vol.Coerce(int), vol.Range(min=0, max=5)),
             vol.Optional("notes"): cv.string,
+            vol.Optional("journal"): [dict],
         }))
+    hass.services.async_register(
+        DOMAIN, SERVICE_ADD_NOTE, _add_note,
+        schema=vol.Schema({
+            vol.Required("name"): cv.string,
+            vol.Optional("changes"): [cv.string],
+            vol.Optional("taste"): cv.string,
+            vol.Optional("rating"): vol.All(vol.Coerce(int), vol.Range(min=0, max=5)),
+            vol.Optional("when"): cv.string,
+        }),
+        supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(
         DOMAIN, SERVICE_RATE_RECIPE, _rate_recipe,
         schema=vol.Schema({

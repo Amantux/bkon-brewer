@@ -115,6 +115,12 @@ save_recipe:
       selector:
         text:
           multiline: true
+    journal:
+      name: Tasting journal
+      description: Optional list of journal entries to append (the studio sends its own).
+      required: false
+      selector:
+        object:
 
 export_bbp:
   name: Export a .bbp menu file (experimental)
@@ -134,6 +140,44 @@ export_bbp:
     filename:
       name: File name
       description: Eight characters or fewer, plus .bbp — the machine's limit.
+      required: false
+      selector:
+        text:
+
+add_tasting_note:
+  name: Add a tasting note
+  description: >-
+    Record one entry in a recipe's tasting journal — what changed, and how it
+    tasted. The journal is exposed on the recipe library sensor's attributes, so
+    an automation, a voice assistant or an MCP client can read the whole history
+    and relate a change to the flavour it produced.
+  fields:
+    name:
+      name: Recipe
+      required: true
+      selector:
+        text:
+    changes:
+      name: What changed
+      description: 'A list of short phrases, e.g. ["vacuum 24kPa -> 28kPa"].'
+      required: false
+      selector:
+        object:
+    taste:
+      name: How it tasted
+      required: false
+      example: fuller body, less sharp
+      selector:
+        text:
+          multiline: true
+    rating:
+      name: Rating
+      required: false
+      selector:
+        number: { min: 0, max: 5, mode: slider }
+    when:
+      name: Date
+      description: YYYY-MM-DD. Defaults to blank if omitted.
       required: false
       selector:
         text:

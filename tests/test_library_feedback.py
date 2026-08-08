@@ -91,5 +91,41 @@ check("rating imports back", lib2.get_record("Rated")["rating"], 3)
 check("notes import back", lib2.get_record("Rated")["notes"], "ok")
 check("the unrated one imports with no rating", lib2.get_record("Plain")["rating"], None)
 
+print("\nthe tasting journal — the part MCP reads")
+lib = fresh()
+run(lib.async_put("Cup", STEPS))
+e = run(lib.async_note("Cup", changes=["vacuum 24kPa -> 28kPa"],
+                       taste="fuller body", rating=5, when="2026-08-08"))
+ok("an entry comes back", e and e["taste"] == "fuller body")
+rec = lib.get_record("Cup")
+check("the journal is on the record", len(rec["journal"]), 1)
+check("the change is recorded", rec["journal"][0]["changes"], ["vacuum 24kPa -> 28kPa"])
+check("the rating rides along", rec["journal"][0]["rating"], 5)
+
+# the library sensor's attributes are the MCP-visible surface
+listing = lib.list()[0]
+ok("list() exposes the journal (the sensor attribute)", "journal" in listing)
+check("and it carries the entry", len(listing["journal"]), 1)
+
+check("noting an unknown recipe is a clean None", run(lib.async_note("ghost", taste="x")), None)
+
+print("\nthe journal is bounded, survives edits, and round-trips")
+for i in range(30):
+    run(lib.async_note("Cup", changes=[f"c{i}"], taste=f"t{i}"))
+check("capped so the sensor attribute cannot bloat",
+      len(lib.get_record("Cup")["journal"]), 20)
+check("the newest entry is kept", lib.get_record("Cup")["journal"][-1]["taste"], "t29")
+
+run(lib.async_put("Cup", STEPS + [{"type": "pg", "values": {"ps": 30, "tm": 10}}]))
+check("journal survives a re-save", len(lib.get_record("Cup")["journal"]), 20)
+
+dump = lib.export_dict()
+lib2 = fresh(); run(lib2.async_import_records(dump["recipes"]))
+check("journal round-trips through export/import",
+      len(lib2.get_record("Cup")["journal"]), 20)
+lib3 = fresh(); run(lib3.async_put("Plain", STEPS))
+ok("a recipe with no journal exports without the key",
+   "journal" not in lib3.export_dict()["recipes"][0])
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

@@ -16,6 +16,11 @@ from .protocol import recipe as R
 
 _LOGGER = logging.getLogger(__name__)
 
+#: Journal entries kept per recipe. Bounded because the whole library rides on a
+#: sensor's attributes, and an unbounded list there would bloat the state
+#: machine and every recorder row that mentions it.
+JOURNAL_MAX = 20
+
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.recipes"
 
@@ -74,6 +79,10 @@ class RecipeLibrary:
                 "error": error,
                 "rating": rec.get("rating"),
                 "notes": rec.get("notes", ""),
+                # The tasting journal rides on the library sensor's attributes,
+                # which is what makes it readable by MCP and any automation --
+                # the studio's browser store alone was invisible to everything.
+                "journal": rec.get("journal", []),
             })
         return out
 
@@ -89,7 +98,8 @@ class RecipeLibrary:
         return {"id": _slug(rec.get("name", id_or_name)),
                 "name": rec.get("name"), "steps": rec.get("steps", []),
                 "description": rec.get("description", ""),
-                "rating": rec.get("rating"), "notes": rec.get("notes", "")}
+                "rating": rec.get("rating"), "notes": rec.get("notes", ""),
+                "journal": rec.get("journal", [])}
 
     def get(self, id_or_name: str) -> list[R.Step] | None:
         rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
@@ -117,6 +127,8 @@ class RecipeLibrary:
                 rec["rating"] = prev["rating"]
             if prev.get("notes"):
                 rec["notes"] = prev["notes"]
+            if prev.get("journal"):
+                rec["journal"] = prev["journal"]
         self._recipes[rid] = rec
         await self.async_save()
         return rid
@@ -145,6 +157,32 @@ class RecipeLibrary:
         await self.async_save()
         return True
 
+    async def async_note(self, id_or_name: str, *, changes: list[str] | None = None,
+                         taste: str = "", rating: int | None = None,
+                         when: str = "") -> dict | None:
+        """Append one tasting-journal entry: what changed, and how it tasted.
+
+        The pairing is the point. The machine can know exactly what moved and can
+        never know the flavour; you know the flavour and will not remember the
+        numbers. Recorded together, they are the only basis for answering "what
+        made it less bitter?". Returns the stored entry, or None if there is no
+        such recipe.
+        """
+        rid = id_or_name if id_or_name in self._recipes else _slug(id_or_name)
+        rec = self._recipes.get(rid)
+        if rec is None:
+            return None
+        entry = {"when": when or "", "changes": list(changes or []),
+                 "taste": str(taste or "")}
+        if rating is not None:
+            entry["rating"] = max(0, min(5, int(rating)))
+        journal = list(rec.get("journal", []))
+        journal.append(entry)
+        rec["journal"] = journal[-JOURNAL_MAX:]
+        self._recipes[rid] = rec
+        await self.async_save()
+        return entry
+
     async def async_delete(self, id_or_name: str) -> bool:
         rid = id_or_name if id_or_name in self._recipes else _slug(id_or_name)
         if rid in self._recipes:
@@ -171,6 +209,8 @@ class RecipeLibrary:
                 rec.pop("rating", None)
             if not rec.get("notes"):
                 rec.pop("notes", None)
+            if not rec.get("journal"):
+                rec.pop("journal", None)
             records.append(rec)
         return {"version": 1, "recipes": records}
 
@@ -212,6 +252,8 @@ class RecipeLibrary:
                 rec_out["rating"] = rec["rating"]
             if rec.get("notes"):
                 rec_out["notes"] = rec["notes"]
+            if rec.get("journal"):
+                rec_out["journal"] = list(rec["journal"])[-JOURNAL_MAX:]
             self._recipes[rid] = rec_out
         await self.async_save()
         return {"added": added, "updated": updated, "skipped": skipped,
