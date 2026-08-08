@@ -17,7 +17,7 @@ states them outright, which retired the largest open question in
 
 | Field | Unit | Typical operating values |
 |---|---|---|
-| Temperature (`tmp`) | °F, delivered to ±1 °F | ~165–210 °F for the tea menus |
+| Temperature (`tmp`) | °F, delivered to ±1 °F | ~165–205 °F across the documented tea menus |
 | Fill / rinse (`fwv` / `rwv`) | millilitres | fills ~35–250 ml |
 | Vacuum strength (`ps` on `vc`) | kilopascals | base recipes ~20–24 kPa |
 | Steep / pause / hold (`tm` / `dl`) | seconds | a few seconds to ~15 s |
@@ -33,6 +33,27 @@ sequence relate: if the first vacuum is X kPa, the next is around X+2 and the
 one after around X+1, with steep times tuned per menu. This is reference
 material for anyone designing recipes, not something the protocol enforces — but
 it tells you the sensible neighbourhood for a value, which a bare min/max cannot.
+
+**The dial-in convention — which validated the advisor after the fact.** Recipes
+are named `temp/vacuum/steep` (`185/0/0` is a category mid-point). The guide's
+rule: move the **vacuum in big steps of ±2 kPa** to change *concentration*, and
+the **steep in small steps of ±5 or ±10 s** at the end of the recipe to change
+*flavour intensity*. [advisor.py](../custom_components/bkon_brewer/advisor.py)
+was written to move vacuum by 2 and steep by 5 per request — reasoned guesses
+that turn out to match the documented convention exactly.
+
+**Base recipe starting points.** The low-temperature tea menu starts at
+175 °F / 24 kPa, the high-temperature menu at 205 °F / 20 kPa — a hotter brew
+starts from a *shallower* vacuum. Delicate-leaf teas use one vacuum, a much
+shorter steep, and front-loaded water, because repeated vacuums over-extract
+them. That is the shape the `delicate` template already had.
+
+**The menu file is a compiled `.bbp`, and menus have a fixed capacity.** Menus
+are authored in BKON's Craft Cloud; a **Compile** step emits a `.bbp` whose
+filename must be **≤ 8 characters**, and that is what the USB path ingests — not
+arbitrary JSON. A menu holds 8 categories × 4 pages × 8 buttons = **32 recipes
+per category, 256 per menu**. This *narrowed* what `export_menu` can claim; see
+[LONGER_RECIPES.md](LONGER_RECIPES.md).
 
 **The error table.** The Error Codes reference gave clean hardware-fault labels
 (chamber-not-sealed, flow-meter, LIM-communication, the temperature-sensor

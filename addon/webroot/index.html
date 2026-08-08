@@ -392,13 +392,30 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
         <tr><td>Brew now</td><td>Bluetooth</td><td><b>599 bytes</b></td></tr>
         <tr><td>Menu file</td><td>USB — Service Menu → Update Recipe File</td><td>none observed</td></tr>
       </table>
-      <p><code>bkon_brewer.export_menu</code> writes all recipes as one menu file in the
-      machine's own format. Copy it to a thumb drive, load it through the Service Menu, and a
-      recipe with many steps that would never fit a Bluetooth brew lives in the on-board menu
-      instead.</p>
-      <div class="note">The exact on-USB folder layout isn't fully confirmed. The service uses
-      the machine's own recipe-object shape; capture a real "Export to Recipe File" from the
-      unit to verify the surrounding layout before relying on it.</div>
+      <p><code>bkon_brewer.export_menu</code> writes all recipes as one menu object in the
+      machine's own vocabulary — every recipe, every portion, with no 599-byte ceiling.</p>
+      <div class="note"><b>It is not yet a loadable file, and the docs used to imply it was.</b>
+      The service documentation describes the real path: menus are authored in BKON's Craft
+      Cloud and a <b>Compile</b> step produces a <code>.bbp</code> file — name <b>no more than
+      eight characters</b> — which is what goes on the thumb drive. The machine ingests that
+      compiled container, not arbitrary JSON, and this project cannot produce one: the format
+      is unknown. Treat the export as the recipe data in the machine's own terms. Capturing a
+      real <em>Export to Recipe File</em> from a unit would settle both the container and the
+      folder layout at once.</div>
+      <h2>Menu capacity</h2>
+      <p>A menu has a fixed shape, stated outright in the menu-development guide:</p>
+      <table>
+        <thead><tr><th>Level</th><th>Limit</th></tr></thead>
+        <tbody>
+          <tr><td>Categories per menu</td><td>8</td></tr>
+          <tr><td>Pages per category</td><td>4</td></tr>
+          <tr><td>Recipe buttons per page</td><td>8</td></tr>
+          <tr><td><b>Recipes per category</b></td><td><b>32</b></td></tr>
+          <tr><td><b>Recipes per menu</b></td><td><b>256</b></td></tr>
+        </tbody>
+      </table>
+      <p>The first page of a category is the easiest to reach at the machine, so the
+      highest-volume drinks belong there.</p>
     </section>
 
     <!-- ARCHITECTURE -->
@@ -475,7 +492,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       <table>
         <thead><tr><th>Field</th><th>Unit</th><th>Typical operating values</th></tr></thead>
         <tbody>
-          <tr><td>Temperature <code>tmp</code></td><td>°F, to ±1 °F</td><td>~165–210 °F</td></tr>
+          <tr><td>Temperature <code>tmp</code></td><td>°F, to ±1 °F</td><td>~165–205 °F (documented tea menus)</td></tr>
           <tr><td>Fill / rinse <code>fwv</code> <code>rwv</code></td><td>millilitres</td><td>~35–250 ml</td></tr>
           <tr><td>Vacuum <code>ps</code> (on <code>vc</code>)</td><td>kilopascals</td><td>~20–24 kPa in base recipes</td></tr>
           <tr><td>Steep / pause / hold <code>tm</code> <code>ap</code> <code>dl</code></td><td>seconds</td><td>a few seconds to ~15 s</td></tr>
@@ -490,34 +507,71 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       it tells you the sensible neighbourhood for a value, which a bare min/max cannot. If the
       first vacuum is <b>X</b> kPa, the next sits around <b>X+2</b> and the one after around
       <b>X+1</b>, with steep times tuned per menu.</p>
+      <p>The base tea recipes are published as starting points: the low-temperature menu begins
+      at <b>175 °F / 24 kPa</b>, the high-temperature menu at <b>205 °F / 20 kPa</b> — so a
+      hotter brew starts from a <em>shallower</em> vacuum, not a deeper one. Delicate leaf teas
+      (broken-leaf Sencha, Gyokuro, first-flush Darjeeling) get a different shape entirely:
+      <b>one</b> vacuum, a much shorter steep, and most of the water front-loaded, because the
+      repeated vacuums of a standard recipe would over-extract them.</p>
+
+      <h3>The dial-in convention</h3>
+      <p>Recipes are named <code>temp/vacuum/steep</code> — <code>185/0/0</code> is the
+      category mid-point, <code>185/+2/0</code> a little more concentration,
+      <code>185/-2/+10</code> lighter but more intense. The rule of thumb behind it:</p>
+      <div class="flow">
+        <div class="row" style="--dot:var(--t-vacuum)"><span class="d"></span><span><b>Vacuum moves in big steps of ±2 kPa</b> — it changes <em>concentration</em>.</span></div>
+        <div class="row" style="--dot:var(--t-start)"><span class="d"></span><span><b>Steep moves in small steps of ±5 or ±10 s</b>, at the end of the recipe — it changes <em>flavour intensity</em>.</span></div>
+      </div>
+      <div class="note"><b>This confirmed the concierge's arithmetic after the fact.</b> The
+      advisor was written to move the vacuum by 2 kPa and the steep by 5 s per request — those
+      were reasoned guesses, and they turn out to match the documented convention exactly. It
+      is why <em>"stronger"</em> reaches for the vacuum and <em>"less bitter"</em> reaches for
+      temperature and steep time.</div>
       <p>The vacuum is the machine's distinguishing mechanism — extraction under reduced
       pressure, held for only seconds — which is why it is a first-class step here rather than
       a variant of purge, and why <em>"stronger"</em> moves it first.</p>
 
       <h2>Error codes</h2>
-      <p>Keyed <code>C:<i>code</i> M:<i>module</i></code>, as the machine reports them. Ask the
-      concierge <em>"what does C:5 M:3 mean?"</em> and you get the row below plus a fix; these
-      are also what <code>sensor.*_last_error</code> renders.</p>
+      <p>Reported as <code>C:<i>code</i> M:<i>module</i></code> — <b>C is the fault, M is the
+      module that raised it</b>, so the module repeats down a group. Ask the concierge
+      <em>"what does C:3 M:5 mean?"</em> and you get the row below plus a fix; these are also
+      what <code>sensor.*_last_error</code> renders.</p>
+      <h3>Module 5 — hardware and sensors</h3>
       <table>
-        <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+        <thead><tr><th>Code</th><th>Label</th><th>What it means</th></tr></thead>
         <tbody>
-          <tr><td><code>C:2 M:20</code></td><td>Brew information missing — restart and pick a different brew; re-send the recipe if it persists.</td></tr>
-          <tr><td><code>C:2 M:30</code></td><td>Incorrect brew data — as above.</td></tr>
-          <tr><td><code>C:2 M:45</code></td><td>Descale finished. Empty and clean the pitcher.</td></tr>
-          <tr><td><code>C:4 M:4</code></td><td>Machine reported a fault. Restart and try again.</td></tr>
-          <tr><td><code>C:4 M:70</code></td><td>Machine communication error.</td></tr>
-          <tr><td><code>C:5 M:1</code></td><td>Brew chamber glass not detected — check the chamber is in place.</td></tr>
-          <tr><td><code>C:5 M:3</code></td><td>Chamber not sealed — check it is seated and closed. A vacuum cannot form otherwise.</td></tr>
-          <tr><td><code>C:5 M:11–22</code></td><td>Temperature sensor fault (codes 11, 12, 13, 16, 17, 18, 19, 22 — one per sensor in the bank).</td></tr>
-          <tr><td><code>C:5 M:40</code></td><td>Flow meter fault — check the water supply and connection.</td></tr>
-          <tr><td><code>C:5 M:50</code></td><td>LIM communication error — the machine lost contact with a module.</td></tr>
-          <tr><td><code>C:7 M:41</code></td><td>Brew cycle could not start. Check the pitcher is seated.</td></tr>
-          <tr><td><code>C:7 M:50</code></td><td>Brew was interrupted.</td></tr>
-          <tr><td><code>C:7 M:60</code></td><td>Cleaning or descale cycle required.</td></tr>
+          <tr><td><code>C:1 M:5</code></td><td>Brew Chamber Glass</td><td>The brew-cylinder switch is not operating — the chamber is not in place, or the switch or its wiring is damaged.</td></tr>
+          <tr><td><code>C:3 M:5</code></td><td>Brew Chamber not Sealed</td><td>A vacuum cannot form. Debris on a gasket, a purge valve stuck open, the locking handle not down, a loose data cable, out-of-date software, or a fouled vacuum pump.</td></tr>
+          <tr><td><code>C:11 M:5</code> … <code>C:22 M:5</code></td><td>Temperature Sensor</td><td>One sensor in the bank — codes 11, 12, 13, 16, 17, 18, 19, 22.</td></tr>
+          <tr><td><code>C:40 M:5</code></td><td>Flow Meter</td><td>No water flow detected. Supply valve off, filter clogged, main valve V1 without power or blocked, scale in the thermoblocks, or air in the lines.</td></tr>
+          <tr><td><code>C:50 M:5</code></td><td>LIM Communication Error</td><td>The LIM board and the UI board lost contact.</td></tr>
         </tbody>
       </table>
-      <p>Twenty codes ship in <code>protocol/events.py</code>; the sensor bank is collapsed into
-      one row above because every member carries the same meaning.</p>
+      <h3>Module 2 — brew data</h3>
+      <table>
+        <thead><tr><th>Code</th><th>Label</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td><code>C:20 M:2</code></td><td>Information Missing</td><td>Brew information incomplete — restart and select a different brew.</td></tr>
+          <tr><td><code>C:30 M:2</code></td><td>Information Code</td><td>Incorrect brew data — update the brew parameters (menu file).</td></tr>
+          <tr><td><code>C:45 M:2</code></td><td>Descale Finished</td><td>The descale cycle is complete. Press <b>RESTART</b>, then empty and clean the pitcher.</td></tr>
+        </tbody>
+      </table>
+      <h3>Modules 4 and 7 — from the app's table</h3>
+      <p>These are not in the service documentation; they come from the vendor app's own error
+      table, so the wording is the app's rather than Franke's.</p>
+      <table>
+        <thead><tr><th>Code</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td><code>C:4 M:4</code></td><td>Machine reported a fault. Restart and try again.</td></tr>
+          <tr><td><code>C:70 M:4</code></td><td>Machine communication error.</td></tr>
+          <tr><td><code>C:41 M:7</code></td><td>Brew cycle could not start. Check the pitcher is seated.</td></tr>
+          <tr><td><code>C:50 M:7</code></td><td>Brew was interrupted.</td></tr>
+          <tr><td><code>C:60 M:7</code></td><td>Cleaning or descale cycle required.</td></tr>
+        </tbody>
+      </table>
+      <p>Twenty codes ship in <code>protocol/events.py</code>, keyed internally
+      <code>module:code</code>; anything unlisted still renders legibly as
+      <em>"Brewer error C:x M:y"</em>.</p>
 
       <h2>Provenance</h2>
       <p>The vendor is <b>Franke</b> — the service documents carry their copyright, and BKON's

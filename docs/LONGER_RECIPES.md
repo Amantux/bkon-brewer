@@ -54,11 +54,41 @@ lint note should be read that way.
 Recipe File" path exists, is separate from Bluetooth, and is how larger or
 bulk menu changes are made.
 
-**Not fully confirmed:** the exact on-USB *folder layout* the Service Menu
-expects. The software-download instructions show a specific folder structure on
-the drive (a named sub-folder, particular files), so a menu file may need to sit
-in a prescribed place, not just be any JSON. `export_menu` produces the recipe
-and menu OBJECT in the app's shape — the payload — but the surrounding layout
-should be checked against an actual "Export to Recipe File" dump from the unit
-before relying on it. That export is the cleanest way to capture the real format,
-and the machine can produce one itself.
+**Confirmed, and it narrows what `export_menu` can claim.** The RAIN Menu
+Development Guide describes the real authoring path: recipes and menus are built
+in BKON's *Craft Cloud*, and a **Compile** step produces a **`.bbp` file** whose
+name must be **no more than eight characters**. That file goes on the USB stick.
+
+So the machine does not ingest arbitrary JSON — it ingests a compiled `.bbp`
+container, and the compiler is Craft Cloud's, not ours.
+
+**What that means here.** `export_menu` produces the menu *object* in the app's
+shape — the payload, with every recipe and portion. That is the right data, and
+it is what you would need in order to reproduce a menu. It is **not** a `.bbp`,
+and this project cannot currently produce one: the container format is unknown.
+Treat `export_menu` as "the recipes, in the machine's own vocabulary, ready to be
+carried into Craft Cloud or compared against a real export" — not as a file you
+can drop on a thumb drive and load today.
+
+The service documentation also shows that USB layout is load-bearing in general:
+the software-update procedure fails outright if files are moved out of their
+named folder. A menu file very likely sits in a prescribed place too.
+
+**The cleanest way to close this** is the machine's own **"Export to Recipe
+File"**: it produces a genuine `.bbp` from a unit you own, which would settle
+both the container format and the folder layout in one step.
+
+## Menu capacity (confirmed)
+
+A compiled menu is not unlimited either — the guide states its shape outright:
+
+| Level | Limit |
+|---|---|
+| Categories per menu | 8 |
+| Pages per category | 4 |
+| Recipe buttons per page | 8 |
+| **Recipes per category** | **32** |
+| **Recipes per menu** | **256** |
+
+The first page of a category is the easiest to reach at the machine, so the
+highest-volume drinks belong there.
