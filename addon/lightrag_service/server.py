@@ -420,6 +420,45 @@ async def assistant_config():
     }
 
 
+@app.post("/export/bbp")
+async def export_bbp(request: Request):
+    """Build a .bbp menu file from the posted recipes and return it for download.
+
+    EXPERIMENTAL, and the response says so in a header as well as the docs: the
+    container checksum and step records are confirmed against real device files,
+    the category framing is not. See docs/BBP_FORMAT.md.
+    """
+    from fastapi.responses import Response
+    from bkon_core.protocol import bbp
+    from bkon_core.protocol import recipe as R
+
+    body = await request.json()
+    incoming = body.get("recipes")
+    if not incoming:                      # a single recipe from the builder
+        incoming = [{"name": body.get("name", "Recipe"),
+                     "steps": body.get("steps") or []}]
+    recipes = []
+    for rec in incoming:
+        try:
+            core = [R.Step(R.StepType(s["type"]), dict(s.get("values", {})))
+                    for s in (rec.get("steps") or [])]
+        except (KeyError, ValueError) as ex:
+            raise HTTPException(status_code=400, detail=f"bad step: {ex}")
+        recipes.append({"name": str(rec.get("name", "Recipe"))[:255],
+                        "code": str(rec.get("code", ""))[:60],
+                        # prepare() is what makes a portion match a real menu:
+                        # brew-out appended, wire rules applied.
+                        "portions": [(bbp.PORTIONS[0], R.prepare(core))]})
+    blob = bbp.build_menu([{"name": str(body.get("menu_name", "Home Assistant")),
+                            "colour": (168, 98, 31), "recipes": recipes}])
+    name = str(body.get("filename") or "hamenu")[:8] + ".bbp"
+    return Response(
+        content=blob, media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{name}"',
+                 "X-Bkon-Experimental": "category framing unconfirmed; "
+                                        "compare with a real Export to Recipe File"})
+
+
 @app.post("/score")
 async def score_endpoint(request: Request):
     """Score one recipe and return the critique.

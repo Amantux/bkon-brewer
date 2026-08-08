@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.3
+- **Drag to reorder steps**, with a grip on each card. Built on Pointer Events,
+  so mouse, pen and touch take one code path, and `touch-action:none` on the grip
+  stops the page scrolling out from under a drag in progress. The grip is
+  40×44px on touch. The arrow buttons remain, so reordering is still possible
+  by keyboard.
+- **Export .bbp** button in the studio: downloads the whole store as the
+  machine's own menu-file format. Built server-side by the confirmed encoder,
+  with the brew-out appended and the wire rules applied. Still **experimental** —
+  the response carries an `X-Bkon-Experimental` header saying so, and the button
+  links to the format notes.
+
 ## 0.9.2
 - **Fixes the builder on mobile.** A pre-drawer rule still carried
   `position:static!important`, which beat the new drawer's `position:fixed` while

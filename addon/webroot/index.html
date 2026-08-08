@@ -98,6 +98,20 @@
   .stu-add .sw{width:10px;height:10px;border-radius:3px;background:var(--dot);flex:none}
   .stu-add .pl{color:var(--ink-faint);font-weight:700}
   .stu-steps{display:flex;flex-direction:column;gap:9px}
+  /* Drag to reorder. Pointer Events cover mouse, pen and touch with one code
+     path; touch-action:none on the handle stops the browser scrolling the page
+     out from under a drag that has already begun. */
+  .stu-grip{width:30px;min-height:38px;display:flex;align-items:center;justify-content:center;
+    cursor:grab;color:var(--ink-faint);font-size:15px;line-height:1;touch-action:none;
+    border-radius:7px;flex:none;user-select:none;-webkit-user-select:none}
+  .stu-grip:hover{background:var(--panel-2);color:var(--ink)}
+  .stu-grip:active{cursor:grabbing}
+  .stu-card.dragging{opacity:.9;box-shadow:0 10px 26px rgba(0,0,0,.28);transform:scale(1.015);
+    position:relative;z-index:5}
+  .stu-card.placeholder{opacity:.35;border-style:dashed}
+  .stu-drop{height:3px;border-radius:3px;background:var(--accent);margin:-6px 0}
+  @media (max-width:800px){.stu-grip{width:40px;min-height:44px;font-size:18px}}
+  @media (pointer:coarse){.stu-grip{width:40px;min-height:44px}}
   .stu-empty{border:1.5px dashed var(--line-2);border-radius:10px;padding:30px 20px;text-align:center;
     color:var(--ink-soft);background:var(--panel-2);font-size:13px}
   .stu-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
@@ -613,8 +627,11 @@
         <div class="stu-actions-btns">
           <button class="btn primary" id="stuCopy" type="button">Save recipe</button>
           <button class="btn" id="stuBrew" type="button">Send to brewer</button>
+          <button class="btn" id="stuBbp" type="button" title="Download a .bbp menu file">Export .bbp</button>
         </div>
-        <p class="stu-actions-hint"><b>Save</b> copies a <code>save_recipe</code> call —
+        <p class="stu-actions-hint"><b>Export .bbp</b> downloads the machine's own menu-file
+          format — <b>experimental</b>, see <a data-nav="bbp" href="#">the format notes</a>
+          before loading one onto a brewer. <b>Save</b> copies a <code>save_recipe</code> call —
           steps, plus your rating and notes. <b>Send</b> copies a <code>brew_saved</code> call
           for a recipe you already saved. Paste either into <b>Developer&nbsp;Tools →
           Actions</b> (YAML mode) and run it. Over 599 bytes? It still loads as a
@@ -1157,8 +1174,14 @@ address=0x80000000</code></pre>
       const card = document.createElement("div");
       card.className = "stu-card"; card.style.setProperty("--dot", T.color);
       const head = document.createElement("div"); head.className = "stu-head";
-      head.innerHTML = `<span class="stu-idx">${i+1}</span><span class="stu-badge">${T.code}</span>`
-        + `<span class="stu-tname">${T.name}</span><span class="stu-tdesc">${T.desc}</span><span class="stu-sp"></span>`;
+      const grip=document.createElement("div");
+      grip.className="stu-grip"; grip.textContent="⠿";
+      grip.title="Drag to reorder"; grip.setAttribute("aria-label","Drag to reorder");
+      grip.dataset.idx=String(i);
+      head.appendChild(grip);
+      head.insertAdjacentHTML("beforeend", `<span class="stu-idx">${i+1}</span><span class="stu-badge">${T.code}</span>`
+        + `<span class="stu-tname">${T.name}</span><span class="stu-tdesc">${T.desc}</span><span class="stu-sp"></span>`);
+      card.dataset.idx=String(i);
       const up = ic("↑","Move up",()=>move(i,-1)); up.disabled = i===0;
       const dn = ic("↓","Move down",()=>move(i,1)); dn.disabled = i===steps.length-1;
       const del = ic("✕","Remove",()=>{steps.splice(i,1);render();});
@@ -1192,6 +1215,55 @@ address=0x80000000</code></pre>
     });
     gauge();
   }
+  // ---- drag to reorder (mouse, pen, touch) ----
+  let drag=null;
+  function stepCards(){ return [...$("stuSteps").querySelectorAll(".stu-card")]; }
+  function onGripDown(e){
+    const grip=e.target.closest(".stu-grip"); if(!grip) return;
+    const card=grip.closest(".stu-card"); if(!card) return;
+    e.preventDefault();
+    grip.setPointerCapture?.(e.pointerId);
+    drag={from:Number(card.dataset.idx), to:Number(card.dataset.idx), card, grip};
+    card.classList.add("dragging");
+  }
+  function onGripMove(e){
+    if(!drag) return;
+    e.preventDefault();
+    const y=e.clientY;
+    // Which card is the pointer over? Its midpoint decides above/below.
+    let to=drag.from;
+    stepCards().forEach(c=>{
+      const r=c.getBoundingClientRect(), i=Number(c.dataset.idx);
+      if(y > r.top && y < r.bottom) to = (y < r.top + r.height/2) ? i : i + (i>=drag.from?0:1);
+      else if(y >= r.bottom && i===stepCards().length-1) to = i;
+      else if(y <= r.top && i===0) to = 0;
+    });
+    to=Math.max(0,Math.min(steps.length-1,to));
+    if(to!==drag.to){ drag.to=to; previewOrder(); }
+  }
+  function previewOrder(){
+    // Show the landing position without committing, so a drag can be abandoned.
+    stepCards().forEach(c=>c.classList.toggle("placeholder",
+      Number(c.dataset.idx)===drag.from && drag.to!==drag.from));
+  }
+  function onGripUp(){
+    if(!drag) return;
+    const {from,to}=drag;
+    drag.card.classList.remove("dragging");
+    drag=null;
+    if(from!==to && to>=0 && to<steps.length){
+      const [moved]=steps.splice(from,1);
+      steps.splice(to,0,moved);
+    }
+    render();
+  }
+  $("stuSteps").addEventListener("pointerdown", onGripDown);
+  $("stuSteps").addEventListener("pointermove", onGripMove);
+  $("stuSteps").addEventListener("pointerup", onGripUp);
+  $("stuSteps").addEventListener("pointercancel", onGripUp);
+  // Reordering by keyboard stays available through the arrow buttons, so the
+  // drag is an addition rather than the only way to do it.
+
   function ic(txt,title,fn){ const b=document.createElement("button"); b.className="stu-ic";
     b.type="button"; b.textContent=txt; b.title=title; b.setAttribute("aria-label",title); b.onclick=fn; return b; }
   function move(i,d){ const j=i+d; if(j<0||j>=steps.length)return;
@@ -1248,6 +1320,7 @@ address=0x80000000</code></pre>
   // stays the source of truth for brewing -- Save copies the service call for
   // that -- but this makes the CRUD loop immediate: create, list, load, update,
   // delete, all without leaving the page.
+  const BASE_URL = location.pathname.replace(/[^/]*$/,"");
   const LIB_KEY = "bkon.studio.recipes.v1";
   let library = {};
   let currentId = null;
@@ -1454,6 +1527,32 @@ address=0x80000000</code></pre>
   function brewYaml(){
     return `service: bkon_brewer.brew_saved\ndata:\n  name: ${yamlStr(($("stuName").value||"Untitled").trim())}`;
   }
+  // Export the machine's own menu-file format. Built server-side, where the
+  // confirmed encoder lives, and streamed straight to a download.
+  $("stuBbp").onclick = async () => {
+    const btn=$("stuBbp"), was=btn.textContent;
+    btn.disabled=true; btn.textContent="Building…";
+    const name=($("stuName").value||"Recipe").trim();
+    // Everything in the store, so the file is a menu rather than one drink;
+    // the recipe on screen is included even if it was never saved.
+    const recipes=Object.values(library).map(r=>({name:r.name, steps:r.steps}));
+    if(!recipes.some(r=>r.name===name)) recipes.push({name, steps});
+    try{
+      const res=await fetch(BASE_URL+"export/bbp",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({recipes, menu_name:"Home Assistant", filename:"hamenu"})});
+      if(!res.ok){ const t=await res.text().catch(()=>""); throw new Error(t.slice(0,120)||`HTTP ${res.status}`); }
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download="hamenu.bbp";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      flash(`Exported ${recipes.length} recipe${recipes.length===1?"":"s"} as hamenu.bbp`);
+    }catch(err){
+      flash("Export failed — "+(err.message||err));
+    }finally{ btn.disabled=false; btn.textContent=was; }
+  };
+
   $("stuBrew").onclick = () => {
     navigator.clipboard?.writeText(brewYaml())
       .then(()=>flash("Copied brew_saved call — save it first if you haven't"))

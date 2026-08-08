@@ -22,6 +22,7 @@ PAIRS = [
     (SRC / "app_recipe.py", CORE / "app_recipe.py"),
     (SRC / "protocol" / "recipe.py", CORE / "protocol" / "recipe.py"),
     (SRC / "protocol" / "events.py", CORE / "protocol" / "events.py"),
+    (SRC / "protocol" / "bbp.py", CORE / "protocol" / "bbp.py"),
 ]
 
 drift = 0
