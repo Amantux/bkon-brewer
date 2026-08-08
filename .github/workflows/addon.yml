@@ -1,0 +1,32 @@
+name: addon
+on:
+  push:
+    tags: ["addon-v*"]        # tag the add-on releases separately from the integration
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write         # push images to ghcr.io/amantux/bkon-lightrag-<arch>
+    strategy:
+      matrix:
+        arch: [aarch64, amd64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Home Assistant's official add-on builder: reads addon/build.yaml
+      # and config.yaml, builds the per-arch image, pushes it.
+      - name: Build and publish the add-on
+        uses: home-assistant/builder@master
+        with:
+          args: >-
+            --${{ matrix.arch }}
+            --target /data/addon
+            --docker-hub ghcr.io/amantux

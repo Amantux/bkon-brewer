@@ -1,0 +1,33 @@
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # The pure suites need no dependencies by design — that is the whole point
+      # of keeping the logic out of the Home Assistant imports.
+      - name: Run the test suite
+        run: ./tests/run_all.sh
+
+  recipes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Every committed recipe must brew: parse, encode, and fit the BLE limit.
+      # Catches a bad default in review, not on the machine.
+      - name: Validate recipe files
+        run: python3 scripts/validate_recipes.py recipes custom_components/bkon_brewer/defaults
