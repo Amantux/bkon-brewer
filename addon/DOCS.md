@@ -10,6 +10,19 @@ its built-in keyword retriever — this upgrades those answers to semantic,
 written responses, and the integration falls back automatically if the service
 is down.
 
+## Supported hardware
+
+Prebuilt images are published for every architecture Home Assistant OS runs on,
+so installing pulls a ready image rather than compiling the embedding runtime
+(onnxruntime / fastembed) on the device — which on a Pi-class board would be
+slow and fragile.
+
+| Board | Architecture | Image |
+|---|---|---|
+| **Home Assistant Yellow** (CM4) | aarch64 | `bkon-lightrag-aarch64` |
+| Home Assistant Green, Raspberry Pi 4 / 5, CM5 | aarch64 | `bkon-lightrag-aarch64` |
+| Home Assistant OS on x86 / NUC / VM | amd64 | `bkon-lightrag-amd64` |
+
 ## Setup
 
 1. **Install and configure** this add-on:
