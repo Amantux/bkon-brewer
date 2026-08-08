@@ -255,6 +255,36 @@
   .stu-lintrow.info .mk{color:var(--ink-faint)}
   .stu-lintrow .fx{color:var(--ink-soft)}
   .stu-lintok{font-size:12px;color:var(--good);font-weight:600}
+  .br-bar{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
+  .br-bar input,.br-bar select{font-family:var(--sans);font-size:14px;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .br-bar input{flex:1 1 200px;min-width:0}
+  .br-bar .sp{flex:1}
+  .br-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px;margin-bottom:24px}
+  .br-card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
+    border-radius:13px;box-shadow:var(--shadow);overflow:hidden;transition:border-color .15s,transform .06s}
+  .br-card:hover{border-color:var(--accent)}
+  .br-top{height:58px;position:relative;display:flex;align-items:flex-end;padding:9px 12px;
+    background:linear-gradient(135deg,var(--c1),var(--c2))}
+  .br-score{position:absolute;top:8px;right:9px;font-family:var(--mono);font-size:11px;font-weight:700;
+    background:rgba(0,0,0,.34);color:#fff;padding:3px 7px;border-radius:99px;backdrop-filter:blur(3px)}
+  .br-flow{display:flex;gap:3px}
+  .br-flow i{width:13px;height:5px;border-radius:2px;background:rgba(255,255,255,.85);display:block}
+  .br-body{padding:11px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .br-name{font-weight:650;font-size:14px;line-height:1.3;letter-spacing:-.01em}
+  .br-meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);display:flex;gap:8px;flex-wrap:wrap}
+  .br-stars{color:var(--t-purge);font-size:12px;letter-spacing:1px}
+  .br-note{font-size:12px;color:var(--ink-soft);line-height:1.4;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .br-acts{display:flex;gap:6px;padding:0 12px 12px}
+  .br-acts button{flex:1;font-size:12px;padding:8px 6px;border:1px solid var(--line-2);
+    background:var(--panel-2);color:var(--ink);border-radius:7px;cursor:pointer;font-family:var(--sans);font-weight:600}
+  .br-acts button:hover{border-color:var(--accent)}
+  .br-acts button.go{background:var(--accent);border-color:var(--accent);color:#fff}
+  .br-derived{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--t-vacuum)}
+  @media (max-width:800px){.br-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px}
+    .br-acts button{padding:11px 6px}}
   .setform{display:flex;flex-direction:column;gap:10px;max-width:520px}
   .setrow{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:center}
   .setrow>span{font-size:12px;font-weight:600;color:var(--ink-soft)}
@@ -327,6 +357,7 @@
   <nav class="side" id="side">
     <div class="brand"><div class="mark"></div><div><b>BKON Brewer</b><span>Recipe studio</span></div></div>
     <a data-nav="studio" class="active primary">🧪 Recipe studio</a>
+    <a data-nav="browse" class="primary">📖 Recipes</a>
     <a data-nav="diagnose" class="primary">🩺 Diagnose</a>
     <a data-nav="settings" class="primary">⚙️ Settings</a>
     <button class="grp grp-toggle" id="wikiToggle" type="button" aria-expanded="false" aria-controls="wikiNav">
@@ -471,6 +502,30 @@
       <p>The trick it gets right: <em>"make my cup stronger"</em> tunes a recipe, but
       <em>"how do I make coffee stronger?"</em> answers a question — both contain "stronger".
       When it's genuinely ambiguous, it asks rather than guessing.</p>
+    </section>
+
+    <!-- BROWSE -->
+    <section id="browse">
+      <div class="eyebrow">Everything you have made</div>
+      <h1>Recipes</h1>
+      <p class="lede">Every recipe in the library, with how it scored and how often you have
+      brewed it. Open one to edit it, or <b>remux</b> it — that forks a copy you can push
+      around without touching the original, and promote when it earns its own name.</p>
+
+      <div class="br-bar">
+        <input id="brSearch" placeholder="Search…" aria-label="Search recipes" autocomplete="off" />
+        <select id="brSort" aria-label="Sort recipes">
+          <option value="name">Name</option>
+          <option value="rating">Rating</option>
+          <option value="brews">Most brewed</option>
+          <option value="score">Score</option>
+        </select>
+        <span class="sp"></span>
+        <button class="btn" id="brRefresh" type="button">Refresh</button>
+      </div>
+      <div class="br-grid" id="brGrid"></div>
+      <p class="stu-hint" id="brEmpty" hidden>No recipes yet — build one in the
+        <a data-nav="studio" href="#">studio</a> and save it.</p>
     </section>
 
     <!-- DIAGNOSE -->
@@ -639,6 +694,12 @@
           </div>
         </aside>
       </div>
+      <div class="note" id="stuPromote" hidden
+           style="border-left-color:var(--t-vacuum);background:color-mix(in srgb,var(--t-vacuum) 8%,transparent);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span id="stuPromoteWhy" style="flex:1"></span>
+        <button class="btn primary" id="stuPromoteGo" type="button">Promote to its own recipe</button>
+      </div>
+
       <div class="stu-actions">
         <div class="stu-actions-btns">
           <button class="btn primary" id="stuLibSave2" type="button">Save recipe</button>
@@ -1448,7 +1509,7 @@ address=0x80000000</code></pre>
     }
     library[id] = {name, steps: JSON.parse(JSON.stringify(steps)),
                    rating: userRating || 0, notes,
-                   journal,
+                   journal, derived_from: derivedFrom || undefined,
                    saved: new Date().toISOString().slice(0,10)};
     currentId = id; libPersist(); libRender(); journalRender();
     if(haConnected){
@@ -1482,6 +1543,33 @@ address=0x80000000</code></pre>
   function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
   // The assistant reads this: the current recipe plus how past changes tasted.
+  // Loading from the browse view. `extra` carries lineage and feedback so a
+  // remux arrives as a distinct recipe rather than an unexplained copy.
+  let derivedFrom = null;
+  window.bkonLoadRecipe = function(name, newSteps, extra){
+    extra = extra || {};
+    steps = (newSteps||[]).map(x=>({type:x.type, values:{...x.values}}));
+    $("stuName").value = name || "Recipe";
+    $("stuNotes").value = extra.notes || "";
+    userRating = extra.rating || 0; paintStars();
+    derivedFrom = extra.derived_from || null;
+    currentId = derivedFrom ? null : slug(name || "");
+    if(library[currentId] && extra.journal) library[currentId].journal = extra.journal;
+    render(); libRender(); journalRender(); paintPromote();
+  };
+
+  // A remux is unsaved until promoted, so the difference is visible.
+  function paintPromote(){
+    const bar=$("stuPromote"); if(!bar) return;
+    bar.hidden = !derivedFrom;
+    if(derivedFrom) $("stuPromoteWhy").textContent =
+      `This is a remux of "${derivedFrom}". Promote it to keep it as its own recipe.`;
+  }
+  $("stuPromoteGo") && ($("stuPromoteGo").onclick = () => {
+    libSave();                       // saves under its new name, HA included
+    derivedFrom = null; paintPromote();
+  });
+
   window.bkonStudioSteps = () => JSON.parse(JSON.stringify(steps));
   window.bkonApplySteps = function(next){
     if(!Array.isArray(next)) return;
@@ -1753,6 +1841,133 @@ address=0x80000000</code></pre>
 
   render();
   libLoad(); libRender(); journalRender(); libSync();
+})();
+</script>
+
+<!-- Browse: the recipe library as cards -->
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  if(!$("brGrid")) return;
+  const BASE = location.pathname.replace(/[^/]*$/,"");
+  const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  let recipes = [];
+  const SCORES = "bkon.studio.scores.v1";
+
+  // Scores are expensive (a model call each), so they are cached by recipe and
+  // shown from cache here rather than re-scoring the whole library on every view.
+  const scores = (()=>{ try{ return JSON.parse(localStorage.getItem(SCORES)||"{}"); }
+                        catch(e){ return {}; } })();
+
+  // A step sequence rendered as a colour bar — the shape of a recipe at a glance,
+  // which is what a photo does for a food recipe and what we have instead.
+  const STEP_COLOUR = {start:"var(--t-start)", fr:"var(--t-fill)", vc:"var(--t-vacuum)",
+                       pg:"var(--t-purge)", dialog:"var(--t-dialog)", bo:"var(--accent)"};
+  function flow(steps){
+    return (steps||[]).slice(0,9).map(s=>
+      `<i style="background:${STEP_COLOUR[s.type]||'rgba(255,255,255,.8)'}"></i>`).join("");
+  }
+  function hue(name){                       // stable colour per recipe, no images
+    let h=0; for(const c of String(name)) h=(h*31+c.charCodeAt(0))%360;
+    return [`hsl(${h} 46% 44%)`, `hsl(${(h+38)%360} 52% 32%)`];
+  }
+
+  async function load(){
+    const grid=$("brGrid");
+    grid.innerHTML = `<p class="stu-hint">Loading…</p>`;
+    try{
+      const d = await (await fetch(BASE+"recipes")).json();
+      recipes = d.recipes || [];
+      if(!d.connected && !recipes.length){
+        // Fall back to whatever the studio has locally, so the view is never blank.
+        try{ recipes = Object.values(JSON.parse(localStorage.getItem("bkon.studio.recipes.v1")||"{}")); }
+        catch(e){ recipes = []; }
+      }
+    }catch(e){ recipes = []; }
+    paint();
+  }
+
+  function paint(){
+    const grid=$("brGrid"), q=($("brSearch").value||"").toLowerCase().trim();
+    let list = recipes.filter(r => !q || (r.name||"").toLowerCase().includes(q)
+                                      || (r.notes||"").toLowerCase().includes(q));
+    const by = $("brSort").value;
+    list.sort((a,b)=>{
+      if(by==="rating") return (b.rating||0)-(a.rating||0);
+      if(by==="brews")  return (b.brew_count||0)-(a.brew_count||0);
+      if(by==="score")  return (scores[b.name]?.score||0)-(scores[a.name]?.score||0);
+      return String(a.name||"").localeCompare(String(b.name||""));
+    });
+    $("brEmpty").hidden = list.length > 0;
+    grid.innerHTML = "";
+    list.forEach(r=>grid.appendChild(card(r)));
+  }
+
+  function card(r){
+    const el=document.createElement("div"); el.className="br-card";
+    const [c1,c2]=hue(r.name||"");
+    const sc=scores[r.name];
+    const stars = r.rating ? "★".repeat(r.rating)+"☆".repeat(5-r.rating) : "";
+    const derived = r.derived_from ? `<div class="br-derived">remux of ${esc(r.derived_from)}</div>` : "";
+    el.innerHTML =
+      `<div class="br-top" style="--c1:${c1};--c2:${c2}">`
+      + (sc ? `<span class="br-score" title="${esc(sc.verdict||"")}">${sc.score}</span>` : "")
+      + `<div class="br-flow">${flow(r.steps)}</div></div>`
+      + `<div class="br-body"><div class="br-name">${esc(r.name||"Untitled")}</div>`
+      + derived
+      + `<div class="br-meta"><span>${(r.steps||[]).length} steps</span>`
+      + (r.brew_count ? `<span>brewed ${r.brew_count}×</span>` : "")
+      + (stars ? `<span class="br-stars">${stars}</span>` : "") + `</div>`
+      + (r.notes ? `<div class="br-note">${esc(r.notes)}</div>` : "")
+      + `</div>`;
+    const acts=document.createElement("div"); acts.className="br-acts";
+    acts.append(btn("Open","go",()=>open_(r)), btn("Remux","",()=>remux(r)),
+                btn("Score","",e=>score(r,e)));
+    el.appendChild(acts);
+    return el;
+  }
+  function btn(label, cls, fn){
+    const b=document.createElement("button"); b.type="button";
+    b.textContent=label; if(cls) b.className=cls; b.onclick=fn; return b;
+  }
+
+  function toStudio(name, steps, extra){
+    if(typeof window.bkonLoadRecipe === "function") window.bkonLoadRecipe(name, steps, extra||{});
+    document.querySelector('nav.side a[data-nav="studio"]')?.click();
+  }
+  function open_(r){ toStudio(r.name, r.steps, {rating:r.rating, notes:r.notes, journal:r.journal}); }
+
+  // Remux: a fork, not an edit. The original is untouched, and the copy records
+  // where it came from so a lineage is visible rather than a name collision.
+  function remux(r){
+    const base=(r.name||"Recipe").replace(/\s+v\d+$/,"");
+    let n=2, name=`${base} v${n}`;
+    const taken=new Set(recipes.map(x=>x.name));
+    while(taken.has(name)){ n++; name=`${base} v${n}`; }
+    toStudio(name, JSON.parse(JSON.stringify(r.steps||[])),
+             {derived_from:r.name, notes:"", rating:0, journal:[]});
+  }
+
+  async function score(r, ev){
+    const b=ev.target, was=b.textContent;
+    b.disabled=true; b.textContent="…";
+    try{
+      const res=await fetch(BASE+"score",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({steps:r.steps||[]})});
+      const d=await res.json();
+      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
+      scores[r.name]={score:d.score, verdict:d.verdict};
+      try{ localStorage.setItem(SCORES, JSON.stringify(scores)); }catch(e){}
+      paint();
+    }catch(err){ b.textContent="✕"; setTimeout(()=>{b.textContent=was; b.disabled=false;},1600); return; }
+    b.disabled=false; b.textContent=was;
+  }
+
+  $("brRefresh").onclick = load;
+  $("brSearch").addEventListener("input", paint);
+  $("brSort").addEventListener("change", paint);
+  document.querySelector('nav.side a[data-nav="browse"]')?.addEventListener("click", load);
+  load();
 })();
 </script>
 

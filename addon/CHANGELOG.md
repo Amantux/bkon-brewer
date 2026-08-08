@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.13.0 — a library you can browse
+- **A Recipes view**: every recipe as a card you can scroll, search and sort by
+  name, rating, times brewed or score. Each card carries its score, stars, brew
+  count and a colour bar of its step sequence — the shape of a recipe at a
+  glance, which is what a photo does for a food recipe and what a brew has
+  instead.
+- **Remux**: fork any recipe into the builder as `… v2`. The original is never
+  touched, and the copy records where it came from, so a variant has visible
+  lineage rather than being an unexplained near-duplicate.
+- **Promote**: a remux stays unsaved and clearly marked until you promote it,
+  at which point it becomes its own recipe — in Home Assistant too.
+- **Score from the card.** Scores are cached per recipe, so browsing the library
+  does not re-run a model call for every tile.
+
 ## 0.12.0 — manage the brewer without leaving the studio
 - **Save, delete and brew now actually happen.** The studio used to hand you a
   YAML service call to paste into Developer Tools; with `homeassistant_api`
