@@ -81,10 +81,12 @@ def start(temperature_f: float) -> Step:
     """Heat to a temperature, in degrees Fahrenheit.
 
     Units confirmed from BKON/Franke's RAIN development guide: water is
-    delivered to +/-1 degF, over a usable range of roughly 165-210 degF. The
-    app rebuilds this step from scratch keeping only a rounded temperature and
-    discarding everything else, so we construct it the same way rather than
-    passing other values through and hoping the firmware ignores them.
+    delivered to +/-1 degF. The vendor app validates the setpoint over 140-212
+    degF (it also offers Celsius, 60-100 C, and converts to F before sending, so
+    the wire is always Fahrenheit). The app rebuilds this step from scratch
+    keeping only a rounded temperature and discarding everything else, so we
+    construct it the same way rather than passing other values through and
+    hoping the firmware ignores them.
     """
     return Step(StepType.START, {"tmp": str(round(temperature_f))})
 
@@ -102,19 +104,31 @@ def fill(fill_volume_ml: int, rinse_volume_ml: int = 0,
                                 "ap": pause_seconds})
 
 
-def vacuum(strength_kpa: int, time_seconds: int) -> Step:
-    """Vacuum strength in kilopascals; duration in seconds.
+def vacuum(strength_kpa: int, time_seconds: int, pause_seconds: int = 0) -> Step:
+    """Vacuum strength in kilopascals; hold and optional pause in seconds.
 
     The vacuum is the heart of the machine. Confirmed from the RAIN guide:
-    strength is measured in kPa (base recipes sit around 20-24 kPa) and the
-    vacuum is typically held for only a few seconds.
+    strength is measured in kPa (base recipes sit around 20-24 kPa, and the
+    app's editor caps the setpoint at 60) and the vacuum is typically held for
+    only a few seconds. A vacuum step also carries an atmospheric pause `ap`,
+    exactly like a fill -- confirmed from the vendor app's vacuum editor and
+    from real .bbp menu files; zero drops out at encode time.
     """
-    return Step(StepType.VACUUM, {"ps": strength_kpa, "tm": time_seconds})
+    values: dict[str, Any] = {"ps": strength_kpa, "tm": time_seconds}
+    if pause_seconds:
+        values["ap"] = pause_seconds
+    return Step(StepType.VACUUM, values)
 
 
 def purge(pressure: int, time_seconds: int, delay_seconds: int = 0,
-          detect: bool = False, manual_stop: bool = False) -> Step:
+          rinse_volume_ml: int = 0, detect: bool = False,
+          manual_stop: bool = False) -> Step:
     """A purge.
+
+    Pressure is a narrow band -- the vendor app's purge editor accepts only
+    25-35 (unit unconfirmed; real menus use ~30). A purge also carries a rinse
+    volume `rwv`, like a fill, confirmed from that editor; zero drops out at
+    encode time.
 
     `manual_stop` is deliberately not a wire value. The firmware has no such
     concept — the vendor app fakes it by attaching a dialog telling the operator
@@ -125,6 +139,8 @@ def purge(pressure: int, time_seconds: int, delay_seconds: int = 0,
                               "det": int(detect)}
     if delay_seconds:
         values["dl"] = delay_seconds
+    if rinse_volume_ml:
+        values["rwv"] = rinse_volume_ml
     if manual_stop:
         values["manstop"] = 1
     return Step(StepType.PURGE, values)
@@ -159,15 +175,16 @@ def prepare(steps: list[Step]) -> list[dict[str, Any]]:
         values = step.normalised()
 
         if step.type == StepType.PURGE and values.get("manstop") == "1":
-            # Rebuilt, not edited: the app emits only these keys and drops the
-            # rest, so carrying extras through would not match.
+            # A manual-stop purge is rebuilt as a purge carrying a dialog. The
+            # vendor app emits ONLY {dialog, det} here -- and does so by
+            # accident: its code means to copy ps and tm across but reads them
+            # from the freshly-made empty object instead of the source step, so
+            # the guard is always false and they are dropped. We reproduce the
+            # real wire form (what the firmware was actually ever sent), not the
+            # intent. See docs/APP_COMPARISON.md.
             rebuilt: dict[str, str] = {"dialog": MANUAL_STOP_DIALOG}
             if "det" in values:
                 rebuilt["det"] = values["det"]
-            if values.get("ps"):
-                rebuilt["ps"] = values["ps"]
-            if values.get("tm"):
-                rebuilt["tm"] = values["tm"]
             out.append({"type": str(StepType.PURGE), "values": rebuilt})
             continue
 

@@ -20,12 +20,15 @@ from enum import IntEnum
 from .protocol import recipe as R
 from .protocol.events import ERROR_MESSAGES
 
-# Confirmed operating envelope (docs/INTEL.md). Used for range checks; a value
-# outside these is worth flagging, not silently clamping -- the person built it
-# on purpose and deserves to know it looks wrong.
-TEMP_MIN, TEMP_MAX = 165, 210          # deg F
-VAC_TYPICAL_MAX = 101                  # kPa; ~full vacuum
-TIME_MAX_S = 180                       # the app validates times under 3 minutes
+# The vendor app's own validation envelope, read from its step editors
+# (docs/INTEL.md). A value the app would reject is one the machine is unlikely to
+# accept, so these are the bounds worth flagging -- not silently clamping, since
+# the person built it on purpose and deserves to know it looks wrong.
+TEMP_MIN, TEMP_MAX = 140, 212          # deg F (the app also accepts 60-100 C, converted to F)
+VAC_SETPOINT_MAX = 60                  # kPa; the vacuum editor caps the setpoint at 60
+PURGE_PS_MIN, PURGE_PS_MAX = 25, 35    # the purge editor accepts only 25-35
+FILL_MAX_ML = 600                      # fill and rinse volumes
+TIME_MAX_S = 180                       # every time field validates under 3 minutes
 
 
 class Severity(IntEnum):
@@ -143,19 +146,37 @@ def _lint_step(i: int, s: R.Step) -> list[Finding]:
                 "nothing.", "Set a hold time in seconds (base recipes use a "
                 "few seconds).", i))
         ps = _num(v.get("ps"))
-        if ps is not None and ps > VAC_TYPICAL_MAX:
+        if ps is not None and ps > VAC_SETPOINT_MAX:
             out.append(Finding(
                 Severity.WARNING,
-                f"Step {i + 1} vacuum {ps:g} kPa exceeds full vacuum "
-                f"(~{VAC_TYPICAL_MAX} kPa).",
+                f"Step {i + 1} vacuum {ps:g} kPa is above {VAC_SETPOINT_MAX} kPa, "
+                "the most the app's vacuum editor allows.",
                 "Lower it; base recipes sit around 20–24 kPa.", i))
 
     if s.type == R.StepType.PURGE:
-        if not _num(v.get("ps")):
+        ps = _num(v.get("ps"))
+        if ps is None:
             out.append(Finding(
                 Severity.WARNING,
                 f"Step {i + 1} (Purge) has no pressure set.",
                 "Set a purge pressure, or remove the step if not needed.", i))
+        elif not (PURGE_PS_MIN <= ps <= PURGE_PS_MAX):
+            out.append(Finding(
+                Severity.WARNING,
+                f"Step {i + 1} purge pressure {ps:g} is outside the "
+                f"{PURGE_PS_MIN}–{PURGE_PS_MAX} the app accepts.",
+                f"Set it between {PURGE_PS_MIN} and {PURGE_PS_MAX}; real menus "
+                "use about 30.", i))
+
+    if s.type == R.StepType.FILL:
+        for key, what in (("fwv", "fill"), ("rwv", "rinse")):
+            vol = _num(v.get(key))
+            if vol is not None and vol > FILL_MAX_ML:
+                out.append(Finding(
+                    Severity.WARNING,
+                    f"Step {i + 1} {what} {vol:g} ml is over the {FILL_MAX_ML} ml "
+                    "the app allows.",
+                    f"Lower it to {FILL_MAX_ML} ml or less.", i))
 
     if s.type == R.StepType.DIALOG:
         if not str(v.get("text") or "").strip():

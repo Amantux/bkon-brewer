@@ -26,8 +26,8 @@ from .protocol import recipe as R
 # Documented operating envelope (docs/INTEL.md). Adjustments clamp to these so a
 # stack of "stronger, stronger, stronger" cannot walk a value somewhere the
 # machine will reject or, worse, silently misread.
-TEMP_MIN, TEMP_MAX = 165, 210          # deg F, usable range from the RAIN guide
-VAC_MIN, VAC_MAX = 1, 101              # kPa; 101 ~ full vacuum
+TEMP_MIN, TEMP_MAX = 140, 212          # deg F, the vendor app's own validation range
+VAC_MIN, VAC_MAX = 1, 60               # kPa; the app's vacuum editor caps the setpoint at 60
 TIME_MIN = 0
 FILL_MIN = 5                            # ml; a fill of zero is not a fill
 

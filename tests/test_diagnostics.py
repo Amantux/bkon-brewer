@@ -58,8 +58,18 @@ f = D.lint_recipe([R.start(250), R.fill(250)])
 check("temp above range -> warning",
       any("outside" in x.message.lower() for x in sev(f, Severity.WARNING)), True)
 f = D.lint_recipe([R.start(200), R.fill(250), R.vacuum(150, 4)])
-check("vacuum above full -> warning",
-      any("full vacuum" in x.message.lower() for x in sev(f, Severity.WARNING)), True)
+check("vacuum over the editor cap -> warning",
+      any("vacuum" in x.message.lower() and "60" in x.message for x in sev(f, Severity.WARNING)), True)
+# the purge band and fill ceiling, both read from the app's editors
+f = D.lint_recipe([R.start(200), R.fill(250), R.purge(50, 10)])
+check("purge pressure out of 25-35 -> warning",
+      any("purge pressure" in x.message.lower() for x in sev(f, Severity.WARNING)), True)
+f = D.lint_recipe([R.start(200), R.purge(30, 10)])
+check("a purge at 30 is accepted",
+      not any("purge pressure" in x.message.lower() for x in sev(f, Severity.WARNING)), True)
+f = D.lint_recipe([R.start(200), R.fill(900)])
+check("fill over 600 ml -> warning",
+      any("over the 600" in x.message.lower() for x in sev(f, Severity.WARNING)), True)
 
 print("\nfindings are ordered worst-first")
 f = D.lint_recipe([R.start(250), R.dialog("")])   # a warning and an error present

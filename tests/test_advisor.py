@@ -62,17 +62,17 @@ c = A.customize(base(), "a bit lighter please")
 check("vacuum eased 24 -> 22", val(c.steps, R.StepType.VACUUM, "ps"), 22)
 check("pause shortened 10 -> 5", val(c.steps, R.StepType.FILL, "ap"), 5)
 
-print("\ntemperature moves and clamps to the documented range")
+print("\ntemperature moves and clamps to the app's validation range (140-212)")
 check("hotter 200 -> 205", val(A.customize(base(), "hotter").steps, R.StepType.START, "tmp"), 205)
 check("cooler 200 -> 195", val(A.customize(base(), "cooler").steps, R.StepType.START, "tmp"), 195)
-hot = [R.start(208), R.vacuum(24, 4)]
-check("clamps at 210 max", val(A.customize(hot, "hotter").steps, R.StepType.START, "tmp"), 210)
-atmax = [R.start(210), R.vacuum(24, 4)]
+hot = [R.start(210), R.vacuum(24, 4)]
+check("clamps at 212 max", val(A.customize(hot, "hotter").steps, R.StepType.START, "tmp"), 212)
+atmax = [R.start(212), R.vacuum(24, 4)]
 c = A.customize(atmax, "hotter")
-check("already at 210 makes no change", val(c.steps, R.StepType.START, "tmp"), 210)
+check("already at 212 makes no change", val(c.steps, R.StepType.START, "tmp"), 212)
 check("and reports it could not go further", bool(c.unmet), True)
-cold = [R.start(166), R.vacuum(24, 4)]
-check("clamps at 165 min", val(A.customize(cold, "cooler").steps, R.StepType.START, "tmp"), 165)
+cold = [R.start(142), R.vacuum(24, 4)]
+check("clamps at 140 min", val(A.customize(cold, "cooler").steps, R.StepType.START, "tmp"), 140)
 
 print("\nless bitter eases temperature and steep together")
 c = A.customize(base(), "it's too bitter")

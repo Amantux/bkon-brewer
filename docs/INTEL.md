@@ -55,6 +55,29 @@ arbitrary JSON. A menu holds 8 categories × 4 pages × 8 buttons = **32 recipes
 per category, 256 per menu**. This *narrowed* what `export_menu` can claim; see
 [LONGER_RECIPES.md](LONGER_RECIPES.md).
 
+**The app's own validation envelope — read from its step editors.** The vendor
+application source (recovered via source maps) validates every field before it
+will sync a recipe, so a value it rejects is one the machine is unlikely to
+accept. These are tighter, and in places different, from the RAIN guide's
+*typical* values, and they corrected several bounds this project had guessed:
+
+| Field | App accepts | This project had |
+|---|---|---|
+| Temperature | **140–212 °F** (also 60–100 °C, converted to °F on send) | 165–210 |
+| Vacuum setpoint `ps` | **0–60 kPa** | 0–101 |
+| Purge pressure `ps` | **25–35** (unit unconfirmed; real menus ≈30) | 0–100, default 50 |
+| Fill / rinse `fwv` `rwv` | **0–600 ml** | 0–999 |
+| All times `tm` `ap` `dl` | **0–180 s** (under 3 min) | 180 ✓ |
+
+Two fields were **missing** from this project's step model and are confirmed
+present in the app (and in real `.bbp` files): a **vacuum** step carries an
+atmospheric pause `ap`, and a **purge** step carries a rinse volume `rwv`. Both
+are now emitted, and both drop out when zero like every other size.
+
+The temperature toggle is display-only for the protocol: Celsius is converted
+with `F = C·9/5 + 32` before the value is stored or sent, so the wire is always
+Fahrenheit — which is why the encoder keeps `tmp` in °F.
+
 **The error table.** The Error Codes reference gave clean hardware-fault labels
 (chamber-not-sealed, flow-meter, LIM-communication, the temperature-sensor
 bank) that the app's JSON table stated only in longer support prose. Both agree

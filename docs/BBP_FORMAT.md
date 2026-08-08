@@ -63,7 +63,7 @@ one re-encodes to the exact bytes it was read from.
 |---|---|---|
 | `0` | Start / heat | `<TMP>` (and a `<DESCALE>` / `<DV>` variant) |
 | `1` | Fill | `<FWV>` `<RWV>` `<AP>` |
-| `2` | Vacuum | `<PS>` `<TM>` (occasionally `<AP>`) |
+| `2` | Vacuum | `<PS>` `<TM>` `<AP>` |
 | `3` | Purge | `<PS>` `<TM>` `<DET>` `<CONTR>` |
 | `4` | Brew out | `<BT>` |
 
@@ -151,7 +151,7 @@ The menu-development guide adds one more constraint: a compiled menu's
 - **The category count and per-category recipe count widths.**
 - **Whether the machine validates anything beyond the checksum** (a length field,
   a version, a signature).
-- **`<DESCALE>` / `<DV>`**, and `<AP>` appearing on a vacuum step.
+- **`<DESCALE>` / `<DV>`** on a start step (a descale routine's variant).
 - **One unmatched brew-out in the beverage menus.** Portions pair a start with a
   brew-out; the service menu balances exactly (111/111) but both beverage menus
   come out 123/124. Either a portion legitimately has no start step, or the

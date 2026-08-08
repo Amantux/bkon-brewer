@@ -12,7 +12,7 @@ inferred.
 | Transport framing | `{msg:1:<PAYLOAD>}` (ABORT/CANCEL/commands) | `frame()` produces the same |
 | Abort / cancel | `{msg:1:<ABORT></ABORT>}` | `R.ABORT` byte-identical |
 | Manual purge | `sendCommand("<PG><PS>50</PS>…")` — XML direct | `manual_purge` / `send_raw` send the same XML, framed |
-| `prepRecipe` rules | drop zero-valued size keys; `manstop`→dialog; append `bo` bt=4; URL-encode dialog text; rebuild `start` with a rounded `tmp` | reproduced exactly, tested against the app's own purge literal |
+| `prepRecipe` rules | drop zero-valued size keys; `manstop`→dialog; append `bo` bt=4; URL-encode dialog text; rebuild `start` with a rounded `tmp` | reproduced exactly, including the manstop bug below |
 | Recipe schema | nested object, `sequences.portions[]`, `purgedet`/`purgecontr`, fill `ap` | adopted; converter aliases the keys (see RECIPE_SCHEMA.md) |
 | 599-byte limit | measured on `JSON.stringify(prepRecipe(...)).length` | `validate()` measures the JSON form, same basis |
 | Progress model | `stepCompleted` advances the step; a `dialog` step pauses for the operator and does not auto-advance | coordinator increments on `stepCompleted`, sets *waiting* on `dialog` |
@@ -36,6 +36,35 @@ path sends it; the JSON form is kept only for the size check, matching how the
 app measures the limit. This was the most consequential divergence found: the
 manual-command path was always right, but the actual brew was sending JSON a
 tag-parsing firmware would likely reject.
+
+## Found in the app source — value ranges, two missing fields, and a bug
+
+Reading the app's step editors (recovered via source maps) surfaced the
+validation envelope it enforces before syncing — tighter than the RAIN guide's
+typical values, and the authority on what the machine will accept. It corrected
+several bounds this project had guessed (temperature 140–212 °F not 165–210;
+vacuum setpoint 0–60 kPa not 0–101; **purge pressure 25–35, not 0–100** — the
+old default of 50 was invalid; fill/rinse 0–600 ml) and revealed two fields the
+step model was missing: a **vacuum** step carries an atmospheric pause `ap`, and
+a **purge** step carries a rinse volume `rwv`. Both are now emitted. The full
+table is in [INTEL.md](INTEL.md).
+
+**A vendor bug that defines the real wire form.** For a manual-stop purge, the
+app means to carry the pressure and time onto the substituted dialog step:
+
+```js
+var nobj = {type:'pg', values:{}};
+nobj.values.dialog = "Manually stop the purge…";
+nobj.values.det = step.values.det + "";
+if(!!nobj.values.ps) { nobj.values.ps = step.values.ps + ""; }   // reads nobj, not step
+if(nobj.values.tm)   { nobj.values.tm = step.values.tm + ""; }   // always undefined
+```
+
+Both guards test the freshly-made empty `nobj`, never the source `step`, so `ps`
+and `tm` are **never** copied — the app emits only `{dialog, det}`. That is what
+the firmware has always been sent, so `encode()` now drops them too. Matching the
+app's *actual output* beats matching its *intent*: fidelity to a real device is
+fidelity to its real inputs, bugs included.
 
 ## Still unverified — leads, not conclusions
 

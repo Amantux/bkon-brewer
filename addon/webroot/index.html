@@ -194,7 +194,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>316</b><span>tests passing</span></div>
+        <div><b>324</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -434,7 +434,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (316 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (324 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -500,8 +500,30 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
         </tbody>
       </table>
       <div class="note"><b>Purge pressure is the exception.</b> The <code>ps</code> value on a
-      purge step is <em>not</em> confirmed to be kPa, and its hard maximum is unknown. The
-      builder allows a range rather than asserting one.</div>
+      purge step is <em>not</em> confirmed to be kPa. The vendor app accepts only
+      <b>25–35</b> for it (real menus use ≈30), so the builder holds it to that band even
+      though the unit is unknown.</div>
+
+      <h3>What the app actually accepts</h3>
+      <p>The units above are what the guide <em>documents</em>. The vendor app's step editors
+      go further — they <em>validate</em> every field before syncing, so a value the app
+      rejects is one the machine is unlikely to take. Reading those validators corrected
+      several bounds this project had guessed, and turned up two fields it was missing:</p>
+      <table>
+        <thead><tr><th>Field</th><th>App accepts</th><th>We had</th></tr></thead>
+        <tbody>
+          <tr><td>Temperature</td><td><b>140–212 °F</b> (also 60–100 °C)</td><td>165–210</td></tr>
+          <tr><td>Vacuum <code>ps</code></td><td><b>0–60 kPa</b></td><td>0–101</td></tr>
+          <tr><td>Purge <code>ps</code></td><td><b>25–35</b></td><td>0–100, default 50</td></tr>
+          <tr><td>Fill / rinse</td><td><b>0–600 ml</b></td><td>0–999</td></tr>
+          <tr><td>All times</td><td><b>0–180 s</b></td><td>180 ✓</td></tr>
+          <tr><td>Vacuum pause <code>ap</code></td><td><b>present</b> — 0–180 s</td><td>missing</td></tr>
+          <tr><td>Purge rinse <code>rwv</code></td><td><b>present</b> — 0–300 ml</td><td>missing</td></tr>
+        </tbody>
+      </table>
+      <p>The recipe studio's builder now uses these ranges, and its vacuum and purge steps
+      carry the pause and rinse fields. The Celsius switch is display-only: the app converts
+      with <code>F = C·9/5 + 32</code> before sending, so the wire is always Fahrenheit.</p>
 
       <h2>How vacuums relate in a sequence</h2>
       <p>Reference material for designing a recipe, not something the protocol enforces — but
@@ -630,7 +652,7 @@ end-4   4   u32le checksum over every preceding byte</code></pre>
         <tbody>
           <tr><td><code>0</code></td><td>Start / heat</td><td><code>&lt;TMP&gt;</code></td></tr>
           <tr><td><code>1</code></td><td>Fill</td><td><code>&lt;FWV&gt;</code> <code>&lt;RWV&gt;</code> <code>&lt;AP&gt;</code></td></tr>
-          <tr><td><code>2</code></td><td>Vacuum</td><td><code>&lt;PS&gt;</code> <code>&lt;TM&gt;</code></td></tr>
+          <tr><td><code>2</code></td><td>Vacuum</td><td><code>&lt;PS&gt;</code> <code>&lt;TM&gt;</code> <code>&lt;AP&gt;</code></td></tr>
           <tr><td><code>3</code></td><td>Purge</td><td><code>&lt;PS&gt;</code> <code>&lt;TM&gt;</code> <code>&lt;DET&gt;</code> <code>&lt;CONTR&gt;</code></td></tr>
           <tr><td><code>4</code></td><td>Brew out</td><td><code>&lt;BT&gt;</code></td></tr>
         </tbody>
@@ -689,7 +711,7 @@ address=0x80000000</code></pre>
       <div class="flow">
         <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>Header bytes 8–15 and the category-table field widths — a guess parses the first category then drifts.</span></div>
         <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>Whether the machine checks anything beyond the checksum.</span></div>
-        <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>A <code>&lt;DESCALE&gt;</code>/<code>&lt;DV&gt;</code> start variant, and <code>&lt;AP&gt;</code> on a vacuum step.</span></div>
+        <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>A <code>&lt;DESCALE&gt;</code>/<code>&lt;DV&gt;</code> start variant (seen in a descale routine).</span></div>
         <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>One unmatched brew-out: the service menu balances 111/111, both beverage menus come out 123/124. Unexplained, so it is written down rather than rounded off.</span></div>
       </div>
       <p>The clean way to close all of it is the machine's own <b>Service Menu → Export to
@@ -716,7 +738,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      316 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      324 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
@@ -755,18 +777,20 @@ address=0x80000000</code></pre>
   // (atmospheric pause), and zero-valued sizes are dropped at encode time.
   const TYPES = {
     start:  {name:"Start", code:"start", desc:"Heat to temperature", color:"var(--t-start)",
-      fields:[{k:"tmp",label:"Temp",unit:"°F",type:"number",def:205,min:165,max:210}]},
+      fields:[{k:"tmp",label:"Temp",unit:"°F",type:"number",def:205,min:140,max:212}]},
     fr:     {name:"Fill", code:"fr", desc:"Fill and rinse", color:"var(--t-fill)",
-      fields:[{k:"fwv",label:"Fill",unit:"ml",type:"number",def:250,min:0,max:999},
-              {k:"rwv",label:"Rinse",unit:"ml",type:"number",def:0,min:0,max:999},
+      fields:[{k:"fwv",label:"Fill",unit:"ml",type:"number",def:250,min:0,max:600},
+              {k:"rwv",label:"Rinse",unit:"ml",type:"number",def:0,min:0,max:600},
               {k:"ap",label:"Pause",unit:"sec",type:"number",def:0,min:0,max:180}]},
     vc:     {name:"Vacuum", code:"vc", desc:"Vacuum extraction", color:"var(--t-vacuum)",
-      fields:[{k:"ps",label:"Vacuum",unit:"kPa",type:"number",def:24,min:0,max:101},
-              {k:"tm",label:"Time",unit:"sec",type:"number",def:4,min:0,max:180}]},
+      fields:[{k:"ps",label:"Vacuum",unit:"kPa",type:"number",def:24,min:0,max:60},
+              {k:"tm",label:"Time",unit:"sec",type:"number",def:4,min:0,max:180},
+              {k:"ap",label:"Pause",unit:"sec",type:"number",def:0,min:0,max:180}]},
     pg:     {name:"Purge", code:"pg", desc:"Pressure purge", color:"var(--t-purge)",
-      fields:[{k:"ps",label:"Pressure",unit:"",type:"number",def:50,min:0,max:100},
+      fields:[{k:"ps",label:"Pressure",unit:"",type:"number",def:30,min:25,max:35},
               {k:"tm",label:"Hold",unit:"sec",type:"number",def:10,min:0,max:180},
               {k:"dl",label:"Delay",unit:"sec",type:"number",def:0,min:0,max:180},
+              {k:"rwv",label:"Rinse",unit:"ml",type:"number",def:0,min:0,max:300},
               {k:"det",label:"Detection",type:"bool",def:0},
               {k:"manstop",label:"Manual stop",type:"bool",def:0}]},
     dialog: {name:"Dialog", code:"dialog", desc:"Prompt the operator", color:"var(--t-dialog)",
@@ -783,7 +807,7 @@ address=0x80000000</code></pre>
     {type:"fr", values:{fwv:250, rwv:30, ap:0}},
     {type:"dialog", values:{text:"Add grounds and press start"}},
     {type:"vc", values:{ps:24, tm:4}},
-    {type:"pg", values:{ps:50, tm:10, dl:0, det:1, manstop:0}},
+    {type:"pg", values:{ps:30, tm:10, dl:0, rwv:0, det:1, manstop:0}},
   ];
   const history = [];
 
@@ -858,7 +882,9 @@ address=0x80000000</code></pre>
   function prepare(list){ const out=[]; const hasBo=list.some(s=>s.type==="bo");
     for(const step of list){ let v=normalise(step.values);
       if(step.type==="pg" && v.manstop==="1"){ const rb={dialog:MANUAL_STOP};
-        if("det" in v)rb.det=v.det; if(v.ps)rb.ps=v.ps; if(v.tm)rb.tm=v.tm;
+        // The app emits only {dialog, det} here — it means to copy ps/tm but
+        // reads them from the wrong object, so they never make it. Match that.
+        if("det" in v)rb.det=v.det;
         out.push({type:"pg",values:rb}); continue; }
       if(step.type==="pg") delete v.manstop;
       if(step.type==="start") v={tmp:String(Math.round(Number(v.tmp||0)))};

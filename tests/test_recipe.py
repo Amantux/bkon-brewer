@@ -77,14 +77,18 @@ print("\nmanual stop never reaches the device")
 # The firmware has no manual-stop concept. The app fakes it with a dialog and
 # drops the flag. A reimplementation that passes manstop through would produce
 # a purge the brewer silently ignores the flag on -- looking like it worked.
-out = r.prepare([r.purge(pressure=50, time_seconds=10, manual_stop=True)])
+out = r.prepare([r.purge(pressure=30, time_seconds=10, manual_stop=True)])
 check("manstop is not on the wire", "manstop" in out[0]["values"], False)
 check("it becomes a dialog instead",
       out[0]["values"].get("dialog"), r.MANUAL_STOP_DIALOG)
-check("pressure and time are carried over",
-      (out[0]["values"].get("ps"), out[0]["values"].get("tm")), ("50", "10"))
+# The app *intends* to carry ps/tm but reads them from the wrong object, so it
+# emits only {dialog, det}. We match the real wire form, not the intent.
+check("pressure and time are dropped, matching the app's real output",
+      ("ps" in out[0]["values"], "tm" in out[0]["values"]), (False, False))
+check("detection still rides along",
+      out[0]["values"].get("det"), "0")
 check("manstop=False also leaves nothing behind",
-      "manstop" in r.prepare([r.purge(50, 10)])[0]["values"], False)
+      "manstop" in r.prepare([r.purge(30, 10)])[0]["values"], False)
 
 print("\ndialog text is URL-encoded, apostrophes included")
 # quote() leaves apostrophes alone by default; the app escapes them separately
@@ -119,13 +123,23 @@ print("\nwire form is XML step-tags, matching what the app converts JSON to")
 # The app builds tags dynamically (type.toUpperCase()), so a whole recipe on the
 # wire looks like the manual command literal, concatenated -- not JSON.
 wire = r.encode_wire([r.start(205), r.fill(250, rinse_volume_ml=30),
-                      r.purge(50, 10, detect=True)])
+                      r.purge(30, 10, detect=True)])
 check("starts with the Start tag", wire.startswith("<START><TMP>205</TMP></START>"), True)
 check("fill values are uppercased tags", "<FR><FWV>250</FWV><RWV>30</RWV></FR>" in wire, True)
 check("purge matches the app's own tag form",
-      "<PG><PS>50</PS><TM>10</TM><DET>1</DET></PG>" in wire, True)
+      "<PG><PS>30</PS><TM>10</TM><DET>1</DET></PG>" in wire, True)
 check("brew-out is appended in tag form", wire.endswith("<BO><BT>4</BT></BO>"), True)
 check("no JSON leaks into the wire form", "{" not in wire and "[" not in wire, True)
+
+print("\nvacuum carries a pause and purge a rinse (from the app's editors)")
+vw = r.encode_wire([r.start(205), r.vacuum(28, 7, pause_seconds=15)])
+check("vacuum emits AP when set", "<VC><PS>28</PS><TM>7</TM><AP>15</AP></VC>" in vw, True)
+check("a zero vacuum pause drops out",
+      "<AP>" not in r.encode_wire([r.vacuum(28, 7)]), True)
+pw = r.encode_wire([r.start(205), r.purge(30, 20, rinse_volume_ml=70, detect=True)])
+check("purge emits RWV when set", "<RWV>70</RWV>" in pw, True)
+check("a zero purge rinse drops out",
+      "<RWV>" not in r.encode_wire([r.purge(30, 20, detect=True)]), True)
 check("the JSON encode is still available for the size check",
       r.encode([r.start(205)]).startswith("["), True)
 
