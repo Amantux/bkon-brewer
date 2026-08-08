@@ -420,6 +420,28 @@ async def assistant_config():
     }
 
 
+@app.post("/compose")
+async def compose(request: Request):
+    """Compile a description into a recipe. No model needed.
+
+    The compiler is deterministic and grounded in the published base recipes, so
+    this works with no provider configured -- describing a drink is the one part
+    of the studio that should never depend on a key.
+    """
+    from bkon_core import nl_recipe
+    body = await request.json()
+    c = nl_recipe.compile_recipe(str(body.get("description") or ""))
+    return {
+        "style": c.style,
+        "summary": c.summary(),
+        "steps": [{"type": str(s.type), "values": {k: str(v) for k, v in s.values.items()}}
+                  for s in c.steps],
+        "targets": [{"what": t.what, "value": t.value, "honoured": t.honoured}
+                    for t in c.targets],
+        "unmet": c.unmet,
+    }
+
+
 @app.post("/export/bbp")
 async def export_bbp(request: Request):
     """Build a .bbp menu file from the posted recipes and return it for download.

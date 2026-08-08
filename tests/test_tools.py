@@ -39,14 +39,27 @@ check("parameters are JSON-Schema objects",
       all(t["parameters"]["type"] == "object" for t in tools.TOOLS), True)
 
 print("\nbuild_recipe from a description")
+# build_recipe now compiles the description rather than matching a keyword to a
+# template, so it is asserted on what the sentence asked for, not on a key.
 r = tools.execute_tool("build_recipe", {"description": "a strong bold espresso"})
-check("picks the strong template", r["template"], "strong")
+check("recognises coffee", r["template"], "coffee")
 check("returns steps", len(r["steps"]) >= 4, True)
 check("and lints them", "problems" in r, True)
+check("reports the strength it targeted",
+      any(t["what"] == "strength" for t in r["targets"]), True)
 r = tools.execute_tool("build_recipe", {"description": "delicate green tea"})
-check("picks delicate for tea", r["template"], "delicate")
+check("recognises delicate leaf", r["template"], "delicate tea")
 r = tools.execute_tool("build_recipe", {"description": "just a coffee"})
-check("defaults to pour_over", r["template"], "pour_over")
+check("defaults to coffee", r["template"], "coffee")
+
+# the point of the compiler: numbers in the sentence reach the recipe
+r = tools.execute_tool("build_recipe", {"description": "green tea at 185 F, 300 ml"})
+check("the temperature target is honoured",
+      any(t["value"].startswith("185") and t["honoured"] for t in r["targets"]), True)
+check("a summary explains it", bool(r.get("summary")), True)
+r = tools.execute_tool("build_recipe", {"description": "coffee at 400 F"})
+check("an impossible target is reported, not silently accepted",
+      bool(r["unmet"]), True)
 
 print("\nlist_templates")
 r = tools.execute_tool("list_templates", {})

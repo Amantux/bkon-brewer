@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from . import advisor, diagnostics, templates
+from . import advisor, diagnostics, nl_recipe, templates
 from .protocol import recipe as R
 
 # The neutral schema. Kept small and typed on purpose -- a large fuzzy tool set
@@ -117,15 +117,20 @@ def _t_list_templates(_args, _recipes, _kb) -> dict:
 
 
 def _t_build_recipe(args, _recipes, _kb) -> dict:
+    """Compile a description into steps, honouring any numbers it names."""
     desc = args.get("description", "")
-    key, steps = templates.suggest(desc)
-    findings = diagnostics.lint_recipe(steps)
+    compiled = nl_recipe.compile_recipe(desc)
+    findings = diagnostics.lint_recipe(compiled.steps)
     return {
-        "template": key,
-        "steps": _steps_out(steps),
+        "template": compiled.style,
+        "steps": _steps_out(compiled.steps),
         "problems": _findings_out(findings),
-        "note": "A starting point — adjust with feedback like 'stronger' or "
-                "'cooler', then save it.",
+        "targets": [{"what": t.what, "value": t.value, "honoured": t.honoured}
+                    for t in compiled.targets],
+        "unmet": compiled.unmet,
+        "summary": compiled.summary(),
+        "note": "Numbers you name are honoured; the rest comes from the "
+                "published base recipes. Adjust with feedback like 'stronger'.",
     }
 
 

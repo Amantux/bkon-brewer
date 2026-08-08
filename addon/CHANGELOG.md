@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.0 — describe the drink, get the recipe
+- **Natural language to a recipe, with targeting.** Say *"a strong small green
+  tea at 185F, two vacuums, 8 second steep"* and it builds exactly that. It reads
+  the beverage, the size, the strength, and any hard numbers, then constructs the
+  steps to hit them.
+- Grounded in the published base recipes: green tea starts 175 °F / 24 kPa and
+  black 205 °F / 20 kPa (so a hotter brew starts from a *shallower* vacuum),
+  multi-vacuum sequences follow X, X+2, X+1, and delicate leaf gets one vacuum
+  with front-loaded water.
+- **Numbers the machine cannot do are clamped and said**, never silently
+  accepted — ask for 260 °F and you get 212 °F plus a note explaining why.
+- A **Compose** box at the top of the builder. It is deterministic and needs no
+  model, so describing a drink works whether or not a provider is configured.
+  New `POST /compose`; the same compiler backs the `build_recipe` service and the
+  assistant's tool, so all three agree.
+
 ## 0.9.3
 - **Drag to reorder steps**, with a grip on each card. Built on Pointer Events,
   so mouse, pen and touch take one code path, and `touch-action:none` on the grip

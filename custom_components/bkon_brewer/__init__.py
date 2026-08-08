@@ -21,7 +21,7 @@ from .const import (
     SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
     SERVICE_EXPORT_MENU, DEFAULT_RECIPE_DIR,
     CONF_LIGHTRAG_URL, CONF_LIGHTRAG_KEY, CONF_RAG_MODE)
-from . import advisor, app_recipe, concierge, diagnostics, rag_backend, recipe_files, templates, tools
+from . import advisor, app_recipe, concierge, diagnostics, nl_recipe, rag_backend, recipe_files, templates, tools
 from .coordinator import BrewerCoordinator
 from .knowledge import KnowledgeBase
 from .library import RecipeLibrary
