@@ -347,8 +347,12 @@ def _register_services(hass: HomeAssistant) -> None:
         recipes = []
         for r in library.list():
             steps = library.get(r["id"])
-            portions = [(bbp.PORTIONS[0],
-                         [{"type": str(s.type), "values": s.values} for s in steps])]
+            # prepare() is what makes these match a real menu: it appends the
+            # brew-out, drops zero-valued sizes, rebuilds start and turns a
+            # manual-stop purge into its dialog form. Exporting the raw stored
+            # steps produced portions with no brew-out at all, which no device
+            # file has.
+            portions = [(bbp.PORTIONS[0], R.prepare(steps))]
             recipes.append({"name": r["name"][:255],
                             "code": (r.get("notes") or "")[:60],
                             "portions": portions})

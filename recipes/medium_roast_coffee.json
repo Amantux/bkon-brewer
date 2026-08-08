@@ -34,7 +34,7 @@
           {
             "type": "pg",
             "values": {
-              "ps": "50",
+              "ps": "30",
               "purgedet": "1",
               "tm": "10"
             }
@@ -68,7 +68,7 @@
           {
             "type": "pg",
             "values": {
-              "ps": "50",
+              "ps": "30",
               "purgedet": "1",
               "tm": "10"
             }
@@ -102,7 +102,7 @@
           {
             "type": "pg",
             "values": {
-              "ps": "50",
+              "ps": "30",
               "purgedet": "1",
               "tm": "10"
             }

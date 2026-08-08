@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1
+- `export_bbp` now runs each recipe through `prepare()` before writing, so the
+  exported portions carry a brew-out and the wire rules — running the export for
+  real showed portions with **no brew-out at all**, which no device file has.
+- The four bundled default recipes used a purge pressure of 50, from before the
+  app's own validator was read; the accepted band is 25–35. They now use 30.
+
 ## 0.8.0
 - **A recipe library in the studio.** Save, list, load, update and delete
   recipes without leaving the page — they persist in the browser, so the studio
