@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.1
+- **Fixes the add-on being missing from the add-on store.** `apparmor:` takes a
+  boolean, not a profile name; the string made the Supervisor refuse the whole
+  config, so the repository resolved but offered nothing to install. Present
+  since 0.4.0.
+- **A misconfigured provider no longer takes the add-on down.** Choosing
+  Anthropic or OpenAI without a key used to raise during startup and crash-loop
+  the container. Now the wiki and the recipe builder still load, and chat and
+  scoring return a clear reason instead.
+- **The embedding model is baked into the image**, so LightRAG works on first
+  start with no download — and on a machine with no internet at all.
+- Fixed the add-on's documentation link (it pointed at a path that never existed).
+
 ## 0.7.0
 - **Score a recipe** in the studio: a "Score recipe" button and a `score_recipe`
   chat tool ask the model to rate the current recipe out of 100 and comment on

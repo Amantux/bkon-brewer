@@ -1,8 +1,8 @@
 name: BKON LightRAG
-version: "0.7.0"
+version: "0.7.1"
 slug: bkon_lightrag
 description: Recipe studio and document Q&A for the BKON Brewer — a chat that builds and tunes recipes, plus optional graph-RAG over the machine’s manuals (Ollama / Anthropic / OpenAI-compatible).
-url: https://github.com/Amantux/bkon-brewer/tree/main/deploy/addon
+url: https://github.com/Amantux/bkon-brewer/tree/main/addon
 image: ghcr.io/amantux/bkon-lightrag-{arch}
 arch:
   - amd64

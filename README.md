@@ -33,41 +33,87 @@ protocol, and status in one place.
 
 ## Install
 
-There are two pieces. You need the **integration**; the **add-on** is an optional
-upgrade for smarter question-answering.
+Two pieces, installed separately. Take them in order.
 
-### 1. The integration (required) — via HACS
+| | What it gives you | Needed? |
+|---|---|---|
+| **1. Integration** | Brewing over Bluetooth, entities, services, voice | **Yes** — this is the brewer control |
+| **2. Add-on** | The **Recipe Studio** (visual builder + chat + scoring) and semantic Q&A | Optional, but it's where the good stuff lives |
+
+### 1. The integration — via HACS
 
 [![Open your Home Assistant instance and open the repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Amantux&repository=bkon-brewer&category=integration)
 
-1. Click the badge above (or in HACS → **⋮** → *Custom repositories*, add
-   `https://github.com/Amantux/bkon-brewer` as an **Integration**).
-2. Install **BKON Craft Brewer**, then restart Home Assistant.
-3. **Settings → Devices & Services → Add Integration → BKON Craft Brewer.** It
-   discovers the brewer over Bluetooth, or tick **Simulate** to try it with no
-   hardware.
+1. Click the badge ⬆️ — or in HACS → **⋮** → *Custom repositories*, add
+   `https://github.com/Amantux/bkon-brewer` with category **Integration**.
+2. Install **BKON Craft Brewer**, then **restart Home Assistant**. (The restart
+   is required; the integration will not appear until you do.)
+3. **Settings → Devices & Services → + Add Integration →** search
+   *BKON Craft Brewer*.
+4. It looks for the brewer over Bluetooth. **No brewer yet?** Tick **Simulate**
+   — every entity, button and service works against a scripted brewer.
+
+✅ **You should now see** a *BKON Brewer* device with 5 sensors and 2 buttons.
 
 <details>
-<summary>Manual install (no HACS)</summary>
+<summary>Manual install, without HACS</summary>
 
-Copy `custom_components/bkon_brewer/` into your Home Assistant `config/custom_components/`
-directory and restart.
+Copy `custom_components/bkon_brewer/` into your Home Assistant's
+`config/custom_components/` directory, then restart Home Assistant.
 </details>
 
-### 2. The LightRAG add-on (optional) — semantic Q&A
+### 2. The add-on — the Recipe Studio
 
 [![Add the BKON Brewer add-on repository to your Home Assistant.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FAmantux%2Fbkon-brewer)
 
-1. Click the badge (or **Settings → Add-ons → Add-on Store → ⋮ → Repositories**,
-   add `https://github.com/Amantux/bkon-brewer`).
-2. Install **BKON LightRAG**, set a service key and a generation provider
-   (Ollama / Anthropic / OpenAI-compatible), and start it.
-3. Point the integration at it in the integration's **Configure** dialog.
+1. Click the badge ⬆️ — or **Settings → Add-ons → Add-on Store → ⋮ →
+   Repositories**, and add `https://github.com/Amantux/bkon-brewer`.
+2. Find **BKON LightRAG** in the store list and click **Install**. (It pulls a
+   prebuilt image for `amd64` and `aarch64` — including **Home Assistant
+   Yellow** and Raspberry Pi — so there is nothing to compile.)
+3. Open the **Configuration** tab and set your generation provider — see
+   [below](#choosing-a-provider). This is the one step people miss.
+4. **Start** the add-on, and turn on **Show in sidebar**.
 
-Without the add-on, questions are answered by a built-in keyword retriever — the
-add-on upgrades them to semantic answers from a model you choose, and the
-integration falls back automatically if it is unavailable. See
-[docs/RAG.md](docs/RAG.md).
+✅ **You should now see** a **BKON RAG** entry in the sidebar. Open it for the
+wiki and the **Recipe Studio**.
+
+5. *(Optional)* To let the integration use the add-on for questions too, point
+   it at the add-on in the integration's **Configure** dialog.
+
+#### Choosing a provider
+
+The chat, the recipe scoring and semantic answers all need a model. Pick one in
+the add-on's **Configuration** tab:
+
+| `ai_provider` | Set | Notes |
+|---|---|---|
+| `ollama` | `base_url` → `http://<host>:11434`, `model` | A local Ollama. No key, nothing leaves your network. |
+| `ollama` | `api_key`, `model` (leave `base_url` empty) | Ollama **Cloud** — good on a Pi that can't run a model locally. |
+| `anthropic` | `api_key`, `model` | e.g. `claude-sonnet-5`. |
+| `openai` | `api_key`, `model`, optional `base_url` | Any OpenAI-compatible endpoint. |
+
+**Without a provider** the add-on still starts and serves the wiki and the
+visual recipe builder — only the chat and scoring are unavailable, and they say
+so plainly rather than failing silently.
+
+#### What the LightRAG toggle does
+
+LightRAG ships **inside every build**, embedding model included, and is **on by
+default** — nothing extra to install. Turn `enable_lightrag` **off** to run the
+Recipe Studio alone: it starts faster and uses less memory, the chat still
+builds, tunes, lints, diagnoses and scores, and only *"how do I descale?"*-style
+document questions go away (the integration falls back to its built-in keyword
+retriever). See [docs/RAG.md](docs/RAG.md).
+
+### Something not working?
+
+| Symptom | Cause |
+|---|---|
+| Add-on missing from the store | Refresh the store (**⋮ → Check for updates**). If it's still absent, the Supervisor rejected `config.yaml` — check **Settings → System → Logs → Supervisor**. |
+| Add-on installs but the sidebar entry is missing | Turn on **Show in sidebar** on the add-on page. |
+| Chat/score say "no generation provider" | Set a provider and key in the add-on **Configuration**, then restart it. |
+| Integration missing after HACS install | Restart Home Assistant. |
 
 ---
 

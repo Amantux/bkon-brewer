@@ -73,6 +73,7 @@ EMBED_DIM = int(os.getenv("EMBED_DIM", "384"))
 _embedder = None
 _rag = None
 _provider = None
+_provider_error: str | None = None   # why, when the provider could not be built
 _query_param = None          # lightrag.QueryParam, bound at startup when enabled
 
 
@@ -102,9 +103,27 @@ async def lifespan(_app: FastAPI):
     """Warm the provider, and the embedder and LightRAG when they are enabled."""
     global _embedder, _rag, _provider, _query_param
 
-    # The provider is needed either way -- the studio chat runs on it.
-    _provider = build_provider()                     # raises if misconfigured
-    _LOG.info("LLM provider: %s", _provider.name)
+    # The provider is needed for chat and scoring -- but not for the wiki or the
+    # recipe builder, which are pure client-side. A misconfigured provider used
+    # to raise here and take the whole add-on down on boot, so a missing API key
+    # meant a crash loop and a blank sidebar panel rather than a usable page with
+    # one broken feature. Now it is recorded and surfaced per-request.
+    global _provider_error
+    try:
+        _provider = build_provider()
+        _provider_error = None
+        _LOG.info("LLM provider: %s", _provider.name)
+    except Exception as ex:                          # noqa: BLE001
+        _provider, _provider_error = None, str(ex)
+        _LOG.error("LLM provider not configured: %s", ex)
+        _LOG.error("The wiki and recipe builder still work; chat and scoring "
+                   "need a provider. Set it in the add-on configuration.")
+
+    if _provider is None and ENABLE_LIGHTRAG:
+        _LOG.error("Skipping LightRAG startup: it generates answers through the "
+                   "provider, which is not configured.")
+        yield
+        return
 
     if not ENABLE_LIGHTRAG:
         _LOG.info("LightRAG disabled; serving the wiki and recipe studio only. "
@@ -118,8 +137,13 @@ async def lifespan(_app: FastAPI):
     from lightrag.utils import EmbeddingFunc
     _query_param = QueryParam
 
-    _LOG.info("loading local embedder %s (%d-dim)", EMBED_MODEL, EMBED_DIM)
-    _embedder = TextEmbedding(EMBED_MODEL)
+    # The model is baked into the image at FASTEMBED_CACHE (see the Dockerfile),
+    # so this loads from disk rather than downloading on first start.
+    cache = os.getenv("FASTEMBED_CACHE") or None
+    _LOG.info("loading local embedder %s (%d-dim)%s", EMBED_MODEL, EMBED_DIM,
+              f" from {cache}" if cache else "")
+    _embedder = (TextEmbedding(EMBED_MODEL, cache_dir=cache) if cache
+                 else TextEmbedding(EMBED_MODEL))
 
     os.makedirs(WORKING_DIR, exist_ok=True)
     _rag = LightRAG(
@@ -145,8 +169,24 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="BKON LightRAG", lifespan=lifespan)
 
 
+def _need_provider() -> None:
+    """Refuse the model-backed endpoints with the actual reason."""
+    if _provider is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(f"No generation provider: {_provider_error}"
+                    if _provider_error else
+                    "The generation provider is still starting."))
+
+
 def _need_rag() -> None:
     """Refuse the document endpoints when the LightRAG half is switched off."""
+    if _provider is None and ENABLE_LIGHTRAG:
+        _LOG.error("Skipping LightRAG startup: it generates answers through the "
+                   "provider, which is not configured.")
+        yield
+        return
+
     if not ENABLE_LIGHTRAG:
         raise HTTPException(
             status_code=501,
@@ -187,6 +227,7 @@ async def home():
 async def health():
     return {"status": "ok",
             "provider": _provider.name if _provider else None,
+            "provider_error": _provider_error,
             "lightrag": ENABLE_LIGHTRAG,
             "embed": EMBED_MODEL if ENABLE_LIGHTRAG else None,
             "ready": _provider is not None and (_rag is not None or not ENABLE_LIGHTRAG)}
@@ -224,8 +265,7 @@ async def chat_turn(request: Request):
     RAG. The model drives them through the provider-agnostic loop in chat.py, so
     tool use works the same on Ollama, Anthropic or an OpenAI-compatible model.
     """
-    if _provider is None:
-        raise HTTPException(status_code=503, detail="service still starting")
+    _need_provider()
     body = await request.json()
     message = (body.get("message") or "").strip()
     if not message:
@@ -278,8 +318,7 @@ async def score_endpoint(request: Request):
     returns the model's score, verdict, per-dimension comments and suggestions,
     with the objective facts (byte fit, linter findings) it was grounded on.
     """
-    if _provider is None:
-        raise HTTPException(status_code=503, detail="service still starting")
+    _need_provider()
     body = await request.json()
     steps = body.get("steps") or []
     try:
