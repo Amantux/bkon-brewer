@@ -255,6 +255,21 @@
   .stu-lintrow.info .mk{color:var(--ink-faint)}
   .stu-lintrow .fx{color:var(--ink-soft)}
   .stu-lintok{font-size:12px;color:var(--good);font-weight:600}
+  .stu-starts{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+  .stu-startsep{font-size:12px;color:var(--ink-faint)}
+  .stu-startchips{display:flex;gap:6px;flex-wrap:wrap}
+  .stu-startchips button{font-family:var(--sans);font-size:12.5px;font-weight:600;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--ink-soft);
+    padding:7px 12px;border-radius:99px;cursor:pointer}
+  .stu-startchips button:hover{border-color:var(--accent);color:var(--ink)}
+  .stu-describe{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  .stu-describe>summary{cursor:pointer;font-size:12.5px;color:var(--ink-soft);
+    font-weight:600;list-style:none;padding:4px 0}
+  .stu-describe>summary::-webkit-details-marker{display:none}
+  .stu-describe>summary::before{content:"▸ ";color:var(--ink-faint)}
+  .stu-describe[open]>summary::before{content:"▾ "}
+  .stu-describe>summary:hover{color:var(--ink)}
+  @media (max-width:800px){.stu-startchips button{padding:10px 14px;font-size:13.5px}}
   .br-bar{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
   .br-bar input,.br-bar select{font-family:var(--sans);font-size:14px;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
@@ -644,14 +659,24 @@
             <span class="why">tap a step to add it</span>
           </div>
           <div class="zone-body">
-            <form class="stu-input" id="nlForm" style="margin-bottom:12px">
-              <input id="nlText" autocomplete="off"
-                placeholder="Describe it — “a strong small green tea at 185F”"
-                aria-label="Describe the recipe you want" />
-              <button class="btn primary" type="submit" id="nlGo">Compose</button>
-            </form>
-            <p class="stu-hint" id="nlOut" style="margin:0 0 12px"></p>
+            <!-- Building is the primary path: add steps and go. Describing is
+                 one way in, not the way in. -->
+            <div class="stu-starts">
+              <button class="btn" id="stuBlank" type="button">＋ Blank recipe</button>
+              <span class="stu-startsep">or start from</span>
+              <div class="stu-startchips" id="stuStarts"></div>
+            </div>
             <div class="stu-palette" id="stuPalette"></div>
+            <details class="stu-describe" id="nlWrap">
+              <summary>…or describe it in words</summary>
+              <form class="stu-input" id="nlForm" style="margin-top:10px">
+                <input id="nlText" autocomplete="off"
+                  placeholder="“a strong small green tea at 185F”"
+                  aria-label="Describe the recipe you want" />
+                <button class="btn primary" type="submit" id="nlGo">Compose</button>
+              </form>
+              <p class="stu-hint" id="nlOut" style="margin:8px 0 0"></p>
+            </details>
             <div class="stu-steps" id="stuSteps"></div>
           </div>
         </section>
@@ -1662,6 +1687,37 @@ address=0x80000000</code></pre>
     }catch(err){
       out.textContent=String(err.message||err); out.style.color="var(--t-start)";
     }finally{ btn.disabled=false; btn.textContent=was; }
+  });
+
+  // Start blank, or from a known base — neither needs a sentence typed.
+  // The bases come from the compiler's own styles, so a one-tap start and a
+  // described one produce the same recipe rather than two rival definitions.
+  const QUICK = [["Coffee","a coffee"], ["Green tea","a green tea"],
+                 ["Black tea","a black tea"], ["Delicate","a delicate tea"]];
+  $("stuBlank").onclick = () => {
+    steps = []; currentId = null; derivedFrom = null;
+    $("stuName").value = "New recipe"; $("stuNotes").value = "";
+    userRating = 0; paintStars(); paintPromote(); render(); libRender(); journalRender();
+    flash("Blank recipe — add steps below");
+  };
+  QUICK.forEach(([label, phrase]) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = label;
+    b.onclick = async () => {
+      b.disabled = true;
+      try{
+        const res = await fetch(BASE_URL + "compose", {method:"POST",
+          headers:{"Content-Type":"application/json"}, body: JSON.stringify({description: phrase})});
+        const d = await res.json();
+        if(!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+        steps = (d.steps||[]).map(x=>({type:x.type, values:{...x.values}}));
+        currentId = null; derivedFrom = null;
+        if(!$("stuName").value || $("stuName").value === "New recipe") $("stuName").value = label;
+        paintPromote(); render();
+        flash(`Started from ${label.toLowerCase()}`);
+      }catch(e){ flash("Could not load that base — add steps by hand"); }
+      finally{ b.disabled = false; }
+    };
+    $("stuStarts").appendChild(b);
   });
 
   $("stuLibSave").onclick = libSave;

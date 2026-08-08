@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.1
+- **Just start building.** The describe box sat at the top of the builder, which
+  made writing a sentence feel like step one. Building is the primary path now:
+  the step palette comes first, with **＋ Blank recipe** and one-tap bases
+  (Coffee, Green tea, Black tea, Delicate) beside it. Describing it in words is
+  still there, folded under *"…or describe it in words"*.
+- The one-tap bases run through the same compiler as a typed description, so a
+  tapped start and a described one produce the same recipe rather than two rival
+  definitions of "a coffee".
+
 ## 0.13.0 — a library you can browse
 - **A Recipes view**: every recipe as a card you can scroll, search and sort by
   name, rating, times brewed or score. Each card carries its score, stars, brew
