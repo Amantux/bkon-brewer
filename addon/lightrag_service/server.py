@@ -420,6 +420,32 @@ async def assistant_config():
     }
 
 
+@app.post("/lint")
+async def lint(request: Request):
+    """Check a recipe and report every problem with its fix. No model needed."""
+    from bkon_core import diagnostics
+    from bkon_core.protocol import recipe as R
+    body = await request.json()
+    try:
+        core = [R.Step(R.StepType(s["type"]), dict(s.get("values", {})))
+                for s in (body.get("steps") or [])]
+    except (KeyError, ValueError) as ex:
+        raise HTTPException(status_code=400, detail=f"bad step: {ex}")
+    findings = diagnostics.lint_recipe(core)
+    errors = sum(1 for f in findings if f.severity >= diagnostics.Severity.ERROR)
+    try:
+        size = len(R.encode(core).encode("utf-8")) if core else 0
+    except Exception:                                # noqa: BLE001
+        size = 0
+    return {
+        "ok": errors == 0,
+        "errors": errors,
+        "bytes": size,
+        "findings": [{"severity": f.label(), "message": f.message, "fix": f.fix,
+                      "step": f.step_index} for f in findings],
+    }
+
+
 @app.post("/compose")
 async def compose(request: Request):
     """Compile a description into a recipe. No model needed.

@@ -247,6 +247,14 @@
   .stu-notes{margin-top:8px;width:100%;font-family:var(--sans);font-size:12.5px;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;resize:vertical;min-height:44px}
   .stu-notes:focus{border-color:var(--accent);outline:none}
+  .stu-lint{display:flex;flex-direction:column;gap:6px;margin:2px 0 10px}
+  .stu-lintrow{display:grid;grid-template-columns:16px 1fr;gap:7px;font-size:12px;line-height:1.45}
+  .stu-lintrow .mk{font-size:11px;line-height:1.5}
+  .stu-lintrow.error .mk{color:var(--t-start)}
+  .stu-lintrow.warning .mk{color:var(--warn)}
+  .stu-lintrow.info .mk{color:var(--ink-faint)}
+  .stu-lintrow .fx{color:var(--ink-soft)}
+  .stu-lintok{font-size:12px;color:var(--good);font-weight:600}
   .setform{display:flex;flex-direction:column;gap:10px;max-width:520px}
   .setrow{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:center}
   .setrow>span{font-size:12px;font-weight:600;color:var(--ink-soft)}
@@ -351,7 +359,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>444</b><span>tests passing</span></div>
+        <div><b>450</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -620,6 +628,7 @@
             </div>
             <div class="stu-track"><div class="stu-fill" id="stuBar"></div></div>
             <div class="stu-note" id="stuNote"></div>
+            <div id="stuLint" class="stu-lint"></div>
             <input class="stu-name" id="stuName" value="Morning Pour Over" spellcheck="false" aria-label="Recipe name" />
             <div class="stu-rate">
               <span class="stu-rate-label">Your rating</span>
@@ -718,7 +727,7 @@ data:
           <tr><td>Pages per category</td><td>4</td></tr>
           <tr><td>Recipe buttons per page</td><td>8</td></tr>
           <tr><td><b>Recipes per category</b></td><td><b>32</b></td></tr>
-          <tr><td><b>Recipes per menu</b></td><td><b>444</b></td></tr>
+          <tr><td><b>Recipes per menu</b></td><td><b>450</b></td></tr>
         </tbody>
       </table>
       <p>The first page of a category is the easiest to reach at the machine, so the
@@ -740,7 +749,7 @@ data:
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (444 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (450 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -1044,7 +1053,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      444 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      450 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
@@ -1307,6 +1316,33 @@ address=0x80000000</code></pre>
     clearTimeout(flashTimer); flashTimer=setTimeout(()=>{t.style.opacity="0";},1500);
   }
 
+  // ---- live validation -------------------------------------------------
+  // Problems show while you build rather than at save time. The checks run on
+  // the server so there is one implementation of the rules, not a JS copy that
+  // can drift from the Python the brewer actually goes through.
+  let lintTimer, lintSeq = 0;
+  function lintSoon(){ clearTimeout(lintTimer); lintTimer = setTimeout(runLint, 350); }
+  async function runLint(){
+    const host = $("stuLint"); if(!host) return;
+    const seq = ++lintSeq;
+    try{
+      const res = await fetch(BASE_URL + "lint", {method:"POST",
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify({steps})});
+      if(seq !== lintSeq) return;            // a newer edit already superseded this
+      const d = await res.json();
+      if(!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+      const f = d.findings || [];
+      if(!f.length){ host.innerHTML = `<div class="stu-lintok">✓ No problems found</div>`; return; }
+      host.innerHTML = f.map(x=>{
+        const mark = x.severity === "error" ? "●" : x.severity === "warning" ? "▲" : "·";
+        const step = (x.step !== null && x.step !== undefined) ? `Step ${x.step+1}: ` : "";
+        return `<div class="stu-lintrow ${x.severity}"><span class="mk">${mark}</span>`
+             + `<span><b>${escLint(step + x.message)}</b><br><span class="fx">${escLint(x.fix||"")}</span></span></div>`;
+      }).join("");
+    }catch(e){ if(seq === lintSeq) host.innerHTML = ""; }
+  }
+  function escLint(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
   // ---- readout gauge ----
   function gauge(){
     const n = byteLen(JSON.stringify(prepare(steps)));
@@ -1319,6 +1355,7 @@ address=0x80000000</code></pre>
     bar.style.background=color;
     const st=$("stuState"); st.textContent=label; st.style.color=color;
     $("stuNote").textContent=note;
+    lintSoon();
   }
 
   // ---- the local recipe library --------------------------------------------

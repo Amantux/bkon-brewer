@@ -27,7 +27,8 @@ from .protocol.events import ERROR_MESSAGES
 TEMP_MIN, TEMP_MAX = 140, 212          # deg F (the app also accepts 60-100 C, converted to F)
 VAC_SETPOINT_MAX = 60                  # kPa; the vacuum editor caps the setpoint at 60
 PURGE_PS_MIN, PURGE_PS_MAX = 25, 35    # the purge editor accepts only 25-35
-FILL_MAX_ML = 600                      # fill and rinse volumes
+FILL_MAX_ML = 600                      # fill and rinse volumes, per step
+FILL_TOTAL_MAX = 900                   # across a whole recipe; a chamber holds one brew
 TIME_MAX_S = 180                       # every time field validates under 3 minutes
 
 
@@ -82,6 +83,51 @@ def lint_recipe(steps: list[R.Step]) -> list[Finding]:
             "No Vacuum step. Vacuum extraction is what this machine does "
             "differently; a recipe without one is just steeping.",
             "Add a Vacuum step if you want the machine's signature extraction."))
+
+    # -- order: the steps can each be fine and the sequence still wrong ----
+    first_fill = next((i for i, t in enumerate(types) if t == R.StepType.FILL), None)
+    first_extract = next((i for i, t in enumerate(types)
+                          if t in (R.StepType.VACUUM, R.StepType.PURGE)), None)
+    if first_extract is not None and (first_fill is None or first_extract < first_fill):
+        findings.append(Finding(
+            Severity.ERROR,
+            f"Step {first_extract + 1} extracts before any water is added.",
+            "Move a Fill above it — a vacuum on an empty chamber pulls on "
+            "nothing, and the machine may fault instead of brewing.",
+            first_extract))
+
+    if R.StepType.START in types and types[0] != R.StepType.START:
+        findings.append(Finding(
+            Severity.WARNING,
+            "The Start step is not first, so water is added before the "
+            "temperature is set.",
+            "Move Start to the top; it is what heats the water."))
+
+    if types.count(R.StepType.START) > 1:
+        findings.append(Finding(
+            Severity.WARNING,
+            f"{types.count(R.StepType.START)} Start steps — only the "
+            "temperature of one of them will be what you get.",
+            "Keep a single Start at the top and delete the rest."))
+
+    if types and types[-1] == R.StepType.DIALOG:
+        findings.append(Finding(
+            Severity.WARNING,
+            "The recipe ends on a Dialog, so it stops asking a question with "
+            "nothing left to do.",
+            "Put the prompt before the step it is asking about, or remove it."))
+
+    # -- how much water, in total ------------------------------------------
+    total_water = sum(_num(s.values.get(k)) or 0
+                      for s in steps if s.type == R.StepType.FILL
+                      for k in ("fwv", "rwv"))
+    if total_water and total_water > FILL_TOTAL_MAX:
+        findings.append(Finding(
+            Severity.WARNING,
+            f"{total_water:g} ml of water in total, which is more than a "
+            f"single brew chamber is likely to hold.",
+            f"Keep the total near {FILL_TOTAL_MAX} ml or below, or split it "
+            "into two brews."))
 
     # -- the hard limit: will it transmit? --------------------------------
     try:

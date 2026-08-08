@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.1 — validation while you build
+- **Problems now show as you build**, not at save time. The panel under the byte
+  gauge lists every finding with its fix, updating as you edit.
+- **New ordering checks**, because each step can be valid and the sequence still
+  wrong: extracting before any water is added (an error — a vacuum on an empty
+  chamber), a Start that is not first, more than one Start, a recipe ending on a
+  Dialog, and more total water than a chamber is likely to hold.
+- Validation runs on the server through the same Python the brewer goes through,
+  so there is one implementation of the rules rather than a JavaScript copy that
+  can drift. New `POST /lint`; no model needed.
+
 ## 0.10.0 — describe the drink, get the recipe
 - **Natural language to a recipe, with targeting.** Say *"a strong small green
   tea at 185F, two vacuums, 8 second steep"* and it builds exactly that. It reads

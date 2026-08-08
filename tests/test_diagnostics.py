@@ -71,6 +71,29 @@ f = D.lint_recipe([R.start(200), R.fill(900)])
 check("fill over 600 ml -> warning",
       any("over the 600" in x.message.lower() for x in sev(f, Severity.WARNING)), True)
 
+print("\norder matters: each step can be fine and the sequence still wrong")
+f = D.lint_recipe([R.start(200), R.vacuum(24, 4), R.fill(250)])
+check("extracting before any water is an error",
+      any("before any water" in x.message for x in sev(f, Severity.ERROR)), True)
+f = D.lint_recipe([R.fill(250), R.start(200), R.vacuum(24, 4)])
+check("Start not first is flagged",
+      any("not first" in x.message for x in sev(f, Severity.WARNING)), True)
+f = D.lint_recipe([R.start(200), R.fill(250), R.start(205), R.vacuum(24, 4)])
+check("two Start steps are flagged",
+      any("Start steps" in x.message for x in sev(f, Severity.WARNING)), True)
+f = D.lint_recipe([R.start(200), R.fill(250), R.vacuum(24, 4), R.dialog("ok?")])
+check("ending on a Dialog is flagged",
+      any("ends on a Dialog" in x.message for x in sev(f, Severity.WARNING)), True)
+f = D.lint_recipe([R.start(200), R.fill(600, rinse_volume_ml=400), R.vacuum(24, 4)])
+check("more water than a chamber holds is flagged",
+      any("in total" in x.message for x in sev(f, Severity.WARNING)), True)
+
+# and none of that fires on a sound recipe -- a linter that cries wolf gets ignored
+f = D.lint_recipe([R.start(200), R.fill(250, rinse_volume_ml=30),
+                   R.vacuum(24, 6), R.purge(30, 10, detect=True)])
+check("a sound recipe stays clean",
+      [x.message for x in f if x.severity >= Severity.WARNING], [])
+
 print("\nfindings are ordered worst-first")
 f = D.lint_recipe([R.start(250), R.dialog("")])   # a warning and an error present
 check("first finding is the error", f[0].severity, Severity.ERROR)
