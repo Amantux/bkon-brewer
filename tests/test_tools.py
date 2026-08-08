@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _bootstrap                          # noqa: E402
 _bootstrap.install()
 
-from bkon_brewer import tools, templates   # noqa: E402
+from bkon_brewer import nl_recipe, tools, templates   # noqa: E402
 from bkon_brewer.protocol import recipe as R  # noqa: E402
 
 _pass = _fail = 0
@@ -63,7 +63,8 @@ check("an impossible target is reported, not silently accepted",
 
 print("\nlist_templates")
 r = tools.execute_tool("list_templates", {})
-check("lists all templates", len(r["templates"]), len(templates.TEMPLATES))
+check("lists the styles the compiler knows", len(r["styles"]), len(nl_recipe.STYLES))
+check("and says how to use it", bool(r.get("example")), True)
 
 print("\nlint_recipe over a saved recipe")
 r = tools.execute_tool("lint_recipe", {"name": "Morning Cup"}, recipes=RECIPES)

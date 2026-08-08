@@ -504,6 +504,12 @@ def _register_services(hass: HomeAssistant) -> None:
             raise vol.Invalid(f"No saved recipe named {call.data['name']!r}")
         for c in _coordinators(hass, call):
             await c.async_brew(steps)
+        # Only a named brew can be attributed to a recipe, so history is
+        # recorded here rather than in the coordinator, which sees only steps.
+        from homeassistant.util import dt as dt_util
+        await library.async_brewed(call.data["name"],
+                                   when=dt_util.now().isoformat(timespec="seconds"))
+        _notify_library_changed(hass)
 
     hass.services.async_register(
         DOMAIN, SERVICE_SAVE_RECIPE, _save_recipe,

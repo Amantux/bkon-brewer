@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.0
+- **`/documents/text` no longer lies.** LightRAG extracts entities through the
+  model, so an insert fails when the provider does — the endpoint used to answer
+  `inserted` regardless, which made a whole ingest look successful while
+  indexing nothing. It now verifies the document actually landed and says so
+  when it did not.
+- **Brew history.** Every `brew_saved` records that it ran, with a count and a
+  last-brewed time on the library sensor, so the tasting journal's intent can be
+  correlated against what was actually brewed.
+- **A dashboard card** (`dashboard/lovelace-card.yaml`): status, current step,
+  brew buttons, abort and manual purge, and a dialog prompt with Continue and
+  Cancel that appears only while the brewer is actually waiting.
+- **`list_templates` now reports the compiler's styles** rather than the four
+  retired fixed templates.
+
 ## 0.10.1 — validation while you build
 - **Problems now show as you build**, not at save time. The panel under the byte
   gauge lists every finding with its fix, updating as you edit.

@@ -113,7 +113,16 @@ def _findings_out(findings) -> list[dict]:
 
 
 def _t_list_templates(_args, _recipes, _kb) -> dict:
-    return {"templates": templates.list_templates()}
+    """The styles the compiler knows, not the four old fixed templates.
+
+    templates.py matched a keyword to one of four canned recipes; nl_recipe
+    compiles a description and honours the numbers in it, so what is worth
+    listing is the styles it recognises.
+    """
+    return {"styles": sorted(nl_recipe.STYLES),
+            "note": "Describe what you want — beverage, size, strength, and any "
+                    "numbers (temperature, volume, kPa, steep) are all honoured.",
+            "example": "a strong small green tea at 185F, two vacuums"}
 
 
 def _t_build_recipe(args, _recipes, _kb) -> dict:

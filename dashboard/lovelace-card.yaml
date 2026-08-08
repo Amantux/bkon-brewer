@@ -1,0 +1,94 @@
+# BKON Brewer — a dashboard card
+#
+# Paste into a Lovelace view (Edit dashboard → ⋮ → Raw configuration editor, or
+# add a Manual card and paste the `type:` block). Everything here is built from
+# stock Home Assistant cards — nothing to install.
+#
+# Replace `bkon_brewer_demo` with your own entity prefix if it differs, and set
+# the recipe names under the brew buttons to ones in your library.
+
+type: vertical-stack
+cards:
+  # --- what the machine is doing, right now -------------------------------
+  - type: entities
+    title: BKON Craft Brewer
+    show_header_toggle: false
+    entities:
+      - entity: sensor.bkon_brewer_demo_status
+        name: Status
+      - entity: sensor.bkon_brewer_demo_current_step
+        name: Step
+      - entity: sensor.bkon_brewer_demo_recipe_library
+        name: Recipes
+      - type: conditional
+        # The fault row appears only when there is one, so the card stays quiet
+        # when the machine is happy. Both states mean "no fault": the sensor
+        # reads `unknown` until something has gone wrong at least once.
+        conditions:
+          - entity: sensor.bkon_brewer_demo_last_error
+            state_not: unknown
+          - entity: sensor.bkon_brewer_demo_last_error
+            state_not: "none"
+        row:
+          entity: sensor.bkon_brewer_demo_last_error
+          name: Last error
+
+  # --- answer the brewer's prompt ----------------------------------------
+  # Only shown while it is actually waiting, because a dialog button pressed at
+  # any other time does nothing and looks broken.
+  - type: conditional
+    conditions:
+      - entity: sensor.bkon_brewer_demo_status
+        state: "waiting_for_operator"
+    card:
+      type: entities
+      title: The brewer is asking
+      entities:
+        - entity: sensor.bkon_brewer_demo_dialog
+          name: Prompt
+      footer:
+        type: buttons
+        entities:
+          - entity: sensor.bkon_brewer_demo_dialog
+            name: Continue
+            tap_action:
+              action: call-service
+              service: bkon_brewer.respond_dialog
+              data: { button: 1 }
+          - entity: sensor.bkon_brewer_demo_dialog
+            name: Cancel
+            tap_action:
+              action: call-service
+              service: bkon_brewer.respond_dialog
+              data: { button: 0 }
+
+  # --- brew a saved recipe ------------------------------------------------
+  - type: entities
+    title: Brew
+    entities:
+      - type: buttons
+        entities:
+          - entity: sensor.bkon_brewer_demo_status
+            name: Classic Pour Over
+            icon: mdi:coffee
+            tap_action:
+              action: call-service
+              service: bkon_brewer.brew_saved
+              data: { name: Classic Pour Over }
+          - entity: sensor.bkon_brewer_demo_status
+            name: Low-temp Tea
+            icon: mdi:tea
+            tap_action:
+              action: call-service
+              service: bkon_brewer.brew_saved
+              data: { name: Low Temperature Tea }
+
+  # --- the controls you reach for when something is wrong -----------------
+  - type: entities
+    title: Controls
+    show_header_toggle: false
+    entities:
+      - entity: button.bkon_brewer_demo_abort
+        name: Abort
+      - entity: button.bkon_brewer_demo_manual_purge
+        name: Manual purge

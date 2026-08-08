@@ -541,5 +541,30 @@ async def insert(request: Request,
     text = (body.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
-    await _rag.ainsert(text)
-    return {"status": "inserted", "chars": len(text)}
+    # LightRAG extracts entities through the LLM, so an insert fails when the
+    # provider does. It used to swallow that and answer "inserted" regardless,
+    # which made a whole ingest look like it worked while indexing nothing.
+    before = _doc_count()
+    try:
+        await _rag.ainsert(text)
+    except Exception as ex:                          # noqa: BLE001
+        _LOG.exception("insert failed")
+        raise HTTPException(status_code=502, detail=f"insert failed: {ex}")
+    after = _doc_count()
+    if after <= before:
+        raise HTTPException(
+            status_code=502,
+            detail="The document was accepted but indexed nothing — LightRAG "
+                   "extracts entities through the model, so this usually means "
+                   "the generation provider is not working. Check Settings.")
+    return {"status": "inserted", "chars": len(text), "documents": after}
+
+
+def _doc_count() -> int:
+    """How many documents LightRAG holds, for verifying an insert landed."""
+    try:
+        store = getattr(_rag, "full_docs", None)
+        data = getattr(store, "_data", None)
+        return len(data) if data is not None else 0
+    except Exception:                                # noqa: BLE001
+        return 0

@@ -21,6 +21,9 @@ _LOGGER = logging.getLogger(__name__)
 #: machine and every recorder row that mentions it.
 JOURNAL_MAX = 20
 
+#: Brew events kept per recipe. Bounded for the same reason as the journal.
+BREWS_MAX = 20
+
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.recipes"
 
@@ -83,6 +86,8 @@ class RecipeLibrary:
                 # which is what makes it readable by MCP and any automation --
                 # the studio's browser store alone was invisible to everything.
                 "journal": rec.get("journal", []),
+                "brew_count": rec.get("brew_count", 0),
+                "last_brewed": (rec.get("brews") or [{}])[-1].get("when", ""),
             })
         return out
 
@@ -99,7 +104,9 @@ class RecipeLibrary:
                 "name": rec.get("name"), "steps": rec.get("steps", []),
                 "description": rec.get("description", ""),
                 "rating": rec.get("rating"), "notes": rec.get("notes", ""),
-                "journal": rec.get("journal", [])}
+                "journal": rec.get("journal", []),
+                "brews": rec.get("brews", []),
+                "brew_count": rec.get("brew_count", 0)}
 
     def get(self, id_or_name: str) -> list[R.Step] | None:
         rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
@@ -129,6 +136,11 @@ class RecipeLibrary:
                 rec["notes"] = prev["notes"]
             if prev.get("journal"):
                 rec["journal"] = prev["journal"]
+            # History is about the recipe's life, not this version of its steps.
+            if prev.get("brews"):
+                rec["brews"] = prev["brews"]
+            if prev.get("brew_count"):
+                rec["brew_count"] = prev["brew_count"]
         self._recipes[rid] = rec
         await self.async_save()
         return rid
@@ -156,6 +168,25 @@ class RecipeLibrary:
         self._recipes[rid] = rec
         await self.async_save()
         return True
+
+    async def async_brewed(self, name: str, *, when: str = "",
+                          outcome: str = "started") -> None:
+        """Record that a brew actually happened.
+
+        The tasting journal records intent -- what you changed and how you meant
+        it to taste. This records the event, so the two can be correlated: a
+        change nobody ever brewed proves nothing.
+        """
+        rid = name if name in self._recipes else _slug(name)
+        rec = self._recipes.get(rid)
+        if rec is None:
+            return
+        brews = list(rec.get("brews", []))
+        brews.append({"when": when, "outcome": outcome})
+        rec["brews"] = brews[-BREWS_MAX:]
+        rec["brew_count"] = int(rec.get("brew_count", 0)) + 1
+        self._recipes[rid] = rec
+        await self.async_save()
 
     async def async_note(self, id_or_name: str, *, changes: list[str] | None = None,
                          taste: str = "", rating: int | None = None,
@@ -211,6 +242,9 @@ class RecipeLibrary:
                 rec.pop("notes", None)
             if not rec.get("journal"):
                 rec.pop("journal", None)
+            for k in ("brews", "brew_count", "last_brewed"):
+                if not rec.get(k):
+                    rec.pop(k, None)
             records.append(rec)
         return {"version": 1, "recipes": records}
 

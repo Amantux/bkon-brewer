@@ -127,5 +127,32 @@ lib3 = fresh(); run(lib3.async_put("Plain", STEPS))
 ok("a recipe with no journal exports without the key",
    "journal" not in lib3.export_dict()["recipes"][0])
 
+print("\nbrew history — that it happened, not just what you meant")
+lib = fresh()
+run(lib.async_put("Cup", STEPS))
+run(lib.async_brewed("Cup", when="2026-08-08T09:00:00"))
+run(lib.async_brewed("Cup", when="2026-08-08T17:30:00"))
+rec = lib.get_record("Cup")
+check("both brews recorded", len(rec["brews"]), 2)
+check("the counter tracks them", rec["brew_count"], 2)
+check("the listing shows the count", lib.list()[0]["brew_count"], 2)
+check("and when it last ran", lib.list()[0]["last_brewed"], "2026-08-08T17:30:00")
+check("brewing an unknown recipe is a clean no-op",
+      run(lib.async_brewed("ghost", when="x")), None)
+
+# history belongs to the recipe's life, not to one version of its steps
+run(lib.async_put("Cup", STEPS + [{"type": "pg", "values": {"ps": 30, "tm": 10}}]))
+check("history survives an edit", lib.get_record("Cup")["brew_count"], 2)
+
+for i in range(30):
+    run(lib.async_brewed("Cup", when=f"2026-09-{i+1:02d}"))
+check("the list is bounded", len(lib.get_record("Cup")["brews"]), 20)
+check("but the total count is not lost", lib.get_record("Cup")["brew_count"], 32)
+
+lib2 = fresh()
+run(lib2.async_put("Never", STEPS))
+ok("a never-brewed recipe exports without brew keys",
+   "brews" not in lib2.export_dict()["recipes"][0])
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

@@ -45,6 +45,7 @@ whatever you need.
 | Make recipes longer than Bluetooth allows | [LONGER_RECIPES.md](LONGER_RECIPES.md) |
 | Understand the `.bbp` menu-file format | [BBP_FORMAT.md](BBP_FORMAT.md) |
 | See how faithful this is to the app | [APP_COMPARISON.md](APP_COMPARISON.md) |
+| Put it on a dashboard | [../dashboard/lovelace-card.yaml](../dashboard/lovelace-card.yaml) |
 | Install the add-on | [../addon/DOCS.md](../addon/DOCS.md) |
 
 ---
@@ -106,7 +107,7 @@ See [APP_COMPARISON.md](APP_COMPARISON.md) for a fidelity audit.
 ## Testing
 
 ```
-./tests/run_all.sh          # 450 assertions, no dependencies
+./tests/run_all.sh          # 460 assertions, no dependencies
 ```
 
 The logic that matters — encoding, the advisor, retrieval, provider selection,
