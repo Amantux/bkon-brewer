@@ -1,7 +1,14 @@
 name: addon
+
+# Build and publish the LightRAG add-on's per-architecture images to GHCR so a
+# Home Assistant install PULLS a ready image instead of building onnxruntime /
+# fastembed on-device. aarch64 is the image Home Assistant Yellow (CM4) uses.
 on:
+  release:
+    types: [published]        # every release builds the current add-on
   push:
-    tags: ["addon-v*"]        # tag the add-on releases separately from the integration
+    branches: [main]
+    paths: ['addon/**']       # keep images current when the add-on changes
   workflow_dispatch:
 
 jobs:
@@ -9,24 +16,43 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write         # push images to ghcr.io/amantux/bkon-lightrag-<arch>
+      packages: write         # push to ghcr.io/amantux/bkon-lightrag-<arch>
     strategy:
       matrix:
-        arch: [aarch64, amd64]
+        include:
+          - arch: aarch64      # Home Assistant Yellow / Green / Pi 4-5, CM4/CM5
+            platform: linux/arm64
+          - arch: amd64        # Home Assistant OS on x86, NUCs, VMs
+            platform: linux/amd64
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read the add-on version
+        id: ver
+        run: echo "v=$(grep '^version:' addon/config.yaml | tr -d ' \"' | cut -d: -f2)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3          # emulate arm64 on an x86 runner
+      - uses: docker/setup-buildx-action@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # Home Assistant's official add-on builder: reads addon/build.yaml
-      # and config.yaml, builds the per-arch image, pushes it.
-      - name: Build and publish the add-on
-        uses: home-assistant/builder@master
+
+      - name: Build and push (${{ matrix.arch }})
+        uses: docker/build-push-action@v6
         with:
-          args: >-
-            --${{ matrix.arch }}
-            --target /data/addon
-            --docker-hub ghcr.io/amantux
+          context: addon
+          file: addon/Dockerfile
+          platforms: ${{ matrix.platform }}
+          # The add-on's Dockerfile takes the HA base image as a build arg; the
+          # slim Debian base matches build.yaml.
+          build-args: BUILD_FROM=python:3.11-slim-bookworm
+          push: true
+          # config.yaml points the Supervisor at bkon-lightrag-<arch>:<version>,
+          # so both the version tag and latest are published.
+          tags: |
+            ghcr.io/amantux/bkon-lightrag-${{ matrix.arch }}:${{ steps.ver.outputs.v }}
+            ghcr.io/amantux/bkon-lightrag-${{ matrix.arch }}:latest
