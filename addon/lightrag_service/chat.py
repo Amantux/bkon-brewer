@@ -37,7 +37,19 @@ class ChatTurn:
     actions: list[Action] = field(default_factory=list)
 
 
-SYSTEM = """You are the assistant in a BKON coffee-brewer recipe studio. You help
+#: One line per tool, rendered into the system prompt. Only the tools actually
+#: in the registry are described -- `answer_docs` disappears when the LightRAG
+#: half of the add-on is switched off, and the model is never told about a tool
+#: it cannot call.
+TOOL_DOCS = {
+    "build_recipe": 'args {"description": str}   build a new recipe from a description',
+    "adjust_recipe": 'args {"feedback": str}      tune the CURRENT recipe (stronger, less bitter, hotter, bigger, faster...)',
+    "lint_recipe": "args {}                     check the CURRENT recipe for problems",
+    "diagnose": 'args {"text": str}          explain an error code or symptom',
+    "answer_docs": 'args {"query": str}         answer a how-to question from the machine\'s manuals',
+}
+
+_SYSTEM_HEAD = """You are the assistant in a BKON coffee-brewer recipe studio. You help
 the user build and tune a recipe, and answer questions about the machine.
 
 You have tools. To use one, reply with ONLY a JSON object:
@@ -46,16 +58,25 @@ When you are ready to reply to the user, respond with ONLY:
   {"answer": "<your message to the user>"}
 
 Tools:
-- build_recipe   args {"description": str}   build a new recipe from a description
-- adjust_recipe  args {"feedback": str}      tune the CURRENT recipe (stronger, less bitter, hotter, bigger, faster...)
-- lint_recipe    args {}                     check the CURRENT recipe for problems
-- diagnose       args {"text": str}          explain an error code or symptom
-- answer_docs    args {"query": str}         answer a how-to question from the machine's manuals
+"""
 
+_SYSTEM_TAIL = """
 Rules:
 - Reply with a single JSON object and nothing else.
 - After a tool runs you get its result; use it, then either call another tool or answer.
-- Keep answers short and practical. Refer to the recipe you changed by what changed."""
+- Keep answers short and practical. Refer to the recipe you changed by what changed.
+- Tuning the recipe is a tool call, not advice: if the user says it should be
+  stronger, less bitter, hotter or bigger, call adjust_recipe with their words
+  as the feedback rather than describing what they could change."""
+
+
+def build_system(tools) -> str:
+    """The system prompt for exactly the tools available this turn."""
+    lines = []
+    for name in tools:
+        doc = TOOL_DOCS.get(name, "args {}")
+        lines.append(f"- {name:<14} {doc}")
+    return _SYSTEM_HEAD + "\n".join(lines) + "\n" + _SYSTEM_TAIL
 
 
 def _extract_json(text: str) -> dict | None:
@@ -112,6 +133,7 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
     turn reports them to the UI.
     """
     steps = list(steps or [])
+    system = build_system(tools)
     actions: list[Action] = []
     transcript = [f"User: {message}", _recipe_context(steps)]
     if history:
@@ -122,7 +144,7 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
 
     for _ in range(max_iters):
         prompt = "\n".join(transcript) + "\nRespond with a single JSON object."
-        raw = await provider.complete(prompt, system=SYSTEM)
+        raw = await provider.complete(prompt, system=system)
         obj = _extract_json(raw)
 
         # No JSON at all -> treat the whole reply as the answer.
@@ -157,7 +179,7 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
 
     # Loop exhausted: one more call, forced to answer.
     transcript.append("Give the user a final answer now as {\"answer\": ...}.")
-    raw = await provider.complete("\n".join(transcript), system=SYSTEM)
+    raw = await provider.complete("\n".join(transcript), system=system)
     obj = _extract_json(raw) or {}
     reply = obj.get("answer") or raw.strip()
     return ChatTurn(reply=str(reply).strip(), steps=steps or None, actions=actions)

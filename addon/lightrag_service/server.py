@@ -33,9 +33,10 @@ from contextlib import asynccontextmanager
 import numpy as np
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
-from fastembed import TextEmbedding
-from lightrag import LightRAG, QueryParam
-from lightrag.utils import EmbeddingFunc
+
+# fastembed and lightrag are imported inside the lifespan, not here: with the
+# LightRAG half switched off they are never touched, so the studio starts
+# without paying for an ONNX runtime it will not use.
 
 import studio_tools
 from chat import run_chat
@@ -49,6 +50,14 @@ _LOG = logging.getLogger("bkon_lightrag")
 API_KEY = os.getenv("LIGHTRAG_API_KEY", "")
 WORKING_DIR = os.getenv("WORKING_DIR", "/data/rag_storage")
 
+# LightRAG is optional. Off, the container still serves the wiki and the recipe
+# studio -- building, tuning, linting and diagnosing need no documents, only a
+# generation provider -- and starts immediately, with no embedding model to
+# download and no graph storage on disk. On, `answer_docs` and /query join in.
+# Both halves live in this one image; the toggle decides what is loaded.
+ENABLE_LIGHTRAG = os.getenv("ENABLE_LIGHTRAG", "true").strip().lower() not in (
+    "0", "false", "no", "off")
+
 # Generation goes through the pluggable provider layer (providers/), selected
 # by AI_PROVIDER: ollama (local or cloud), anthropic, or any OpenAI-compatible
 # endpoint. Per the edibl chat-and-providers spec -- no vendor SDK is imported
@@ -60,9 +69,10 @@ WORKING_DIR = os.getenv("WORKING_DIR", "/data/rag_storage")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-small-en-v1.5")
 EMBED_DIM = int(os.getenv("EMBED_DIM", "384"))
 
-_embedder: TextEmbedding | None = None
-_rag: LightRAG | None = None
+_embedder = None
+_rag = None
 _provider = None
+_query_param = None          # lightrag.QueryParam, bound at startup when enabled
 
 
 async def _embed(texts: list[str]) -> np.ndarray:
@@ -88,13 +98,27 @@ async def _llm(prompt: str, system_prompt: str | None = None,
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Warm the embedder and LightRAG once, at startup, not per request."""
-    global _embedder, _rag, _provider
-    _LOG.info("loading local embedder %s (%d-dim)", EMBED_MODEL, EMBED_DIM)
-    _embedder = TextEmbedding(EMBED_MODEL)
+    """Warm the provider, and the embedder and LightRAG when they are enabled."""
+    global _embedder, _rag, _provider, _query_param
 
+    # The provider is needed either way -- the studio chat runs on it.
     _provider = build_provider()                     # raises if misconfigured
     _LOG.info("LLM provider: %s", _provider.name)
+
+    if not ENABLE_LIGHTRAG:
+        _LOG.info("LightRAG disabled; serving the wiki and recipe studio only. "
+                  "Document Q&A (/query, answer_docs) is off; the integration "
+                  "falls back to its built-in retriever.")
+        yield
+        return
+
+    from fastembed import TextEmbedding
+    from lightrag import LightRAG, QueryParam
+    from lightrag.utils import EmbeddingFunc
+    _query_param = QueryParam
+
+    _LOG.info("loading local embedder %s (%d-dim)", EMBED_MODEL, EMBED_DIM)
+    _embedder = TextEmbedding(EMBED_MODEL)
 
     os.makedirs(WORKING_DIR, exist_ok=True)
     _rag = LightRAG(
@@ -118,6 +142,17 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="BKON LightRAG", lifespan=lifespan)
+
+
+def _need_rag() -> None:
+    """Refuse the document endpoints when the LightRAG half is switched off."""
+    if not ENABLE_LIGHTRAG:
+        raise HTTPException(
+            status_code=501,
+            detail="LightRAG is disabled in this add-on's configuration; "
+                   "document Q&A is unavailable. The recipe studio still works.")
+    if _rag is None:
+        raise HTTPException(status_code=503, detail="LightRAG still starting")
 
 
 def _guard(x_api_key: str | None, authorization: str | None) -> None:
@@ -151,7 +186,9 @@ async def home():
 async def health():
     return {"status": "ok",
             "provider": _provider.name if _provider else None,
-            "embed": EMBED_MODEL, "ready": _rag is not None}
+            "lightrag": ENABLE_LIGHTRAG,
+            "embed": EMBED_MODEL if ENABLE_LIGHTRAG else None,
+            "ready": _provider is not None and (_rag is not None or not ENABLE_LIGHTRAG)}
 
 
 @app.post("/query")
@@ -159,13 +196,14 @@ async def query(request: Request,
                 x_api_key: str | None = Header(default=None),
                 authorization: str | None = Header(default=None)):
     _guard(x_api_key, authorization)
+    _need_rag()
     body = await request.json()
     q = (body.get("query") or "").strip()
     if not q:
         raise HTTPException(status_code=400, detail="query is required")
     mode = body.get("mode") or "hybrid"
     try:
-        result = await _rag.aquery(q, param=QueryParam(mode=mode))
+        result = await _rag.aquery(q, param=_query_param(mode=mode))
     except Exception as ex:                          # noqa: BLE001
         _LOG.exception("query failed")
         raise HTTPException(status_code=502, detail=f"generation failed: {ex}")
@@ -194,19 +232,21 @@ async def chat_turn(request: Request):
     steps = body.get("steps") or []
     history = body.get("history") or []
 
-    tools = dict(studio_tools.REGISTRY)
-
     async def answer_docs(args: dict, _steps):
         """The one tool that needs the running service: ask the manuals."""
         question = str(args.get("query", "")).strip()
         if not question:
             return {"answer": "No question was given."}, None
         try:
-            raw = await _rag.aquery(question, param=QueryParam(mode="hybrid"))
+            raw = await _rag.aquery(question, param=_query_param(mode="hybrid"))
             return {"answer": clean_answer(raw)}, None
         except Exception as ex:                       # noqa: BLE001
             return {"answer": f"Could not reach the documents ({ex})."}, None
-    tools["answer_docs"] = answer_docs
+
+    # Documents are offered only when there are documents to reach; with the
+    # LightRAG half off the tool is absent, not broken.
+    have_docs = ENABLE_LIGHTRAG and _rag is not None
+    tools = studio_tools.registry_for(answer_docs if have_docs else None)
 
     try:
         turn = await run_chat(_provider, message, steps, tools, history=history)
@@ -223,6 +263,7 @@ async def insert(request: Request,
                  x_api_key: str | None = Header(default=None),
                  authorization: str | None = Header(default=None)):
     _guard(x_api_key, authorization)
+    _need_rag()
     body = await request.json()
     text = (body.get("text") or "").strip()
     if not text:

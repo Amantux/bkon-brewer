@@ -58,7 +58,10 @@ recipe, and the byte gauge shows whether it fits a Bluetooth brew; copy the
 `save_recipe` call when you are happy.
 
 The chat needs a generation provider set (below) — without one the builder still
-works, but the chat will say it can't reach the service.
+works, but the chat will say it can't reach the service. It does **not** need
+**Document Q&A**: with that option off the studio still builds, tunes, lints and
+diagnoses, and the add-on starts immediately with no embedding model to download.
+Only *"how do I descale?"*-style questions need the documents.
 
 ## Ports
 

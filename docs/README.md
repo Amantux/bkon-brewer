@@ -104,7 +104,7 @@ See [APP_COMPARISON.md](APP_COMPARISON.md) for a fidelity audit.
 ## Testing
 
 ```
-./tests/run_all.sh          # 252 assertions, no dependencies
+./tests/run_all.sh          # 300 assertions, no dependencies
 ```
 
 The logic that matters — encoding, the advisor, retrieval, provider selection,

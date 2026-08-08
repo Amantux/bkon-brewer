@@ -1,6 +1,12 @@
 # Changelog
 
 ## 0.6.0
+- **Document Q&A is now a toggle** (`enable_lightrag`, on by default). Off, the
+  same container serves the wiki and the recipe studio alone: the chat still
+  builds, tunes, lints and diagnoses, and startup skips the embedding model and
+  graph storage entirely. The documents tool is then absent from the chat rather
+  than present and failing, and `/query` answers 501. Existing installs are
+  unaffected — the default keeps today's behaviour.
 - **Recipe studio** in the ingress panel: a hand-builder paired with a chat that
   shares the same recipe. Ask *"a strong small cup, less bitter"* and the steps
   change; the chat drives the same build / tune / lint / diagnose tools the

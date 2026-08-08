@@ -178,6 +178,7 @@
     <a data-nav="architecture">Architecture</a>
     <a data-nav="protocol">Protocol</a>
     <a data-nav="rag">Semantic Q&amp;A</a>
+    <a data-nav="reference">Units &amp; error codes</a>
     <a data-nav="fidelity">Fidelity &amp; status</a>
   </nav>
 
@@ -192,7 +193,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>252</b><span>tests passing</span></div>
+        <div><b>300</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -355,8 +356,9 @@
       <p class="stu-foot">A brew-out is appended for you · zero-valued sizes are dropped ·
         manual-stop becomes an operator dialog. Units are confirmed from BKON/Franke service
         docs (ml, kPa, °F, seconds); the byte count is the JSON size the app checks before a
-        Bluetooth brew. The chat needs the <a data-nav="rag" href="#">LightRAG add-on</a>
-        running with a generation provider set.</p>
+        Bluetooth brew. The chat needs the add-on running with a generation provider
+        set — building and tuning work whether or not <a data-nav="rag" href="#">document
+        Q&amp;A</a> is switched on; only "how do I…" questions need it.</p>
     </section>
 
     <!-- RECIPES -->
@@ -414,7 +416,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (252 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (300 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -459,6 +461,76 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       Assistant ingress). Full steps in the add-on docs and <code>docs/RAG.md</code>.</p>
     </section>
 
+    <!-- REFERENCE -->
+    <section id="reference">
+      <div class="eyebrow">Confirmed from the service documentation</div>
+      <h1>Units &amp; error codes</h1>
+      <p class="lede">The facts an integration actually needs, established from an archive of
+      53 service and training documents for this machine. What follows is what those documents
+      <em>settled</em> — units, ranges, fault meanings — not their contents.</p>
+
+      <h2>Units</h2>
+      <p>These retired the largest open question in the protocol: every value is a bare number
+      on the wire, so the unit had to come from somewhere.</p>
+      <table>
+        <thead><tr><th>Field</th><th>Unit</th><th>Typical operating values</th></tr></thead>
+        <tbody>
+          <tr><td>Temperature <code>tmp</code></td><td>°F, to ±1 °F</td><td>~165–210 °F</td></tr>
+          <tr><td>Fill / rinse <code>fwv</code> <code>rwv</code></td><td>millilitres</td><td>~35–250 ml</td></tr>
+          <tr><td>Vacuum <code>ps</code> (on <code>vc</code>)</td><td>kilopascals</td><td>~20–24 kPa in base recipes</td></tr>
+          <tr><td>Steep / pause / hold <code>tm</code> <code>ap</code> <code>dl</code></td><td>seconds</td><td>a few seconds to ~15 s</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>Purge pressure is the exception.</b> The <code>ps</code> value on a
+      purge step is <em>not</em> confirmed to be kPa, and its hard maximum is unknown. The
+      builder allows a range rather than asserting one.</div>
+
+      <h2>How vacuums relate in a sequence</h2>
+      <p>Reference material for designing a recipe, not something the protocol enforces — but
+      it tells you the sensible neighbourhood for a value, which a bare min/max cannot. If the
+      first vacuum is <b>X</b> kPa, the next sits around <b>X+2</b> and the one after around
+      <b>X+1</b>, with steep times tuned per menu.</p>
+      <p>The vacuum is the machine's distinguishing mechanism — extraction under reduced
+      pressure, held for only seconds — which is why it is a first-class step here rather than
+      a variant of purge, and why <em>"stronger"</em> moves it first.</p>
+
+      <h2>Error codes</h2>
+      <p>Keyed <code>C:<i>code</i> M:<i>module</i></code>, as the machine reports them. Ask the
+      concierge <em>"what does C:5 M:3 mean?"</em> and you get the row below plus a fix; these
+      are also what <code>sensor.*_last_error</code> renders.</p>
+      <table>
+        <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>C:2 M:20</code></td><td>Brew information missing — restart and pick a different brew; re-send the recipe if it persists.</td></tr>
+          <tr><td><code>C:2 M:30</code></td><td>Incorrect brew data — as above.</td></tr>
+          <tr><td><code>C:2 M:45</code></td><td>Descale finished. Empty and clean the pitcher.</td></tr>
+          <tr><td><code>C:4 M:4</code></td><td>Machine reported a fault. Restart and try again.</td></tr>
+          <tr><td><code>C:4 M:70</code></td><td>Machine communication error.</td></tr>
+          <tr><td><code>C:5 M:1</code></td><td>Brew chamber glass not detected — check the chamber is in place.</td></tr>
+          <tr><td><code>C:5 M:3</code></td><td>Chamber not sealed — check it is seated and closed. A vacuum cannot form otherwise.</td></tr>
+          <tr><td><code>C:5 M:11–22</code></td><td>Temperature sensor fault (codes 11, 12, 13, 16, 17, 18, 19, 22 — one per sensor in the bank).</td></tr>
+          <tr><td><code>C:5 M:40</code></td><td>Flow meter fault — check the water supply and connection.</td></tr>
+          <tr><td><code>C:5 M:50</code></td><td>LIM communication error — the machine lost contact with a module.</td></tr>
+          <tr><td><code>C:7 M:41</code></td><td>Brew cycle could not start. Check the pitcher is seated.</td></tr>
+          <tr><td><code>C:7 M:50</code></td><td>Brew was interrupted.</td></tr>
+          <tr><td><code>C:7 M:60</code></td><td>Cleaning or descale cycle required.</td></tr>
+        </tbody>
+      </table>
+      <p>Twenty codes ship in <code>protocol/events.py</code>; the sensor bank is collapsed into
+      one row above because every member carries the same meaning.</p>
+
+      <h2>Provenance</h2>
+      <p>The vendor is <b>Franke</b> — the service documents carry their copyright, and BKON's
+      brewer line is theirs. The archive is the owner's private mirror of documents for a
+      machine they own; it is <b>referenced, never vendored</b>. Nothing here depends on it at
+      runtime, and every fact above would be equally true read off the machine's own display.
+      No vendor document text or application source is in this repository.</p>
+      <div class="note">The service documents describe installing, operating and repairing the
+      machine — not talking to it over Bluetooth. So they left the open protocol questions
+      (chunking, <code>{msg:N}</code> numbering, the dialog-response frame) exactly where they
+      were: needing a live capture. See <a data-nav="fidelity" href="#">Fidelity &amp; status</a>.</div>
+    </section>
+
     <!-- FIDELITY -->
     <section id="fidelity">
       <h1>Fidelity &amp; status</h1>
@@ -478,7 +550,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      252 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      300 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>

@@ -1,4 +1,12 @@
 configuration:
+  enable_lightrag:
+    name: Document Q&A (LightRAG)
+    description: >-
+      Index the machine's manuals so questions like "how do I descale?" get
+      semantic answers. Turn it off to run the recipe studio alone — the chat
+      still builds, tunes, lints and diagnoses recipes, the add-on starts
+      immediately with no embedding model to download, and the integration falls
+      back to its built-in keyword retriever for questions.
   service_api_key:
     name: Service API key
     description: >-

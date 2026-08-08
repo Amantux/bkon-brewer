@@ -1,7 +1,7 @@
 name: BKON LightRAG
 version: "0.6.0"
 slug: bkon_lightrag
-description: Graph-RAG service for the BKON Brewer concierge — local embeddings, pluggable generation (Ollama / Anthropic / OpenAI-compatible).
+description: Recipe studio and document Q&A for the BKON Brewer — a chat that builds and tunes recipes, plus optional graph-RAG over the machine’s manuals (Ollama / Anthropic / OpenAI-compatible).
 url: https://github.com/Amantux/bkon-brewer/tree/main/deploy/addon
 image: ghcr.io/amantux/bkon-lightrag-{arch}
 arch:
@@ -24,6 +24,7 @@ ports_description:
 map:
   - share:rw
 options:
+  enable_lightrag: true
   service_api_key: ""
   ai_provider: "ollama"
   model: "gpt-oss:120b"
@@ -31,6 +32,7 @@ options:
   base_url: ""
   log_level: INFO
 schema:
+  enable_lightrag: bool
   service_api_key: password
   ai_provider: "list(ollama|anthropic|openai)"
   model: str

@@ -10,6 +10,9 @@ set -e
 CFG=/data/options.json
 
 export LIGHTRAG_API_KEY="$(jq -r '.service_api_key // ""' "$CFG")"
+# The document half is optional. Off, the recipe studio still runs (it needs a
+# provider, not documents) and startup skips the embedding model entirely.
+export ENABLE_LIGHTRAG="$(jq -r 'if .enable_lightrag == false then "false" else "true" end' "$CFG")"
 export LOG_LEVEL="$(jq -r '.log_level // "INFO"' "$CFG")"
 
 # Pluggable generation provider, namespaced so one vendor's key is never read by
@@ -24,10 +27,14 @@ BASE="$(jq -r '.base_url // ""' "$CFG")"
 # Ollama with no base URL means Ollama Cloud.
 [ "$PROVIDER" = "ollama" ] && [ -z "$BASE" ] && export OLLAMA_BASE_URL="https://ollama.com"
 
-# Storage persists on the /share mount so it survives add-on updates.
+# Storage persists on the /share mount so it survives add-on updates. Only
+# created when the document half is actually on.
 export WORKING_DIR="/share/bkon_lightrag/rag_storage"
-mkdir -p "$WORKING_DIR"
-
-echo "BKON LightRAG: local embeddings + provider=$PROVIDER (ingress + LAN on 9621)"
+if [ "$ENABLE_LIGHTRAG" = "true" ]; then
+  mkdir -p "$WORKING_DIR"
+  echo "BKON Brewer studio: recipe chat + document Q&A (local embeddings), provider=$PROVIDER"
+else
+  echo "BKON Brewer studio: recipe chat only (LightRAG disabled), provider=$PROVIDER"
+fi
 exec uvicorn server:app --host 0.0.0.0 --port 9621 \
   --log-level "$(echo "$LOG_LEVEL" | tr '[:upper:]' '[:lower:]')"

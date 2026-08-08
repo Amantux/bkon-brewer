@@ -58,11 +58,25 @@ def diagnose(args: dict, steps: list[dict]):
     return {"summary": d.summary, "cause": d.cause, "fix": d.fix}, None
 
 
-#: The tools that need nothing but the vendored core. `server.py` adds
-#: `answer_docs` (a RAG closure) to a copy of this before each chat turn.
+#: The tools that need nothing but the vendored core — always available, because
+#: building and tuning a recipe needs a model, not documents.
 REGISTRY = {
     "build_recipe": build_recipe,
     "adjust_recipe": adjust_recipe,
     "lint_recipe": lint_recipe,
     "diagnose": diagnose,
 }
+
+
+def registry_for(answer_docs=None) -> dict:
+    """The tool set for one chat turn.
+
+    `answer_docs` is passed only when the LightRAG half of the add-on is on and
+    ready; when it is off the tool is absent entirely rather than present and
+    failing, so the system prompt never offers the model something it cannot
+    call. The recipe tools are there either way.
+    """
+    tools = dict(REGISTRY)
+    if answer_docs is not None:
+        tools["answer_docs"] = answer_docs
+    return tools
