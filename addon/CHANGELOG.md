@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.9.0 — the studio comes first
+- **Reorganised around the studio.** It is now the landing page, with
+  **Diagnose** and **Settings** beside it; the whole wiki moved behind one
+  collapsible **Wiki & reference** group.
+- **Mobile and touch friendly.** A top bar with a slide-out drawer under 800px,
+  a scrim and Escape to dismiss, and finger-sized controls everywhere — 40–44px
+  targets, 16px inputs (so iOS stops zooming on focus), and a step grid that
+  reflows. Coarse-pointer devices get the larger targets at any width.
+- **The recipe creation and recipe store areas are called out** as distinct
+  panels with their own colour rail, rather than blending into the page.
+- **The embedded studio chat is gone.** The floating companion replaces it, and
+  it now **sees the page you are on** — on the studio that means the live recipe
+  and its tasting journal, so a suggestion is about the cup in front of you. When
+  it changes the recipe, the change lands in the builder instead of being
+  described.
+- **A tasting journal.** Save a change with a note and it records what moved
+  (temperature, vacuum, steep, fill…) next to how it tasted. Ask *"what made it
+  less bitter?"* and the assistant reads that history — the machine knows what
+  changed, you know how it tasted, and the journal is where the two meet.
+- **Settings page**: what the assistant actually has — provider, model, document
+  Q&A — and where to change it. It asks the service *whether* a key is set, never
+  what it is.
+- **Diagnosis agent**: the confirmed fault table first, then the machine's own
+  documents through LightRAG, with the likely cause and the next thing to try.
+
 ## 0.8.1
 - `export_bbp` now runs each recipe through `prepare()` before writing, so the
   exported portions carry a brew-out and the wire rules — running the export for

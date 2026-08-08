@@ -272,6 +272,7 @@ async def chat_turn(request: Request):
         raise HTTPException(status_code=400, detail="message is required")
     steps = body.get("steps") or []
     history = body.get("history") or []
+    context = str(body.get("context") or "")[:2000]
 
     async def answer_docs(args: dict, _steps):
         """The one tool that needs the running service: ask the manuals."""
@@ -301,7 +302,8 @@ async def chat_turn(request: Request):
         answer_docs if have_docs else None, score_recipe=score_tool)
 
     try:
-        turn = await run_chat(_provider, message, steps, tools, history=history)
+        turn = await run_chat(_provider, message, steps, tools,
+                              history=history, context=context)
     except Exception as ex:                           # noqa: BLE001
         _LOG.exception("chat failed")
         raise HTTPException(status_code=502, detail=f"chat failed: {ex}")

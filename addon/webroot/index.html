@@ -130,6 +130,57 @@
 
   .stu-side{display:flex;flex-direction:column;gap:14px;position:sticky;top:14px}
   .card2{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px}
+  /* ---- Mobile / touch ---- */
+  .topbar{display:none;position:sticky;top:0;z-index:30;align-items:center;gap:12px;
+    padding:10px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
+  .burger{border:1px solid var(--line-2);background:var(--panel);color:var(--ink);
+    width:44px;height:44px;border-radius:10px;font-size:19px;cursor:pointer;line-height:1}
+  .topbar-title{font-weight:650;font-size:15px}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:24}
+  @media (max-width:800px){
+    .topbar{display:flex}
+    .layout{grid-template-columns:1fr}
+    nav.side{position:fixed;top:0;left:0;bottom:0;width:250px;z-index:25;overflow-y:auto;
+      transform:translateX(-102%);transition:transform .22s ease;border-right:1px solid var(--line)}
+    nav.side.open{transform:none}
+    main{padding:18px 16px 96px}
+    /* touch targets: nothing important smaller than a finger */
+    nav.side a{padding:12px 12px;font-size:15px}
+    .stu-add{padding:10px 15px 10px 12px;font-size:14px}
+    .stu-f input[type=number],.stu-f input[type=text]{padding:11px 10px;font-size:16px}
+    .stu-ic{width:40px;height:40px;font-size:16px}
+    .stu-star{font-size:27px;padding:2px 4px}
+    .btn{padding:12px 15px;font-size:14px}
+    .stu-name,.stu-notes,.cmp-form input{font-size:16px;padding:11px 12px}
+    .stu-fields{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:11px}
+    .stu-side{position:static}
+    table{font-size:12.5px}
+    th,td{padding:7px 8px}
+    .cmp-fab{bottom:16px;padding:13px 18px;font-size:14px}
+    .cmp{bottom:16px;max-height:min(70vh,560px)}
+    .themebtn{display:none}
+  }
+  @media (max-width:800px){section{scroll-margin-top:60px}}
+  /* pointer:coarse — real touch, any width */
+  @media (pointer:coarse){
+    .stu-ic{width:40px;height:40px}
+    .stu-star{font-size:26px}
+    button,.btn,.stu-add{min-height:42px}
+  }
+
+  /* ---- The two areas that matter most, given weight ---- */
+  .zone{border:1px solid var(--line-2);border-radius:14px;padding:16px 16px 14px;margin:0 0 18px;
+    background:var(--panel);box-shadow:var(--shadow);position:relative}
+  .zone::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;
+    border-radius:0 3px 3px 0;background:var(--zone,var(--accent))}
+  .zone>.zone-head{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding-left:8px}
+  .zone>.zone-head h2{margin:0;font-size:15px;letter-spacing:-.01em;padding:0}
+  .zone>.zone-head .why{font-size:12px;color:var(--ink-soft)}
+  .zone>.zone-head .sp{flex:1}
+  .zone-body{padding-left:8px}
+  .zone.create{--zone:var(--t-vacuum)}
+  .zone.store{--zone:var(--t-purge)}
+
   .stu-chat{display:flex;flex-direction:column;gap:10px}
   .stu-log{display:flex;flex-direction:column;gap:9px;max-height:340px;overflow-y:auto;padding-right:2px}
   .stu-msg{display:flex}
@@ -239,25 +290,34 @@
 </style>
 </head>
 <body>
+<header class="topbar">
+  <button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false">☰</button>
+  <div class="topbar-title" id="topbarTitle">Recipe studio</div>
+</header>
+<div class="scrim" id="scrim" hidden></div>
 <div class="layout">
-  <nav class="side">
-    <div class="brand"><div class="mark"></div><div><b>BKON Brewer</b><span>Project wiki</span></div></div>
-    <a data-nav="overview" class="active">Overview</a>
-    <a data-nav="quickstart">Quick start</a>
-    <div class="grp">Using it</div>
-    <a data-nav="entities">Entities</a>
-    <a data-nav="services">Services</a>
-    <a data-nav="concierge">Concierge</a>
-    <a data-nav="studio">Recipe studio</a>
-    <a data-nav="recipes">Recipes &amp; git</a>
-    <a data-nav="longer">Longer recipes</a>
-    <div class="grp">Under the hood</div>
-    <a data-nav="architecture">Architecture</a>
-    <a data-nav="protocol">Protocol</a>
-    <a data-nav="rag">Semantic Q&amp;A</a>
-    <a data-nav="reference">Units &amp; error codes</a>
-    <a data-nav="bbp">The .bbp menu file</a>
-    <a data-nav="fidelity">Fidelity &amp; status</a>
+  <nav class="side" id="side">
+    <div class="brand"><div class="mark"></div><div><b>BKON Brewer</b><span>Recipe studio</span></div></div>
+    <a data-nav="studio" class="active primary">🧪 Recipe studio</a>
+    <a data-nav="diagnose" class="primary">🩺 Diagnose</a>
+    <a data-nav="settings" class="primary">⚙️ Settings</a>
+    <button class="grp grp-toggle" id="wikiToggle" type="button" aria-expanded="false" aria-controls="wikiNav">
+      <span class="caret">▸</span> Wiki &amp; reference</button>
+    <div class="grp-body" id="wikiNav" hidden>
+      <a data-nav="overview">Overview</a>
+      <a data-nav="quickstart">Quick start</a>
+      <a data-nav="entities">Entities</a>
+      <a data-nav="services">Services</a>
+      <a data-nav="concierge">Concierge</a>
+      <a data-nav="recipes">Recipes &amp; git</a>
+      <a data-nav="longer">Longer recipes</a>
+      <a data-nav="architecture">Architecture</a>
+      <a data-nav="protocol">Protocol</a>
+      <a data-nav="rag">Semantic Q&amp;A</a>
+      <a data-nav="reference">Units &amp; error codes</a>
+      <a data-nav="bbp">The .bbp menu file</a>
+      <a data-nav="fidelity">Fidelity &amp; status</a>
+    </div>
   </nav>
 
   <main>
@@ -385,6 +445,65 @@
       When it's genuinely ambiguous, it asks rather than guessing.</p>
     </section>
 
+    <!-- DIAGNOSE -->
+    <section id="diagnose">
+      <div class="eyebrow">Something wrong with the machine</div>
+      <h1>Diagnose</h1>
+      <p class="lede">Give it an error code, a status, or just describe what the brewer is
+      doing. It reads the confirmed fault table first, then the machine's own service
+      documents, and tells you the likely cause and what to try.</p>
+
+      <div class="zone" style="--zone:var(--t-start)">
+        <div class="zone-head"><h2>🩺 What's happening?</h2></div>
+        <div class="zone-body">
+          <form class="stu-input" id="dgForm" style="margin-bottom:10px">
+            <input id="dgText" autocomplete="off" placeholder="C:3 M:5 — or “it won’t pull a vacuum”"
+              aria-label="Error code or symptom" />
+            <button class="btn primary" type="submit" id="dgGo">Diagnose</button>
+          </form>
+          <div class="stu-sugg" id="dgChips" style="padding:0 0 8px"></div>
+          <div id="dgOut"></div>
+        </div>
+      </div>
+      <p class="stu-foot">Codes are read from the confirmed table in
+        <a data-nav="reference" href="#">Units &amp; error codes</a>; anything it can't match
+        there goes to the documents through LightRAG, when that's switched on.</p>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settings">
+      <div class="eyebrow">Keys, models and what's running</div>
+      <h1>Settings</h1>
+      <p class="lede">Everything the assistant needs, and whether it has it. Values are set in
+      the add-on's own <b>Configuration</b> tab — this page shows you what took effect, and
+      never displays a key.</p>
+
+      <div class="zone" style="--zone:var(--t-fill)">
+        <div class="zone-head"><h2>⚙️ Current state</h2>
+          <span class="sp"></span>
+          <button class="btn" id="setRefresh" type="button">Refresh</button></div>
+        <div class="zone-body"><div id="setState">checking…</div></div>
+      </div>
+
+      <h2>Where to change it</h2>
+      <p><b>Settings → Add-ons → BKON LightRAG → Configuration.</b> Set the options below, then
+      restart the add-on.</p>
+      <table>
+        <thead><tr><th>Option</th><th>What it's for</th></tr></thead>
+        <tbody>
+          <tr><td><code>ai_provider</code></td><td><code>ollama</code>, <code>anthropic</code> or <code>openai</code>.</td></tr>
+          <tr><td><code>model</code></td><td>The model name, e.g. <code>gpt-oss:120b</code> or <code>claude-sonnet-5</code>.</td></tr>
+          <tr><td><code>api_key</code></td><td>Needed for Anthropic, OpenAI and Ollama <em>Cloud</em>. Not for a local Ollama.</td></tr>
+          <tr><td><code>base_url</code></td><td>A local Ollama at <code>http://&lt;host&gt;:11434</code>, or any OpenAI-compatible URL. Blank means the vendor default.</td></tr>
+          <tr><td><code>enable_lightrag</code></td><td>Document Q&amp;A. On by default; off runs the studio alone, faster and lighter.</td></tr>
+          <tr><td><code>service_api_key</code></td><td>The key the Home Assistant integration presents to this service over the LAN.</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Keys are only ever read from the add-on's configuration. This page asks
+      the service <em>whether</em> one is set, never what it is, so nothing sensitive travels to
+      the browser.</div>
+    </section>
+
     <!-- RECIPE STUDIO -->
     <section id="studio">
       <div class="eyebrow">Build · tune · brew</div>
@@ -395,38 +514,32 @@
       recipe. Have the model <b>score</b> it and comment; add your own <b>rating and
       notes</b>; then, when it fits the Bluetooth budget, copy the Home&nbsp;Assistant call.</p>
 
-      <div class="stu-lib">
-        <div class="stu-lib-head">
-          <h2>Your recipes</h2><span class="count" id="stuLibCount"></span>
+      <section class="zone store" aria-label="Recipe store">
+        <div class="zone-head">
+          <h2>📚 Recipe store</h2>
+          <span class="count" id="stuLibCount"></span>
           <span class="sp"></span>
-          <button class="btn" id="stuLibSave" type="button">Save to library</button>
+          <button class="btn" id="stuLibSave" type="button">Save to store</button>
           <button class="btn" id="stuLibNew" type="button">New</button>
         </div>
-        <div class="stu-lib-list" id="stuLibList"></div>
-      </div>
+        <div class="zone-body"><div class="stu-lib-list" id="stuLibList"></div></div>
+      </section>
 
       <div class="stu">
         <!-- builder -->
-        <div class="stu-build">
-          <div class="stu-palette" id="stuPalette"></div>
-          <div class="stu-steps" id="stuSteps"></div>
-        </div>
+        <section class="zone create" aria-label="Recipe creation">
+          <div class="zone-head">
+            <h2>🧪 Build the recipe</h2>
+            <span class="why">tap a step to add it</span>
+          </div>
+          <div class="zone-body">
+            <div class="stu-palette" id="stuPalette"></div>
+            <div class="stu-steps" id="stuSteps"></div>
+          </div>
+        </section>
 
         <!-- chat + readout -->
         <aside class="stu-side">
-          <div class="stu-chat card2">
-            <div class="stu-log" id="stuLog">
-              <div class="stu-msg bot"><div class="stu-bubble">Hi — tell me what you
-                want to brew, or ask about the machine. Try <em>"build a strong small
-                cup"</em>, then <em>"make it less bitter"</em>.</div></div>
-            </div>
-            <form class="stu-input" id="stuForm">
-              <input id="stuText" autocomplete="off" placeholder="build a strong small cup…"
-                aria-label="Message the recipe studio" />
-              <button class="btn primary" type="submit" id="stuSend">Send</button>
-            </form>
-            <div class="stu-status" id="stuStatus"></div>
-          </div>
 
           <div class="stu-score card2">
             <div class="stu-score-head">
@@ -438,6 +551,11 @@
                 on it — grounded in the confirmed ranges and how the vacuum reads. Needs the
                 add-on's generation provider.</p>
             </div>
+          </div>
+
+          <div class="stu-score card2">
+            <div class="stu-score-head"><h2 style="margin:0">Tasting journal</h2></div>
+            <div class="stu-score-body" id="stuJournal"></div>
           </div>
 
           <div class="stu-readout card2">
@@ -900,10 +1018,33 @@ address=0x80000000</code></pre>
     window.scrollTo(0,0);
     if(location.hash!=='#'+id) history.replaceState(null,'','#'+id);
   }
+  const TITLES={studio:'Recipe studio',diagnose:'Diagnose',settings:'Settings'};
   document.querySelectorAll('[data-nav]').forEach(a=>a.addEventListener('click',e=>{
-    e.preventDefault(); show(a.dataset.nav);
+    e.preventDefault(); show(a.dataset.nav); closeDrawer();
+    const t=document.getElementById('topbarTitle');
+    if(t) t.textContent = TITLES[a.dataset.nav] || a.textContent.trim();
+    // opening a wiki page keeps the wiki group open, so you can see where you are
+    if(!TITLES[a.dataset.nav]) openWiki(true);
   }));
-  const start=(location.hash||'#overview').slice(1);
+
+  // --- the wiki lives behind one toggle, so the studio is what you land on ---
+  const wikiBtn=document.getElementById('wikiToggle'), wikiNav=document.getElementById('wikiNav');
+  function openWiki(on){
+    if(!wikiBtn) return;
+    wikiNav.hidden = !on; wikiBtn.setAttribute('aria-expanded', String(!!on));
+    wikiBtn.querySelector('.caret').textContent = on ? '▾' : '▸';
+  }
+  wikiBtn?.addEventListener('click',()=>openWiki(wikiNav.hidden));
+
+  // --- mobile drawer ---
+  const side=document.getElementById('side'), burger=document.getElementById('burger'),
+        scrim=document.getElementById('scrim');
+  function openDrawer(){ side.classList.add('open'); scrim.hidden=false; burger?.setAttribute('aria-expanded','true'); }
+  function closeDrawer(){ side.classList.remove('open'); scrim.hidden=true; burger?.setAttribute('aria-expanded','false'); }
+  burger?.addEventListener('click',()=>side.classList.contains('open')?closeDrawer():openDrawer());
+  scrim?.addEventListener('click',closeDrawer);
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
+  const start=(location.hash||'#studio').slice(1);
   if(document.getElementById(start)) show(start);
   // theme toggle
   const root=document.documentElement, btn=document.getElementById('theme');
@@ -1087,23 +1228,103 @@ address=0x80000000</code></pre>
   }
   const slug = n => n.trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"") || "untitled";
 
+  // What changed between two versions, in words a person would use. This is the
+  // half of the flavour loop the machine can know for certain; the taste is the
+  // half only you can supply, so the journal pairs them.
+  function describeChanges(before, after){
+    const out=[];
+    const pick=(list,type,key)=>{
+      const v=list.filter(s=>s.type===type).map(s=>Number(s.values?.[key])).filter(n=>!isNaN(n));
+      return v.length ? Math.max(...v) : null;
+    };
+    const facets=[["start","tmp","temperature","°F"],["vc","ps","vacuum","kPa"],
+                  ["vc","tm","steep","s"],["fr","fwv","fill","ml"],
+                  ["fr","ap","fill pause","s"],["pg","ps","purge pressure",""]];
+    for(const [type,key,label,unit] of facets){
+      const a=pick(before,type,key), b=pick(after,type,key);
+      if(a===null||b===null||a===b) continue;
+      out.push(`${label} ${a}${unit} → ${b}${unit}`);
+    }
+    if(before.length!==after.length) out.push(`${before.length} → ${after.length} steps`);
+    return out;
+  }
+
   function libSave(){
     const name = ($("stuName").value || "Untitled").trim();
     const id = slug(name);
-    const existed = !!library[id];
+    const prev = library[id];
+    const notes = ($("stuNotes").value||"").trim();
+    const journal = (prev && prev.journal) ? prev.journal.slice(-19) : [];
+    // Record an entry when something actually happened: the steps moved, or you
+    // said how it tasted. Over time this is a record of change -> flavour, which
+    // is what the assistant reads to answer "what made it less bitter?".
+    if(prev){
+      const changes = describeChanges(prev.steps||[], steps);
+      const tasteChanged = (notes && notes !== (prev.notes||""))
+                        || (userRating && userRating !== (prev.rating||0));
+      if(changes.length || tasteChanged){
+        journal.push({when: new Date().toISOString().slice(0,10),
+                      changes, rating: userRating||0, taste: notes});
+      }
+    }
     library[id] = {name, steps: JSON.parse(JSON.stringify(steps)),
-                   rating: userRating || 0, notes: ($("stuNotes").value||"").trim(),
+                   rating: userRating || 0, notes,
+                   journal,
                    saved: new Date().toISOString().slice(0,10)};
-    currentId = id; libPersist(); libRender();
-    flash(existed ? `Updated "${name}"` : `Saved "${name}"`);
+    currentId = id; libPersist(); libRender(); journalRender();
+    flash(prev ? `Updated "${name}"` : `Saved "${name}"`);
   }
+
+  // The journal, shown under the recipe so the loop is visible, not buried.
+  function journalRender(){
+    const host=$("stuJournal"); if(!host) return;
+    const r = currentId && library[currentId];
+    const j = (r && r.journal) || [];
+    if(!j.length){
+      host.innerHTML = `<p class="stu-hint" style="margin:0">Save a change with a tasting note and
+        it appears here — what you altered, next to how it tasted. The assistant reads this
+        when you ask what made a difference.</p>`;
+      return;
+    }
+    host.innerHTML = j.slice().reverse().map(e=>{
+      const ch = e.changes && e.changes.length ? e.changes.join(" · ") : "no step changes";
+      const stars = e.rating ? " " + "★".repeat(e.rating) : "";
+      return `<div class="stu-dim" style="grid-template-columns:74px 1fr">`
+        + `<span class="dn">${esc(e.when)}${stars}</span>`
+        + `<span class="dc"><b>${esc(ch)}</b>${e.taste?" — "+esc(e.taste):""}</span></div>`;
+    }).join("");
+  }
+  function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // The assistant reads this: the current recipe plus how past changes tasted.
+  window.bkonStudioSteps = () => JSON.parse(JSON.stringify(steps));
+  window.bkonApplySteps = function(next){
+    if(!Array.isArray(next)) return;
+    steps = next.map(x=>({type:x.type, values:{...x.values}}));
+    render();
+  };
+  window.bkonStudioContext = function(){
+    const r = currentId && library[currentId];
+    const parts = [`The user is in the Recipe studio, editing "${($("stuName").value||"Untitled").trim()}".`];
+    const j = (r && r.journal) || [];
+    if(j.length){
+      parts.push("Their tasting journal for this recipe (change -> how it tasted):");
+      j.slice(-6).forEach(e=>parts.push(
+        `  ${e.when}: ${(e.changes||[]).join(", ") || "no step change"}`
+        + (e.rating?` [${e.rating}/5]`:"") + (e.taste?` — "${e.taste}"`:"")));
+      parts.push("Use it to relate a change to the flavour it produced. Say when it is too thin to tell.");
+    }
+    const names = Object.values(library).map(x=>x.name);
+    if(names.length) parts.push(`Saved recipes: ${names.slice(0,12).join(", ")}.`);
+    return parts.join("\n");
+  };
   function libOpen(id){
     const r = library[id]; if(!r) return;
     steps = JSON.parse(JSON.stringify(r.steps || []));
     $("stuName").value = r.name || id;
     $("stuNotes").value = r.notes || "";
     userRating = r.rating || 0; paintStars();
-    currentId = id; render(); libRender();
+    currentId = id; render(); libRender(); journalRender();
     flash(`Loaded "${r.name || id}"`);
   }
   function libDelete(id){
@@ -1261,7 +1482,71 @@ address=0x80000000</code></pre>
   });
 
   render();
-  libLoad(); libRender();
+  libLoad(); libRender(); journalRender();
+})();
+</script>
+
+<!-- Settings and the diagnosis agent -->
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const BASE = location.pathname.replace(/[^/]*$/,"");
+  const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  if(!$("setState")) return;
+
+  // ---- Settings: report what actually took effect, never a key ----
+  function row(label, ok, detail){
+    const colour = ok===null ? "var(--ink-faint)" : ok ? "var(--good)" : "var(--t-start)";
+    const mark   = ok===null ? "·" : ok ? "●" : "○";
+    return `<div class="stu-dim"><span class="dn">${esc(label)}</span>`
+         + `<span class="dr" style="color:${colour}">${mark}</span>`
+         + `<span class="dc">${esc(detail)}</span></div>`;
+  }
+  async function loadSettings(){
+    const host=$("setState"); host.textContent="checking…";
+    let c;
+    try{ c = await (await fetch(BASE+"config")).json(); }
+    catch(e){ host.innerHTML = `<p class="stu-hint" style="color:var(--t-start);margin:0">Can't reach the add-on service.</p>`; return; }
+    let html = `<div class="stu-dims">`
+      + row("Assistant", !!c.enabled, c.enabled ? "ready" : (c.error || "no provider configured"))
+      + row("Provider", !!c.provider, c.provider || "not set")
+      + row("Model", !!c.model, c.model || "using the provider default")
+      + row("Document Q&A", c.lightrag ? !!c.documents_ready : null,
+            !c.lightrag ? "switched off (enable_lightrag)"
+                        : c.documents_ready ? "LightRAG ready" : "enabled, not ready")
+      + `</div>`;
+    if(c.setup_hint) html += `<div class="note" style="margin:12px 0 0">${esc(c.setup_hint)}</div>`;
+    host.innerHTML = html;
+  }
+  $("setRefresh").onclick = loadSettings;
+  loadSettings();
+
+  // ---- Diagnose: the fault table first, then the documents ----
+  const CHIPS=["C:3 M:5","C:40 M:5","It won't pull a vacuum","Water isn't flowing","How do I descale?"];
+  const chipHost=$("dgChips");
+  CHIPS.forEach(t=>{ const b=document.createElement("button"); b.type="button"; b.textContent=t;
+    b.onclick=()=>{ $("dgText").value=t; $("dgForm").requestSubmit(); }; chipHost.appendChild(b); });
+
+  $("dgForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const text=$("dgText").value.trim(); if(!text) return;
+    const out=$("dgOut"), go=$("dgGo");
+    go.disabled=true; out.innerHTML=`<p class="stu-hint">Working…</p>`;
+    try{
+      const res=await fetch(BASE+"chat",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({message:text, steps:[],
+          context:"The user is on the Diagnose page and wants a fault explained. "
+                 +"Use the diagnose tool for a code or symptom, and answer_docs for a how-to. "
+                 +"Give the likely cause and the next thing to try."})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
+      const chips=(d.actions||[]).map(a=>`<span class="stu-chip">${esc(a.tool.replace(/_/g," "))}</span>`).join(" ");
+      out.innerHTML = `<div class="card" style="margin:0"><div class="stu-scomment">${esc(d.reply||"")}</div>`
+        + (chips?`<div class="stu-acts" style="margin-top:8px">${chips}</div>`:"") + `</div>`;
+    }catch(err){
+      out.innerHTML = `<p class="stu-hint" style="color:var(--t-start)">${esc(err.message||err)}</p>`;
+    }finally{ go.disabled=false; }
+  });
 })();
 </script>
 
@@ -1276,7 +1561,26 @@ address=0x80000000</code></pre>
   let cfg = null;
 
   const SUGGESTIONS = ["What does C:3 M:5 mean?", "How do I descale?",
-                       "Build me a strong small cup", "What is a vacuum step for?"];
+                       "Build me a strong small cup", "What made it less bitter?"];
+
+  // What the agent can see: which page you are on, and what that page knows.
+  // On the studio that is the live recipe plus its tasting journal, so a
+  // suggestion is about the cup in front of you.
+  function pageContext(){
+    const id = [...document.querySelectorAll('section')].find(x=>x.classList.contains('on'))?.id || "";
+    const where = {studio:"the Recipe studio", diagnose:"the Diagnose page",
+                   settings:"the Settings page"}[id] || `the "${id}" wiki page`;
+    let ctx = `The user is looking at ${where}.`;
+    if(id === "studio" && typeof window.bkonStudioContext === "function"){
+      try{ ctx = window.bkonStudioContext(); }catch(e){ /* fall back to the page name */ }
+    }
+    return ctx;
+  }
+  // The studio's recipe, so the agent can change the thing on screen.
+  function pageSteps(){
+    try{ return (typeof window.bkonStudioSteps === "function") ? window.bkonStudioSteps() : []; }
+    catch(e){ return []; }
+  }
 
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function bubble(role, text, actions){
@@ -1341,10 +1645,16 @@ address=0x80000000</code></pre>
     const thinking=bubble("bot","…");
     try{
       const res=await fetch(BASE+"chat",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({message:msg, steps:[], history})});
+        body:JSON.stringify({message:msg, steps:pageSteps(), history,
+                             context:pageContext()})});
       const data=await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(data.detail||`HTTP ${res.status}`);
       thinking.textContent=data.reply||"(no reply)";
+      // If a tool rewrote the recipe, push it into the builder so the change is
+      // visible where the user is working, not just described in the chat.
+      if(Array.isArray(data.steps) && typeof window.bkonApplySteps === "function"){
+        try{ window.bkonApplySteps(data.steps); }catch(e){ /* studio not on screen */ }
+      }
       if(data.actions&&data.actions.length){
         const r=document.createElement("div"); r.className="stu-acts";
         data.actions.forEach(a=>{const c=document.createElement("span");c.className="stu-chip";

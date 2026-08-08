@@ -124,7 +124,7 @@ def _recipe_context(steps: list[dict] | None) -> str:
 
 
 async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict,
-                   *, history: list[dict] | None = None,
+                   *, history: list[dict] | None = None, context: str = "",
                    max_iters: int = MAX_ITERS) -> ChatTurn:
     """One conversational turn with tool use.
 
@@ -136,7 +136,13 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
     steps = list(steps or [])
     system = build_system(tools)
     actions: list[Action] = []
+    # `context` is what the user is looking at -- which page, and anything that
+    # page knows (a recipe's tasting history, an error on screen). Given to the
+    # model so a suggestion can be about the thing in front of them rather than
+    # generic advice.
     transcript = [f"User: {message}", _recipe_context(steps)]
+    if context:
+        transcript.insert(1, f"Where the user is: {context}")
     if history:
         # A short prior context, newest last. Kept small; the studio is
         # single-turn-ish and the current recipe is the real state.
