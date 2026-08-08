@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+- **Recipe studio** in the ingress panel: a hand-builder paired with a chat that
+  shares the same recipe. Ask *"a strong small cup, less bitter"* and the steps
+  change; the chat drives the same build / tune / lint / diagnose tools the
+  integration ships, and answers how-to questions from the machine's documents.
+- New `POST /chat` endpoint: one tool-using turn, provider-agnostic (Ollama /
+  Anthropic / OpenAI-compatible) via JSON tool-calling, no vendor tool API. The
+  recipe logic is the integration's own, vendored into the add-on so it builds
+  standalone and kept in sync by CI.
+
 ## 0.5.0
 - Ingress now serves the project wiki (BKON RAG panel) instead of a bare status
   page: a readable, self-contained UI in the Home Assistant sidebar, matching

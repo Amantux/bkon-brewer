@@ -82,6 +82,83 @@
   footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-faint)}
   .themebtn{position:fixed;bottom:16px;right:16px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink);
     width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:16px;box-shadow:var(--shadow);z-index:20}
+
+  /* ---- Recipe studio ---- */
+  .btn{font-family:var(--sans);font-size:13px;font-weight:600;border:1px solid var(--line-2);
+    background:var(--panel);color:var(--ink);padding:8px 13px;border-radius:7px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .stu{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;margin-bottom:12px}
+  @media (max-width:820px){.stu{grid-template-columns:1fr}}
+  .stu-palette{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+  .stu-add{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 11px 6px 9px;
+    border-radius:99px;cursor:pointer}
+  .stu-add:hover{border-color:var(--dot);background:var(--panel-2)}
+  .stu-add .sw{width:10px;height:10px;border-radius:3px;background:var(--dot);flex:none}
+  .stu-add .pl{color:var(--ink-faint);font-weight:700}
+  .stu-steps{display:flex;flex-direction:column;gap:9px}
+  .stu-empty{border:1.5px dashed var(--line-2);border-radius:10px;padding:30px 20px;text-align:center;
+    color:var(--ink-soft);background:var(--panel-2);font-size:13px}
+  .stu-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+    overflow:hidden;position:relative}
+  .stu-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--dot)}
+  .stu-head{display:flex;align-items:center;gap:9px;padding:10px 11px 10px 15px}
+  .stu-idx{font-family:var(--mono);font-size:11px;color:var(--ink-faint);width:16px;text-align:right;font-variant-numeric:tabular-nums}
+  .stu-badge{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--dot);background:color-mix(in srgb,var(--dot) 12%,transparent);padding:2px 8px;border-radius:5px;
+    border:1px solid color-mix(in srgb,var(--dot) 30%,transparent)}
+  .stu-tname{font-weight:650;font-size:13.5px}
+  .stu-tdesc{font-size:11.5px;color:var(--ink-soft)}
+  .stu-sp{flex:1}
+  .stu-ic{border:1px solid transparent;background:transparent;color:var(--ink-faint);width:26px;height:26px;
+    border-radius:6px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+  .stu-ic:hover{background:var(--panel-2);color:var(--ink)}
+  .stu-ic:disabled{opacity:.3;cursor:default}
+  .stu-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;padding:2px 13px 13px 15px}
+  .stu-f{display:flex;flex-direction:column;gap:4px}
+  .stu-f.wide{grid-column:1/-1}
+  .stu-f label{font-size:10.5px;font-weight:600;color:var(--ink-soft);display:flex;justify-content:space-between}
+  .stu-f .u{color:var(--ink-faint);font-weight:500;font-family:var(--mono);font-size:9.5px}
+  .stu-f input[type=number],.stu-f input[type=text]{font-family:var(--mono);font-size:13px;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+  .stu-f input:focus{border-color:var(--accent);outline:none}
+  .stu-tog{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);cursor:pointer;padding-top:3px}
+  .stu-tog input{width:15px;height:15px;accent-color:var(--accent)}
+
+  .stu-side{display:flex;flex-direction:column;gap:14px;position:sticky;top:14px}
+  .card2{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px}
+  .stu-chat{display:flex;flex-direction:column;gap:10px}
+  .stu-log{display:flex;flex-direction:column;gap:9px;max-height:340px;overflow-y:auto;padding-right:2px}
+  .stu-msg{display:flex}
+  .stu-msg.me{justify-content:flex-end}
+  .stu-bubble{font-size:13px;line-height:1.5;padding:8px 11px;border-radius:12px;max-width:88%}
+  .stu-msg.bot .stu-bubble{background:var(--panel-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .stu-msg.me .stu-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .stu-acts{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .stu-chip{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:5px;
+    color:var(--t-vacuum);background:color-mix(in srgb,var(--t-vacuum) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--t-vacuum) 30%,transparent)}
+  .stu-input{display:flex;gap:7px}
+  .stu-input input{flex:1;font-family:var(--sans);font-size:13px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+  .stu-input input:focus{border-color:var(--accent);outline:none}
+  .stu-status{font-size:11.5px;color:var(--ink-faint);min-height:1em}
+  .stu-status.err{color:var(--t-start)}
+  .stu-gauge-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px}
+  .stu-gnum{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:600}
+  .stu-gnum .max{font-size:12px;color:var(--ink-faint);font-weight:500}
+  .stu-gstate{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+  .stu-track{height:7px;background:var(--panel-2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .stu-fill{height:100%;border-radius:99px;width:0;transition:width .3s,background .3s;background:var(--good)}
+  .stu-note{font-size:11.5px;color:var(--ink-soft);margin:7px 0 12px}
+  .stu-name{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
+  .stu-name:focus{border-color:var(--accent);outline:none}
+  .stu-hint{font-size:11.5px;color:var(--ink-soft);margin:10px 0 0;line-height:1.5}
+  .stu-foot{font-size:11.5px;color:var(--ink-faint);line-height:1.6;border-top:1px solid var(--line);padding-top:14px;max-width:none}
 </style>
 </head>
 <body>
@@ -94,6 +171,7 @@
     <a data-nav="entities">Entities</a>
     <a data-nav="services">Services</a>
     <a data-nav="concierge">Concierge</a>
+    <a data-nav="studio">Recipe studio</a>
     <a data-nav="recipes">Recipes &amp; git</a>
     <a data-nav="longer">Longer recipes</a>
     <div class="grp">Under the hood</div>
@@ -225,6 +303,60 @@
       <p>The trick it gets right: <em>"make my cup stronger"</em> tunes a recipe, but
       <em>"how do I make coffee stronger?"</em> answers a question — both contain "stronger".
       When it's genuinely ambiguous, it asks rather than guessing.</p>
+    </section>
+
+    <!-- RECIPE STUDIO -->
+    <section id="studio">
+      <div class="eyebrow">Build · tune · brew</div>
+      <h1>Recipe studio</h1>
+      <p class="lede">Build a brew sequence by hand, or talk to it — <em>"a strong small
+      cup, less bitter"</em> — and watch the steps change. The chat drives the same
+      build, tune, lint and diagnose tools the integration ships, and shares this exact
+      recipe. When it fits the Bluetooth budget, copy the Home&nbsp;Assistant call.</p>
+
+      <div class="stu">
+        <!-- builder -->
+        <div class="stu-build">
+          <div class="stu-palette" id="stuPalette"></div>
+          <div class="stu-steps" id="stuSteps"></div>
+        </div>
+
+        <!-- chat + readout -->
+        <aside class="stu-side">
+          <div class="stu-chat card2">
+            <div class="stu-log" id="stuLog">
+              <div class="stu-msg bot"><div class="stu-bubble">Hi — tell me what you
+                want to brew, or ask about the machine. Try <em>"build a strong small
+                cup"</em>, then <em>"make it less bitter"</em>.</div></div>
+            </div>
+            <form class="stu-input" id="stuForm">
+              <input id="stuText" autocomplete="off" placeholder="build a strong small cup…"
+                aria-label="Message the recipe studio" />
+              <button class="btn primary" type="submit" id="stuSend">Send</button>
+            </form>
+            <div class="stu-status" id="stuStatus"></div>
+          </div>
+
+          <div class="stu-readout card2">
+            <div class="stu-gauge-row">
+              <div class="stu-gnum"><span id="stuBytes">0</span><span class="max"> / 599 bytes</span></div>
+              <div class="stu-gstate" id="stuState">—</div>
+            </div>
+            <div class="stu-track"><div class="stu-fill" id="stuBar"></div></div>
+            <div class="stu-note" id="stuNote"></div>
+            <input class="stu-name" id="stuName" value="Morning Pour Over" spellcheck="false" aria-label="Recipe name" />
+            <button class="btn primary" id="stuCopy" style="width:100%;margin-top:10px">Copy save_recipe call</button>
+            <p class="stu-hint">Paste into <b>Developer Tools → Actions</b> (YAML) and run once
+              to save. Over 599 bytes? It still loads as a <a data-nav="longer" href="#">menu
+              file</a> over USB.</p>
+          </div>
+        </aside>
+      </div>
+      <p class="stu-foot">A brew-out is appended for you · zero-valued sizes are dropped ·
+        manual-stop becomes an operator dialog. Units are confirmed from BKON/Franke service
+        docs (ml, kPa, °F, seconds); the byte count is the JSON size the app checks before a
+        Bluetooth brew. The chat needs the <a data-nav="rag" href="#">LightRAG add-on</a>
+        running with a generation provider set.</p>
     </section>
 
     <!-- RECIPES -->
@@ -373,6 +505,203 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       || (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
     root.setAttribute('data-theme',cur==='dark'?'light':'dark');
   });
+</script>
+
+<!-- Recipe studio: hand-builder + chat, sharing one recipe -->
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  if (!$("stuSteps")) return;
+
+  // Step schema, faithful to the integration's recipe.py. Fill's pause is `ap`
+  // (atmospheric pause), and zero-valued sizes are dropped at encode time.
+  const TYPES = {
+    start:  {name:"Start", code:"start", desc:"Heat to temperature", color:"var(--t-start)",
+      fields:[{k:"tmp",label:"Temp",unit:"°F",type:"number",def:205,min:165,max:210}]},
+    fr:     {name:"Fill", code:"fr", desc:"Fill and rinse", color:"var(--t-fill)",
+      fields:[{k:"fwv",label:"Fill",unit:"ml",type:"number",def:250,min:0,max:999},
+              {k:"rwv",label:"Rinse",unit:"ml",type:"number",def:0,min:0,max:999},
+              {k:"ap",label:"Pause",unit:"sec",type:"number",def:0,min:0,max:180}]},
+    vc:     {name:"Vacuum", code:"vc", desc:"Vacuum extraction", color:"var(--t-vacuum)",
+      fields:[{k:"ps",label:"Vacuum",unit:"kPa",type:"number",def:24,min:0,max:101},
+              {k:"tm",label:"Time",unit:"sec",type:"number",def:4,min:0,max:180}]},
+    pg:     {name:"Purge", code:"pg", desc:"Pressure purge", color:"var(--t-purge)",
+      fields:[{k:"ps",label:"Pressure",unit:"",type:"number",def:50,min:0,max:100},
+              {k:"tm",label:"Hold",unit:"sec",type:"number",def:10,min:0,max:180},
+              {k:"dl",label:"Delay",unit:"sec",type:"number",def:0,min:0,max:180},
+              {k:"det",label:"Detection",type:"bool",def:0},
+              {k:"manstop",label:"Manual stop",type:"bool",def:0}]},
+    dialog: {name:"Dialog", code:"dialog", desc:"Prompt the operator", color:"var(--t-dialog)",
+      fields:[{k:"text",label:"Prompt text",type:"text",def:"Add grounds and press start"}]},
+  };
+  const ORDER = ["start","fr","vc","pg","dialog"];
+  const DROP_IF_ZERO = new Set(["fwv","rwv","ap","ps","tm","dl"]);
+  const MAX = 599;
+  const MANUAL_STOP = "Manually stop the purge or it will close when it's finished";
+
+  // The one shared recipe. Both the builder and the chat read and write it.
+  let steps = [
+    {type:"start", values:{tmp:205}},
+    {type:"fr", values:{fwv:250, rwv:30, ap:0}},
+    {type:"dialog", values:{text:"Add grounds and press start"}},
+    {type:"vc", values:{ps:24, tm:4}},
+    {type:"pg", values:{ps:50, tm:10, dl:0, det:1, manstop:0}},
+  ];
+  const history = [];
+
+  // ---- palette ----
+  const pal = $("stuPalette");
+  ORDER.forEach(t => {
+    const T = TYPES[t];
+    const b = document.createElement("button");
+    b.className = "stu-add"; b.type = "button"; b.style.setProperty("--dot", T.color);
+    b.innerHTML = `<span class="sw"></span>${T.name}<span class="pl">+</span>`;
+    b.onclick = () => { steps.push({type:t, values:defaults(t)}); render(); };
+    pal.appendChild(b);
+  });
+  const defaults = t => { const v={}; TYPES[t].fields.forEach(f=>v[f.k]=f.def); return v; };
+
+  // ---- render the step list ----
+  function render() {
+    const host = $("stuSteps"); host.innerHTML = "";
+    if (!steps.length) {
+      host.innerHTML = `<div class="stu-empty">No steps yet — add one above, or ask the chat to build a recipe. A brew-out is added for you.</div>`;
+      gauge(); return;
+    }
+    steps.forEach((st, i) => {
+      const T = TYPES[st.type]; if (!T) return;
+      const card = document.createElement("div");
+      card.className = "stu-card"; card.style.setProperty("--dot", T.color);
+      const head = document.createElement("div"); head.className = "stu-head";
+      head.innerHTML = `<span class="stu-idx">${i+1}</span><span class="stu-badge">${T.code}</span>`
+        + `<span class="stu-tname">${T.name}</span><span class="stu-tdesc">${T.desc}</span><span class="stu-sp"></span>`;
+      const up = ic("↑","Move up",()=>move(i,-1)); up.disabled = i===0;
+      const dn = ic("↓","Move down",()=>move(i,1)); dn.disabled = i===steps.length-1;
+      const del = ic("✕","Remove",()=>{steps.splice(i,1);render();});
+      head.append(up, dn, del); card.appendChild(head);
+      const fields = document.createElement("div"); fields.className = "stu-fields";
+      T.fields.forEach(f => {
+        if (f.type === "bool") {
+          const wrap = document.createElement("label"); wrap.className = "stu-tog";
+          const cb = document.createElement("input"); cb.type="checkbox";
+          cb.checked = !!Number(st.values[f.k]);
+          cb.oninput = () => { st.values[f.k] = cb.checked?1:0; gauge(); };
+          wrap.append(cb, document.createTextNode(f.label));
+          const cell = document.createElement("div"); cell.className="stu-f"; cell.appendChild(wrap);
+          fields.appendChild(cell);
+        } else {
+          const cell = document.createElement("div");
+          cell.className = "stu-f" + (f.type==="text"?" wide":"");
+          const lab = document.createElement("label");
+          lab.innerHTML = `<span>${f.label}</span>${f.unit?`<span class="u">${f.unit}</span>`:""}`;
+          const inp = document.createElement("input");
+          inp.type=f.type; inp.value = st.values[f.k] ?? f.def; inp.spellcheck=false;
+          if (f.type==="number"){ inp.min=f.min; inp.max=f.max; }
+          inp.oninput = () => {
+            st.values[f.k] = f.type==="number" ? (inp.value===""?0:Number(inp.value)) : inp.value;
+            gauge();
+          };
+          cell.append(lab, inp); fields.appendChild(cell);
+        }
+      });
+      card.appendChild(fields); host.appendChild(card);
+    });
+    gauge();
+  }
+  function ic(txt,title,fn){ const b=document.createElement("button"); b.className="stu-ic";
+    b.type="button"; b.textContent=txt; b.title=title; b.setAttribute("aria-label",title); b.onclick=fn; return b; }
+  function move(i,d){ const j=i+d; if(j<0||j>=steps.length)return;
+    [steps[i],steps[j]]=[steps[j],steps[i]]; render(); }
+
+  // ---- encoding (matches recipe.py; JSON size is the app's 599-byte check) ----
+  function normalise(values){ const out={};
+    for(const key in values){ const k=key.toLowerCase(), val=values[key];
+      if(DROP_IF_ZERO.has(k) && Number(val)===0) continue; out[k]=String(val); } return out; }
+  function prepare(list){ const out=[]; const hasBo=list.some(s=>s.type==="bo");
+    for(const step of list){ let v=normalise(step.values);
+      if(step.type==="pg" && v.manstop==="1"){ const rb={dialog:MANUAL_STOP};
+        if("det" in v)rb.det=v.det; if(v.ps)rb.ps=v.ps; if(v.tm)rb.tm=v.tm;
+        out.push({type:"pg",values:rb}); continue; }
+      if(step.type==="pg") delete v.manstop;
+      if(step.type==="start") v={tmp:String(Math.round(Number(v.tmp||0)))};
+      if(step.type==="dialog" && "text" in v) v.text=encodeURIComponent(v.text).replace(/'/g,"%27");
+      out.push({type:step.type,values:v}); }
+    if(!hasBo) out.push({type:"bo",values:{bt:"4"}}); return out; }
+  const byteLen = s => new TextEncoder().encode(s).length;
+
+  // ---- readout gauge ----
+  function gauge(){
+    const n = byteLen(JSON.stringify(prepare(steps)));
+    $("stuBytes").textContent = n;
+    const pct = Math.min(100,(n/MAX)*100), bar=$("stuBar");
+    bar.style.width = pct+"%";
+    let color="var(--good)", label="fits", note=`${MAX-n} bytes of headroom.`;
+    if(n>MAX){ color="var(--t-start)"; label="too large"; note=`Over by ${n-MAX} bytes — loads as a menu file over USB.`; }
+    else if(pct>88){ color="var(--warn)"; label="tight"; note=`Only ${MAX-n} bytes left.`; }
+    bar.style.background=color;
+    const st=$("stuState"); st.textContent=label; st.style.color=color;
+    $("stuNote").textContent=note;
+  }
+
+  // ---- save_recipe YAML ----
+  function yamlStr(s){ return /[:#'"\n]|^\s|\s$/.test(s) ? `"${s.replace(/"/g,'\\"')}"` : s; }
+  function yaml(){
+    const name=($("stuName").value||"Untitled").trim();
+    let out=`service: bkon_brewer.save_recipe\ndata:\n  name: ${yamlStr(name)}\n  steps:\n`;
+    for(const st of steps){ out+=`    - type: ${st.type}\n`;
+      const keys=Object.keys(st.values); if(!keys.length) continue;
+      out+=`      values:\n`;
+      for(const k of keys){ const v=st.values[k];
+        const r=(typeof v==="string"&&st.type==="dialog")?yamlStr(v):v;
+        out+=`        ${k}: ${r}\n`; } }
+    return out.trimEnd();
+  }
+  $("stuName").oninput = gauge;
+  $("stuCopy").onclick = () => {
+    navigator.clipboard?.writeText(yaml())
+      .then(()=>flash("Copied save_recipe call")).catch(()=>flash("Copy blocked — select manually"));
+  };
+
+  // ---- chat ----
+  const ENDPOINT = location.pathname.replace(/[^/]*$/,"") + "chat";
+  const log = $("stuLog");
+  function bubble(role, text, actions){
+    const wrap=document.createElement("div"); wrap.className="stu-msg "+(role==="me"?"me":"bot");
+    const b=document.createElement("div"); b.className="stu-bubble"; b.textContent=text;
+    if(actions && actions.length){
+      const row=document.createElement("div"); row.className="stu-acts";
+      actions.forEach(a=>{ const c=document.createElement("span"); c.className="stu-chip";
+        c.textContent=a.tool.replace(/_/g," "); row.appendChild(c); });
+      b.appendChild(row);
+    }
+    wrap.appendChild(b); log.appendChild(wrap); log.scrollTop=log.scrollHeight;
+    return b;
+  }
+  function status(msg, err){ const s=$("stuStatus"); s.textContent=msg||""; s.classList.toggle("err",!!err); }
+
+  $("stuForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const input=$("stuText"), msg=input.value.trim(); if(!msg) return;
+    input.value=""; bubble("me", msg); history.push({role:"user",content:msg});
+    const send=$("stuSend"); send.disabled=true; status("Thinking…");
+    try{
+      const res = await fetch(ENDPOINT, {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({message:msg, steps, history})});
+      if(!res.ok){ const t=await res.text().catch(()=>"");
+        throw new Error(res.status===503?"add-on still starting":`${res.status} ${t.slice(0,120)}`); }
+      const data = await res.json();
+      if(Array.isArray(data.steps)){ steps = data.steps.map(s=>({type:s.type, values:{...s.values}})); render(); }
+      bubble("bot", data.reply || "(no reply)", data.actions);
+      history.push({role:"assistant",content:data.reply||""});
+      status("");
+    }catch(err){
+      bubble("bot", "Sorry — I couldn't reach the studio service. Is the LightRAG add-on running with a provider set?");
+      status(String(err.message||err), true);
+    }finally{ send.disabled=false; input.focus(); }
+  });
+
+  render();
+})();
 </script>
 </body>
 </html>

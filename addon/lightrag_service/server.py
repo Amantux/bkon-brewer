@@ -37,6 +37,8 @@ from fastembed import TextEmbedding
 from lightrag import LightRAG, QueryParam
 from lightrag.utils import EmbeddingFunc
 
+import studio_tools
+from chat import run_chat
 from contract import authorized, clean_answer
 from providers.config import build_provider
 
@@ -168,6 +170,52 @@ async def query(request: Request,
         _LOG.exception("query failed")
         raise HTTPException(status_code=502, detail=f"generation failed: {ex}")
     return {"response": clean_answer(result), "mode": mode}
+
+
+@app.post("/chat")
+async def chat_turn(request: Request):
+    """One turn of the recipe-studio chat, with tool use.
+
+    Served through ingress like the wiki, so it is open at the app boundary --
+    the Supervisor authenticates the viewer -- unlike /query, which the
+    integration reaches over the LAN and which stays key-guarded.
+
+    The tools are the very logic the integration ships (build / adjust / lint /
+    diagnose, from the vendored core); `answer_docs` reaches this service's own
+    RAG. The model drives them through the provider-agnostic loop in chat.py, so
+    tool use works the same on Ollama, Anthropic or an OpenAI-compatible model.
+    """
+    if _provider is None:
+        raise HTTPException(status_code=503, detail="service still starting")
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message is required")
+    steps = body.get("steps") or []
+    history = body.get("history") or []
+
+    tools = dict(studio_tools.REGISTRY)
+
+    async def answer_docs(args: dict, _steps):
+        """The one tool that needs the running service: ask the manuals."""
+        question = str(args.get("query", "")).strip()
+        if not question:
+            return {"answer": "No question was given."}, None
+        try:
+            raw = await _rag.aquery(question, param=QueryParam(mode="hybrid"))
+            return {"answer": clean_answer(raw)}, None
+        except Exception as ex:                       # noqa: BLE001
+            return {"answer": f"Could not reach the documents ({ex})."}, None
+    tools["answer_docs"] = answer_docs
+
+    try:
+        turn = await run_chat(_provider, message, steps, tools, history=history)
+    except Exception as ex:                           # noqa: BLE001
+        _LOG.exception("chat failed")
+        raise HTTPException(status_code=502, detail=f"chat failed: {ex}")
+    return {"reply": turn.reply, "steps": turn.steps,
+            "actions": [{"tool": a.tool, "args": a.args, "result": a.result}
+                        for a in turn.actions]}
 
 
 @app.post("/documents/text")

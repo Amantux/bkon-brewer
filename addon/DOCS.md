@@ -47,10 +47,26 @@ slow and fragile.
    Configure: the LightRAG URL (`http://homeassistant.local:9621`) and the
    service API key.
 
+## Recipe studio
+
+Open the add-on (its ingress panel in the sidebar) and go to **Recipe studio**.
+It pairs a hand-builder with a chat: build a brew sequence step by step, or say
+*"a strong small cup, less bitter"* and watch the steps change. The chat drives
+the same build / tune / lint / diagnose tools the integration ships, and *"how do
+I descale?"* is answered from the machine's documents. Both sides share one
+recipe, and the byte gauge shows whether it fits a Bluetooth brew; copy the
+`save_recipe` call when you are happy.
+
+The chat needs a generation provider set (below) — without one the builder still
+works, but the chat will say it can't reach the service.
+
 ## Ports
 
-- **Ingress** serves the status page through Home Assistant's authenticated
-  proxy — no port to expose.
+- **Ingress** serves the wiki, the recipe studio and the chat through Home
+  Assistant's authenticated proxy — no port to expose. `POST /chat` (one
+  tool-using turn) is part of that ingress surface.
+- **9621/tcp** is the API. Map it only so the integration (or another LAN
+  client) can reach it directly; it is guarded by the service API key.
 - **9621/tcp** is the API. Map it only so the integration (or another LAN
   client) can reach it directly; it is guarded by the service API key.
 
