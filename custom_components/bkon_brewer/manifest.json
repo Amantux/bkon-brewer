@@ -1,24 +1,16 @@
 {
   "domain": "bkon_brewer",
   "name": "BKON Craft Brewer",
-  "version": "0.5.0",
-  "config_flow": true,
-  "documentation": "https://github.com/Amantux/bkon-brewer",
-  "issue_tracker": "https://github.com/Amantux/bkon-brewer/issues",
-  "codeowners": [
-    "@Amantux"
-  ],
-  "dependencies": [
-    "bluetooth_adapters"
-  ],
-  "requirements": [
-    "bleak-retry-connector>=3.4.0"
-  ],
-  "iot_class": "local_push",
-  "integration_type": "device",
   "bluetooth": [
-    {
-      "service_uuid": "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
-    }
-  ]
+    { "service_uuid": "6e400001-b5a3-f393-e0a9-e50e24dcca9e" }
+  ],
+  "codeowners": ["@Amantux"],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "documentation": "https://github.com/Amantux/bkon-brewer",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Amantux/bkon-brewer/issues",
+  "requirements": ["bleak-retry-connector>=3.4.0"],
+  "version": "0.5.0"
 }

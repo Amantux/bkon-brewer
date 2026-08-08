@@ -21,3 +21,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # brands requires a submission to home-assistant/brands; ignore it
+          # here so CI reflects what a custom-repo install actually needs.
+          ignore: brands
