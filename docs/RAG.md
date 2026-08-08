@@ -13,7 +13,7 @@ built-in retriever** if the service is unreachable.
 
 ## The architecture, and why it splits the way it does
 
-One service (`deploy/lightrag_service/`) does the whole job:
+One service (`addon/lightrag_service/`) does the whole job:
 
 | Part | Where it runs | Why |
 |---|---|---|
@@ -49,7 +49,7 @@ a client is built.
 
 ## Standing it up
 
-**On the Home Assistant host** — install `deploy/addon/` as a local add-on
+**On the Home Assistant host** — install `addon/` as a local add-on
 (copy it into your `/addons` share, then Settings → Add-ons → local repository).
 Set three options:
 
@@ -61,7 +61,7 @@ Set three options:
 **On any other box** —
 
 ```bash
-cd deploy
+cd addon
 SERVICE_KEY=your-secret OLLAMA_CLOUD_KEY=your-ollama-key docker compose up -d
 ```
 

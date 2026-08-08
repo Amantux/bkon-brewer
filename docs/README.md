@@ -44,7 +44,7 @@ whatever you need.
 | Set up semantic Q&A (LightRAG + a model) | [RAG.md](RAG.md) |
 | Make recipes longer than Bluetooth allows | [LONGER_RECIPES.md](LONGER_RECIPES.md) |
 | See how faithful this is to the app | [APP_COMPARISON.md](APP_COMPARISON.md) |
-| Install the add-on | [../deploy/addon/DOCS.md](../deploy/addon/DOCS.md) |
+| Install the add-on | [../addon/DOCS.md](../addon/DOCS.md) |
 
 ---
 

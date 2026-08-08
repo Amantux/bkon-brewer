@@ -1,111 +1,122 @@
-# BKON Craft Brewer — Home Assistant integration
+<p align="center">
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Amantux&repository=bkon-brewer&category=integration">
+    <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Add the BKON Brewer integration to HACS via My Home Assistant.">
+  </a>
+  <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FAmantux%2Fbkon-brewer">
+    <img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add the BKON Brewer add-on repository to your Home Assistant.">
+  </a>
+</p>
 
-**[Project wiki →](docs/README.md)** — architecture, services, recipes, protocol, and status in one place.
+<p align="center">
+  <img src="https://img.shields.io/badge/HACS-custom-41BDF5.svg" alt="HACS custom">
+  <img src="https://img.shields.io/badge/Home%20Assistant-%E2%89%A5%202024.4.0-41BDF5.svg" alt="Min HA version">
+  <img src="https://img.shields.io/badge/tests-252%20passing-3c8f54.svg" alt="252 tests passing">
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0">
+</p>
 
-Control a BKON Craft Brewer from Home Assistant over Bluetooth, and build
-recipes without the vendor app or its cloud account.
+# BKON Craft Brewer ☕
 
-**Status: built, not yet hardware-tested.** The protocol was recovered from the
-vendor's own app; the pure layers (recipe encoding, event parsing, message
-framing) are covered by 65 assertions, but nothing has spoken to a real brewer
-yet. Every unconfirmed decision is labelled as such, here and in the code.
+Control a **BKON Craft Brewer** from Home Assistant over Bluetooth — brew,
+build and tune recipes in plain language, and ask the machine's own manuals what
+a fault means. Reverse-engineered from the vendor app, for hardware you own. No
+cloud account, no vendor server; brewing is entirely local.
 
-```
-./tests/run_all.sh          # 65 assertions, no dependencies
-```
+**[📖 Project wiki](docs/README.md)** — architecture, every service, recipes,
+protocol, and status in one place.
+
+> **Status:** built and unit-tested (252 assertions), **not yet hardware-tested**.
+> The protocol was recovered from the vendor app; every unconfirmed decision is
+> labelled in the code and docs. A **Simulate** mode lets you explore the whole
+> interface with no brewer.
+
+---
+
+## Install
+
+There are two pieces. You need the **integration**; the **add-on** is an optional
+upgrade for smarter question-answering.
+
+### 1. The integration (required) — via HACS
+
+[![Open your Home Assistant instance and open the repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Amantux&repository=bkon-brewer&category=integration)
+
+1. Click the badge above (or in HACS → **⋮** → *Custom repositories*, add
+   `https://github.com/Amantux/bkon-brewer` as an **Integration**).
+2. Install **BKON Craft Brewer**, then restart Home Assistant.
+3. **Settings → Devices & Services → Add Integration → BKON Craft Brewer.** It
+   discovers the brewer over Bluetooth, or tick **Simulate** to try it with no
+   hardware.
+
+<details>
+<summary>Manual install (no HACS)</summary>
+
+Copy `custom_components/bkon_brewer/` into your Home Assistant `config/custom_components/`
+directory and restart.
+</details>
+
+### 2. The LightRAG add-on (optional) — semantic Q&A
+
+[![Add the BKON Brewer add-on repository to your Home Assistant.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FAmantux%2Fbkon-brewer)
+
+1. Click the badge (or **Settings → Add-ons → Add-on Store → ⋮ → Repositories**,
+   add `https://github.com/Amantux/bkon-brewer`).
+2. Install **BKON LightRAG**, set a service key and a generation provider
+   (Ollama / Anthropic / OpenAI-compatible), and start it.
+3. Point the integration at it in the integration's **Configure** dialog.
+
+Without the add-on, questions are answered by a built-in keyword retriever — the
+add-on upgrades them to semantic answers from a model you choose, and the
+integration falls back automatically if it is unavailable. See
+[docs/RAG.md](docs/RAG.md).
 
 ---
 
 ## What it does
 
-- **Brew a recipe** from a list of steps — the `bkon_brewer.brew` service.
-- **Manual purge**, **abort**, **answer a dialog** — as services and, for the
-  common ones, one-tap buttons.
-- **See what the brewer is doing** — status, current step, outstanding operator
-  prompt, and last error as sensors, updated the instant a notification arrives
-  (`local_push`, not polled).
-- **No cloud, no login.** The vendor app gates its recipe *library* behind an
-  account, but brewing itself is entirely local over Bluetooth. This integration
-  never touches BKON's servers.
+- **Brew & control** — `brew`, `brew_saved`, `manual_purge`, `abort`,
+  `respond_dialog`, all over local Bluetooth. Status, current step, dialog
+  prompts and errors surface as sensors, updated on push.
+- **Build & tune recipes** — start from a grounded template, then say
+  *"stronger"* or *"less bitter"* and watch the vacuum and steep move
+  (`build_recipe`, `customize_recipe`).
+- **Ask the manuals** — *"How do I descale?"*, *"What's C:3 M:5?"* — answered from
+  the brewer's own service documents (`ask`, `diagnose`).
+- **Yours, in git** — recipes are files you can export, diff, commit and reload
+  (`export_recipes` / `import_recipes`), or push to the machine's own menu format
+  for [longer recipes](docs/LONGER_RECIPES.md).
 
-## How it reaches the brewer
+The full service list and the concierge are in the **[wiki](docs/README.md)**.
 
-The brewer speaks **Nordic UART** (a generic BLE serial service). Home Assistant
-routes to it through whatever connectable adapter is in range — on a setup with
-no host radio, that means an **ESPHome Bluetooth proxy**. That is transparent to
-the integration: it asks Home Assistant for the device by address and gets a
-connection, wherever the radio physically is.
+## Requirements
 
-Practical consequence: **the brewer must be within BLE range of a proxy**, and
-ESP32 proxies hold only a few connections at once. If several BLE devices share
-one proxy, a dedicated proxy near the brewer is the reliable answer.
+- Home Assistant **2024.4.0** or newer.
+- A **Bluetooth** adapter, or an **ESPHome Bluetooth proxy** in range of the
+  brewer (the integration reaches the machine through whichever is available).
+- For the add-on: a generation provider (a local Ollama, an Ollama Cloud key, an
+  Anthropic key, or any OpenAI-compatible endpoint). Embeddings run locally.
 
-## Recipe model
+## Testing
 
-A recipe is a list of steps. Five types matter:
-
-| Type | Code | What it does |
-|---|---|---|
-| Start | `start` | Heat to a temperature |
-| Fill | `fr` | Fill and rinse volumes, plus a pause |
-| Vacuum | `vc` | The vacuum extraction this machine is built around |
-| Purge | `pg` | Pressure, hold time, detection |
-| Dialog | `dialog` | Pause and ask the operator something |
-
-A brew-out is appended automatically. Example service call:
-
-```yaml
-service: bkon_brewer.brew
-data:
-  steps:
-    - {type: start,  values: {tmp: 205}}
-    - {type: fr,     values: {fwv: 250, rwv: 30}}
-    - {type: vc,     values: {ps: 50, tm: 30}}
-    - {type: pg,     values: {ps: 50, tm: 10, det: 1}}
-    - {type: dialog, values: {text: "Add grounds"}}
+```bash
+./tests/run_all.sh          # 252 assertions, no dependencies
 ```
 
-The encoder faithfully reproduces the vendor app's serialisation, **including
-the parts that look like bugs**, because deviating would mean identical inputs
-brewing differently through this path than through the app — and the only
-symptom is disappointing coffee. Those rules, and why each one matters, are in
-[docs/PROTOCOL.md](docs/PROTOCOL.md). The short version:
+The logic that matters — encoding, the advisor, retrieval, provider selection,
+the recipe schema — is pure and tested. I/O layers are thin and clearly marked
+where they are unverified against hardware.
 
-- Zero-valued size fields are dropped, not sent as `0` (absent ≠ zero).
-- `manstop` never reaches the device — the app fakes manual-stop with a dialog.
-- Dialog text is URL-encoded, apostrophes included.
-- Recipes must fit **599 bytes**, enforced at build time with a message that
-  says what to trim.
+## Docs
 
-## What still needs a real brewer
+- **[Project wiki](docs/README.md)** — start here
+- [Protocol](docs/PROTOCOL.md) · [Recipe schema](docs/RECIPE_SCHEMA.md) ·
+  [Confirmed intel](docs/INTEL.md)
+- [Semantic Q&A](docs/RAG.md) · [Longer recipes](docs/LONGER_RECIPES.md) ·
+  [Fidelity audit](docs/APP_COMPARISON.md)
+- [Add-on setup](addon/DOCS.md)
 
-Listed in full in [docs/PROTOCOL.md](docs/PROTOCOL.md). The load-bearing ones:
+## Provenance & licence
 
-1. **Chunking of payloads over one BLE write** — the reassembly is implemented
-   and the split logic is tested, but the brewer's side is unconfirmed.
-2. **The dialog-response wire format** — the app calls a native method whose
-   payload we have not captured.
-3. **Units and ranges** for pressure and volumes.
-
-The `bkon_brewer.send_raw` service exists for exactly this: send a hand-framed
-string and watch what comes back, to nail these down against hardware.
-
-## Layout
-
-```
-custom_components/bkon_brewer/
-  protocol/
-    recipe.py     recipe model + wire encoding   (pure, tested)
-    events.py     brewer -> host event parsing    (pure, tested)
-  transport.py    Nordic UART over HA Bluetooth   (thin; framing split tested)
-  coordinator.py  connection lifecycle + brew state
-  config_flow.py  Bluetooth discovery + manual entry
-  sensor.py       status / step / dialog / error
-  button.py       abort, manual purge
-docs/PROTOCOL.md  the recovered protocol, with per-field confidence
-tests/            65 assertions, no dependencies
-```
-
-Parsing is pure and tested; I/O is thin and clearly marked unverified. None of
-the vendor's application code is in this repository — documenting a protocol to
-interoperate with hardware you own is not the same as redistributing their app.
+Reverse-engineered for interoperability with hardware the owner possesses. **No
+vendor application source or document text is in this repository** — the document
+index is built locally and git-ignored; facts (units, error codes) are folded in
+from the owner's own service-portal archive. Licensed **AGPL-3.0**.

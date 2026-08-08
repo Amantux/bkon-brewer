@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "deploy" / "lightrag_service"))
+sys.path.insert(0, str(ROOT / "addon" / "lightrag_service"))
 
 from contract import authorized, clean_answer   # noqa: E402
 

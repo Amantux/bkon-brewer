@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "deploy" / "lightrag_service"))
+sys.path.insert(0, str(ROOT / "addon" / "lightrag_service"))
 
 from providers.base import ProviderError            # noqa: E402
 from providers.config import build_provider, llm_url_ok  # noqa: E402
