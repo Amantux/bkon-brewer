@@ -29,7 +29,9 @@ jobs:
 
       - name: Read the add-on version
         id: ver
-        run: echo "v=$(grep '^version:' addon/config.yaml | tr -d ' \"' | cut -d: -f2)" >> "$GITHUB_OUTPUT"
+        run: |
+          v=$(grep '^version:' addon/config.yaml | tr -d ' "' | cut -d':' -f2)
+          echo "v=$v" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3          # emulate arm64 on an x86 runner
       - uses: docker/setup-buildx-action@v3
