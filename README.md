@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/HACS-custom-41BDF5.svg" alt="HACS custom">
   <img src="https://img.shields.io/badge/Home%20Assistant-%E2%89%A5%202024.4.0-41BDF5.svg" alt="Min HA version">
-  <img src="https://img.shields.io/badge/tests-300%20passing-3c8f54.svg" alt="300 tests passing">
+  <img src="https://img.shields.io/badge/tests-316%20passing-3c8f54.svg" alt="316 tests passing">
   <img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0">
 </p>
 
@@ -24,7 +24,7 @@ cloud account, no vendor server; brewing is entirely local.
 **[📖 Project wiki](docs/README.md)** — architecture, every service, recipes,
 protocol, and status in one place.
 
-> **Status:** built and unit-tested (300 assertions), **not yet hardware-tested**.
+> **Status:** built and unit-tested (316 assertions), **not yet hardware-tested**.
 > The protocol was recovered from the vendor app; every unconfirmed decision is
 > labelled in the code and docs. A **Simulate** mode lets you explore the whole
 > interface with no brewer.
@@ -98,7 +98,7 @@ The full service list and the concierge are in the **[wiki](docs/README.md)**.
 ## Testing
 
 ```bash
-./tests/run_all.sh          # 300 assertions, no dependencies
+./tests/run_all.sh          # 316 assertions, no dependencies
 ```
 
 The logic that matters — encoding, the advisor, retrieval, provider selection,
@@ -111,7 +111,7 @@ where they are unverified against hardware.
 - [Protocol](docs/PROTOCOL.md) · [Recipe schema](docs/RECIPE_SCHEMA.md) ·
   [Confirmed intel](docs/INTEL.md)
 - [Semantic Q&A](docs/RAG.md) · [Longer recipes](docs/LONGER_RECIPES.md) ·
-  [Fidelity audit](docs/APP_COMPARISON.md)
+  [`.bbp` menu format](docs/BBP_FORMAT.md) · [Fidelity audit](docs/APP_COMPARISON.md)
 - [Add-on setup](addon/DOCS.md)
 
 ## Provenance & licence

@@ -179,6 +179,7 @@
     <a data-nav="protocol">Protocol</a>
     <a data-nav="rag">Semantic Q&amp;A</a>
     <a data-nav="reference">Units &amp; error codes</a>
+    <a data-nav="bbp">The .bbp menu file</a>
     <a data-nav="fidelity">Fidelity &amp; status</a>
   </nav>
 
@@ -193,7 +194,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>300</b><span>tests passing</span></div>
+        <div><b>316</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -433,7 +434,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (300 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (316 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -585,6 +586,117 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       were: needing a live capture. See <a data-nav="fidelity" href="#">Fidelity &amp; status</a>.</div>
     </section>
 
+    <!-- BBP -->
+    <section id="bbp">
+      <div class="eyebrow">Recovered from real device files</div>
+      <h1>The <code>.bbp</code> menu file</h1>
+      <p class="lede">The machine's on-board menu is a <code>.bbp</code> file loaded over USB —
+      the route to recipes larger than Bluetooth allows. Three real ones turned up inside a
+      vendor software-update package, and most of the format now reads cleanly.</p>
+
+      <div class="note"><b>Understood, but not yet safe to write.</b> The step records, the tag
+      vocabulary and the checksum are confirmed byte-for-byte. A few header and category field
+      widths are not. The installer flashes this file to the user-interface board, and a
+      malformed one is written to the same place a good one is — so this is documentation, not
+      a feature. <a data-nav="longer" href="#">See what that means for export_menu</a>.</div>
+
+      <h2>The container</h2>
+      <pre><code>0       4   magic: "BKON" (beverage menu) or "BKOn" (service menu)
+4       4   u32le, always 12 — header length or version
+8       …   body
+end-4   4   u32le checksum over every preceding byte</code></pre>
+
+      <h3>The checksum — solved</h3>
+      <p>The trailing four bytes are <b>JAMCRC</b>: an ordinary CRC-32 with the final
+      complement left off — equivalently, its bitwise inverse — little-endian, over the whole
+      file except the trailer. Nothing standard matched until this did, on all three files at
+      once.</p>
+      <pre><code>trailer = struct.pack("&lt;I", zlib.crc32(body) ^ 0xFFFFFFFF)</code></pre>
+      <table>
+        <thead><tr><th>File</th><th>Trailer</th><th><code>~crc32(body)</code></th></tr></thead>
+        <tbody>
+          <tr><td><code>Ser82018.BBP</code></td><td><code>0x995edc9b</code></td><td><code>0x995edc9b</code></td></tr>
+          <tr><td><code>FrkMenu.BBP</code></td><td><code>0x1a6bbd46</code></td><td><code>0x1a6bbd46</code></td></tr>
+          <tr><td><code>MENU.FBP</code></td><td><code>0xe907b6a7</code></td><td><code>0xe907b6a7</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>Steps — the part that matters</h2>
+      <p>A step is <code>u32le type</code>, <code>u8 tag length</code>, then the tag. 3 461 of
+      them parse cleanly across the three files, and every one re-encodes to the exact bytes it
+      came from.</p>
+      <table>
+        <thead><tr><th>Type</th><th>Step</th><th>Tags</th></tr></thead>
+        <tbody>
+          <tr><td><code>0</code></td><td>Start / heat</td><td><code>&lt;TMP&gt;</code></td></tr>
+          <tr><td><code>1</code></td><td>Fill</td><td><code>&lt;FWV&gt;</code> <code>&lt;RWV&gt;</code> <code>&lt;AP&gt;</code></td></tr>
+          <tr><td><code>2</code></td><td>Vacuum</td><td><code>&lt;PS&gt;</code> <code>&lt;TM&gt;</code></td></tr>
+          <tr><td><code>3</code></td><td>Purge</td><td><code>&lt;PS&gt;</code> <code>&lt;TM&gt;</code> <code>&lt;DET&gt;</code> <code>&lt;CONTR&gt;</code></td></tr>
+          <tr><td><code>4</code></td><td>Brew out</td><td><code>&lt;BT&gt;</code></td></tr>
+        </tbody>
+      </table>
+      <p>A real portion, straight out of the file:</p>
+      <pre><code>[0] &lt;TMP&gt;170&lt;/TMP&gt;
+[1] &lt;FWV&gt;300&lt;/FWV&gt;
+[2] &lt;PS&gt;28&lt;/PS&gt;&lt;TM&gt;7&lt;/TM&gt;
+[1] &lt;FWV&gt;25&lt;/FWV&gt;&lt;RWV&gt;25&lt;/RWV&gt;&lt;AP&gt;20&lt;/AP&gt;
+[3] &lt;PS&gt;30&lt;/PS&gt;&lt;TM&gt;20&lt;/TM&gt;&lt;DET&gt;1&lt;/DET&gt;&lt;CONTR&gt;1&lt;/CONTR&gt;
+[1] &lt;RWV&gt;70&lt;/RWV&gt;
+[4] &lt;BT&gt;4&lt;/BT&gt;</code></pre>
+
+      <div class="note" style="border-left-color:var(--good);background:color-mix(in srgb,var(--good) 8%,transparent)">
+      <b>This graded our own homework.</b> Three decisions in the recipe encoder were inferred
+      from the vendor app and are now confirmed against real device files: the wire form is
+      <b>uppercase tags, not JSON</b>; the fill pause is <b><code>AP</code></b>, not
+      <code>DL</code> — a bug this project had and fixed earlier from app data; and the purge
+      flags really are <b><code>DET</code></b> and <b><code>CONTR</code></b> spelled out.</div>
+
+      <h2>Structure</h2>
+      <p>Strings are length-prefixed — two bytes for category names, one for recipe names,
+      codes and portion names.</p>
+      <pre><code>category := name, 4-byte colour, recipe count, recipes…
+recipe   := name, code, portion count, portions…
+portion  := name (small/medium/large), step count, steps…</code></pre>
+      <p>Recipe names can contain a newline, which the machine renders as a two-line button
+      (<code>"Sencha \nDLT"</code>). The <em>code</em> field carries the dial-in name from the
+      <a data-nav="reference" href="#">menu development guide</a> —
+      <code>"170/0/10 FGT"</code>. Unused buttons are real records named <code>Empty</code>
+      with zero portions, so a menu is a <b>fixed grid, not a sparse list</b> — which is what
+      the 8&nbsp;×&nbsp;4&nbsp;×&nbsp;8 capacity means in practice.</p>
+
+      <h2>Two kinds of file, and how one is installed</h2>
+      <p><code>BKON</code> is a beverage menu; it opens with machine parameters as plain tags
+      (<code>&lt;ASF&gt;</code>, <code>&lt;TBH&gt;</code>, <code>&lt;KPVAL&gt;</code> — control
+      constants) before the categories. <code>BKOn</code>, with a lowercase <em>n</em>, is a
+      service menu whose "recipes" are diagnostic routines: <em>Neg Pressure Leak Test</em>,
+      <em>Tower</em>, <em>WVSC</em>.</p>
+      <p>The update package's <code>INSTALL.INI</code> names the target outright, which settles
+      the USB layout question the docs previously left open:</p>
+      <pre><code>[Menu]
+name=Menu Resource
+file=0:TeaBrew/MENU.FBP
+type=flash
+device=Flash0
+address=0x80000000</code></pre>
+      <p>So the stick needs a <code>TeaBrew/</code> folder with its own
+      <code>INSTALL.INI</code> and a second one at the root pointing to it — the layout is
+      load-bearing. The interface is a third-party product (<b>TeaBrewer</b>, by M-Wave
+      Controls), which is why this format looks nothing like the Bluetooth protocol. And the
+      eight-character filename rule holds: <code>FrkMenu</code>, <code>Ser82018</code>,
+      <code>MENU</code>.</p>
+
+      <h2>Still open</h2>
+      <div class="flow">
+        <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>Header bytes 8–15 and the category-table field widths — a guess parses the first category then drifts.</span></div>
+        <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>Whether the machine checks anything beyond the checksum.</span></div>
+        <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>A <code>&lt;DESCALE&gt;</code>/<code>&lt;DV&gt;</code> start variant, and <code>&lt;AP&gt;</code> on a vacuum step.</span></div>
+        <div class="row" style="--dot:var(--warn)"><span class="d"></span><span>One unmatched brew-out: the service menu balances 111/111, both beverage menus come out 123/124. Unexplained, so it is written down rather than rounded off.</span></div>
+      </div>
+      <p>The clean way to close all of it is the machine's own <b>Service Menu → Export to
+      Recipe File</b>: a known-good file from your unit would confirm the framing and give a
+      byte-for-byte target to reproduce.</p>
+    </section>
+
     <!-- FIDELITY -->
     <section id="fidelity">
       <h1>Fidelity &amp; status</h1>
@@ -604,7 +716,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      300 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      316 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>

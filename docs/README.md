@@ -43,6 +43,7 @@ whatever you need.
 | Know the confirmed units & error codes | [INTEL.md](INTEL.md) |
 | Set up semantic Q&A (LightRAG + a model) | [RAG.md](RAG.md) |
 | Make recipes longer than Bluetooth allows | [LONGER_RECIPES.md](LONGER_RECIPES.md) |
+| Understand the `.bbp` menu-file format | [BBP_FORMAT.md](BBP_FORMAT.md) |
 | See how faithful this is to the app | [APP_COMPARISON.md](APP_COMPARISON.md) |
 | Install the add-on | [../addon/DOCS.md](../addon/DOCS.md) |
 
@@ -104,7 +105,7 @@ See [APP_COMPARISON.md](APP_COMPARISON.md) for a fidelity audit.
 ## Testing
 
 ```
-./tests/run_all.sh          # 300 assertions, no dependencies
+./tests/run_all.sh          # 316 assertions, no dependencies
 ```
 
 The logic that matters — encoding, the advisor, retrieval, provider selection,
