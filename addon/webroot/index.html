@@ -641,7 +641,8 @@
       </div>
       <div class="stu-actions">
         <div class="stu-actions-btns">
-          <button class="btn primary" id="stuCopy" type="button">Save recipe</button>
+          <button class="btn primary" id="stuLibSave2" type="button">Save recipe</button>
+          <button class="btn" id="stuCopy" type="button" title="Copy the YAML instead">Copy call</button>
           <button class="btn" id="stuBrew" type="button">Send to brewer</button>
           <button class="btn" id="stuBbp" type="button" title="Download a .bbp menu file">Export .bbp</button>
         </div>
@@ -1400,6 +1401,33 @@ address=0x80000000</code></pre>
     return out;
   }
 
+  // Home Assistant's library is the source of truth when it is reachable; the
+  // browser store is the fallback so the studio still works standalone. Saving
+  // now performs the save rather than handing you YAML to paste.
+  let haConnected = false;
+  async function libSync(){
+    try{
+      const d = await (await fetch(BASE_URL+"recipes")).json();
+      haConnected = !!d.connected;
+      if(!haConnected) return;
+      library = {};
+      (d.recipes||[]).forEach(r=>{
+        library[slug(r.name)] = {name:r.name, steps:r.steps||[],
+          rating:r.rating||0, notes:r.notes||"", journal:r.journal||[],
+          brews:r.brew_count||0, last:r.last_brewed||""};
+      });
+      libRender(); journalRender();
+    }catch(e){ haConnected = false; }
+  }
+
+  async function libSaveRemote(rec){
+    const res = await fetch(BASE_URL+"recipes",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:rec.name, steps:rec.steps, rating:rec.rating,
+                           notes:rec.notes, journal:rec.journal})});
+    if(!res.ok){ const d=await res.json().catch(()=>({})); throw new Error(d.detail||`HTTP ${res.status}`); }
+  }
+
   function libSave(){
     const name = ($("stuName").value || "Untitled").trim();
     const id = slug(name);
@@ -1423,7 +1451,13 @@ address=0x80000000</code></pre>
                    journal,
                    saved: new Date().toISOString().slice(0,10)};
     currentId = id; libPersist(); libRender(); journalRender();
-    flash(prev ? `Updated "${name}"` : `Saved "${name}"`);
+    if(haConnected){
+      libSaveRemote(library[id])
+        .then(()=>{ flash(`Saved "${name}" to Home Assistant`); libSync(); })
+        .catch(e=>flash(`Saved locally — Home Assistant refused: ${e.message}`));
+    } else {
+      flash(prev ? `Updated "${name}" (local)` : `Saved "${name}" (local)`);
+    }
   }
 
   // The journal, shown under the recipe so the loop is visible, not buried.
@@ -1480,10 +1514,16 @@ address=0x80000000</code></pre>
   }
   function libDelete(id){
     const r = library[id]; if(!r) return;
-    if(!confirm(`Delete "${r.name || id}" from your studio library?`)) return;
+    if(!confirm(`Delete "${r.name || id}"?`)) return;
+    const name = r.name || id;
     delete library[id];
     if(currentId === id) currentId = null;
-    libPersist(); libRender(); flash("Deleted");
+    libPersist(); libRender();
+    if(haConnected){
+      fetch(BASE_URL+"recipes/delete",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name})}).then(()=>{flash("Deleted"); libSync();})
+        .catch(()=>flash("Deleted locally — Home Assistant refused"));
+    } else flash("Deleted (local)");
   }
   function libNew(){
     steps = []; currentId = null;
@@ -1537,6 +1577,7 @@ address=0x80000000</code></pre>
   });
 
   $("stuLibSave").onclick = libSave;
+  $("stuLibSave2") && ($("stuLibSave2").onclick = libSave);
   $("stuLibNew").onclick = libNew;
 
   // ---- your rating + notes (persisted via the copied service call) ----
@@ -1619,10 +1660,24 @@ address=0x80000000</code></pre>
     }finally{ btn.disabled=false; btn.textContent=was; }
   };
 
-  $("stuBrew").onclick = () => {
-    navigator.clipboard?.writeText(brewYaml())
-      .then(()=>flash("Copied brew_saved call — save it first if you haven't"))
-      .catch(()=>flash("Copy blocked — select manually"));
+  $("stuBrew").onclick = async () => {
+    const name=($("stuName").value||"Untitled").trim();
+    if(!haConnected){
+      navigator.clipboard?.writeText(brewYaml())
+        .then(()=>flash("Not connected to Home Assistant — copied the brew call instead"))
+        .catch(()=>flash("Copy blocked — select manually"));
+      return;
+    }
+    const btn=$("stuBrew"), was=btn.textContent;
+    btn.disabled=true; btn.textContent="Sending…";
+    try{
+      const res=await fetch(BASE_URL+"recipes/brew",{method:"POST",
+        headers:{"Content-Type":"application/json"}, body:JSON.stringify({name})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
+      flash(`Brewing "${name}"`);
+    }catch(err){ flash(`Could not brew — ${err.message||err}`); }
+    finally{ btn.disabled=false; btn.textContent=was; }
   };
 
   // ---- score (LLM critique via the add-on) ----
@@ -1697,7 +1752,7 @@ address=0x80000000</code></pre>
   });
 
   render();
-  libLoad(); libRender(); journalRender();
+  libLoad(); libRender(); journalRender(); libSync();
 })();
 </script>
 

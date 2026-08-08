@@ -5,3 +5,4 @@ fastapi==0.118.0
 uvicorn[standard]==0.37.0
 ollama==0.6.0             # talks to Ollama Cloud for generation only
 numpy<3
+aiohttp==3.10.11

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.12.0 — manage the brewer without leaving the studio
+- **Save, delete and brew now actually happen.** The studio used to hand you a
+  YAML service call to paste into Developer Tools; with `homeassistant_api`
+  enabled the add-on calls the service itself. **Send to brewer** brews.
+- **The recipe store is Home Assistant's library**, read off the sensor it
+  already publishes — so the studio, voice, automations and MCP all see one set
+  of recipes, with ratings, notes, journal and brew count.
+- Still works standalone: if Home Assistant is unreachable the browser store
+  takes over and the buttons fall back to copying the call, saying so plainly.
+- New endpoints: `GET /recipes`, `POST /recipes`, `/recipes/delete`,
+  `/recipes/brew`, `/recipes/note`.
+
+> **Note:** this release turns on `homeassistant_api`, so the add-on can call
+> Home Assistant services. That is what makes the studio able to act rather than
+> only describe.
+
 ## 0.11.0
 - **`/documents/text` no longer lies.** LightRAG extracts entities through the
   model, so an insert fails when the provider does — the endpoint used to answer

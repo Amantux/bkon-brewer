@@ -1,5 +1,5 @@
 name: BKON LightRAG
-version: "0.11.0"
+version: "0.12.0"
 slug: bkon_lightrag
 description: Recipe studio and document Q&A for the BKON Brewer — a chat that builds and tunes recipes, plus optional graph-RAG over the machine’s manuals (Ollama / Anthropic / OpenAI-compatible).
 url: https://github.com/Amantux/bkon-brewer/tree/main/addon
@@ -18,7 +18,7 @@ panel_title: BKON RAG
 # names the profile from the slug. Giving it a string here makes the whole
 # config unreadable, and the add-on vanishes from the store.
 apparmor: true
-homeassistant_api: false
+homeassistant_api: true
 hassio_api: false
 ports:
   9621/tcp: null

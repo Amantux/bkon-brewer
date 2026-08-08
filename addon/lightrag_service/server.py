@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 # LightRAG half switched off they are never touched, so the studio starts
 # without paying for an ONNX runtime it will not use.
 
+import ha
 import scoring
 import studio_tools
 from chat import run_chat
@@ -409,6 +410,7 @@ async def assistant_config():
         "error": _provider_error,
         "lightrag": ENABLE_LIGHTRAG,
         "documents_ready": bool(ENABLE_LIGHTRAG and _rag is not None),
+        "home_assistant": ha.available(),
         # What to change, in the user's terms, when it is not working.
         "saved_here": {k: v for k, v in _load_overrides().items() if k != "api_key"},
         "key_saved": bool(_load_overrides().get("api_key")),
@@ -418,6 +420,80 @@ async def assistant_config():
             "model — and an api_key for anthropic/openai, or for Ollama Cloud. "
             "For a local Ollama set base_url to http://<host>:11434."),
     }
+
+
+# --- recipes: the studio acts on Home Assistant's library directly ----------
+
+@app.get("/recipes")
+async def list_recipes():
+    """Every saved recipe, from Home Assistant — the one source of truth."""
+    try:
+        return {"connected": True, "recipes": await ha.library()}
+    except Exception as ex:                          # noqa: BLE001
+        return {"connected": False, "recipes": [], "error": str(ex)}
+
+
+@app.post("/recipes")
+async def save_recipe(request: Request):
+    """Create or update a recipe in Home Assistant, rating and notes included."""
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    data = {"name": name, "steps": body.get("steps") or []}
+    for k in ("rating", "notes", "journal"):
+        if body.get(k) not in (None, "", []):
+            data[k] = body[k]
+    try:
+        await ha.call_service("save_recipe", data)
+    except ha.HaError as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
+    return {"saved": True, "name": name}
+
+
+@app.post("/recipes/delete")
+async def delete_recipe(request: Request):
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    try:
+        await ha.call_service("delete_recipe", {"name": name})
+    except ha.HaError as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
+    return {"deleted": True, "name": name}
+
+
+@app.post("/recipes/brew")
+async def brew_recipe(request: Request):
+    """Brew a saved recipe. The one thing that genuinely needs the brewer."""
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    try:
+        await ha.call_service("brew_saved", {"name": name})
+    except ha.HaError as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
+    return {"brewing": True, "name": name}
+
+
+@app.post("/recipes/note")
+async def note_recipe(request: Request):
+    """Add a tasting-journal entry against a saved recipe."""
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    data = {"name": name}
+    for k in ("changes", "taste", "rating", "when"):
+        if body.get(k) not in (None, ""):
+            data[k] = body[k]
+    try:
+        await ha.call_service("add_tasting_note", data)
+    except ha.HaError as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
+    return {"noted": True, "name": name}
 
 
 @app.post("/lint")
