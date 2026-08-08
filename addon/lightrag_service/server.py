@@ -310,6 +310,30 @@ async def chat_turn(request: Request):
                         for a in turn.actions]}
 
 
+@app.get("/config")
+async def assistant_config():
+    """What the UI needs to know about the model, before it asks for anything.
+
+    The Edibl pattern: the page reads this once and adapts, rather than firing a
+    request and interpreting a failure. It carries no secrets -- whether a key is
+    set, never the key itself -- so it is safe on the open ingress surface.
+    """
+    return {
+        "enabled": _provider is not None,
+        "provider": _provider.name if _provider else None,
+        "model": getattr(_provider, "model", None) if _provider else None,
+        "error": _provider_error,
+        "lightrag": ENABLE_LIGHTRAG,
+        "documents_ready": bool(ENABLE_LIGHTRAG and _rag is not None),
+        # What to change, in the user's terms, when it is not working.
+        "setup_hint": (
+            None if _provider is not None else
+            "Open this add-on's Configuration tab and set ai_provider plus a "
+            "model — and an api_key for anthropic/openai, or for Ollama Cloud. "
+            "For a local Ollama set base_url to http://<host>:11434."),
+    }
+
+
 @app.post("/score")
 async def score_endpoint(request: Request):
     """Score one recipe and return the critique.

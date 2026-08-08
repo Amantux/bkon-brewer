@@ -184,6 +184,36 @@
   .stu-notes{margin-top:8px;width:100%;font-family:var(--sans);font-size:12.5px;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;resize:vertical;min-height:44px}
   .stu-notes:focus{border-color:var(--accent);outline:none}
+
+  /* ---- Floating chat companion (every page) ---- */
+  .cmp-fab{position:fixed;right:16px;bottom:66px;z-index:40;display:flex;align-items:center;gap:8px;
+    border:1px solid var(--line-2);background:var(--accent);color:#fff;font-family:var(--sans);
+    font-size:13px;font-weight:600;padding:10px 15px;border-radius:99px;cursor:pointer;box-shadow:var(--shadow)}
+  .cmp-fab:hover{filter:brightness(1.06)}
+  .cmp-fab .dot{width:7px;height:7px;border-radius:99px;background:#fff;opacity:.55}
+  .cmp-fab .dot.on{opacity:1;background:#8ff0a4}
+  .cmp{position:fixed;right:16px;bottom:66px;z-index:41;width:min(390px,calc(100vw - 32px));
+    max-height:min(560px,calc(100vh - 96px));display:none;flex-direction:column;
+    background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .cmp.on{display:flex}
+  .cmp-head{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .cmp-head b{font-size:13.5px}
+  .cmp-head .sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+  .cmp-x{margin-left:auto;border:0;background:none;color:var(--ink-faint);font-size:17px;cursor:pointer;line-height:1;padding:2px 4px}
+  .cmp-x:hover{color:var(--ink)}
+  .cmp-body{flex:1;overflow-y:auto;padding:12px 13px;display:flex;flex-direction:column;gap:9px}
+  .cmp-sugg{display:flex;flex-wrap:wrap;gap:6px;padding:0 13px 10px}
+  .cmp-sugg button{border:1px solid var(--line);background:var(--panel-2);color:var(--ink-soft);
+    font-size:11.5px;padding:5px 10px;border-radius:99px;cursor:pointer;font-family:var(--sans)}
+  .cmp-sugg button:hover{border-color:var(--accent);color:var(--ink)}
+  .cmp-form{display:flex;gap:7px;padding:10px 13px;border-top:1px solid var(--line)}
+  .cmp-form input{flex:1;font-family:var(--sans);font-size:13px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .cmp-form input:focus{border-color:var(--accent);outline:none}
+  .cmp-setup{margin:0;padding:11px 13px;font-size:12.5px;line-height:1.5;color:var(--ink);
+    background:color-mix(in srgb,var(--warn) 10%,transparent);border-bottom:1px solid var(--line)}
+  .cmp-setup code{font-size:11.5px}
+  @media (max-width:520px){.cmp{right:8px;left:8px;width:auto}}
   .stu-foot{font-size:11.5px;color:var(--ink-faint);line-height:1.6;border-top:1px solid var(--line);padding-top:14px;max-width:none}
 </style>
 </head>
@@ -789,6 +819,23 @@ address=0x80000000</code></pre>
   </main>
 </div>
 <button class="themebtn" id="theme" title="Toggle theme">◑</button>
+
+<!-- Floating chat companion, on every page -->
+<button class="cmp-fab" id="cmpFab" type="button" aria-expanded="false" aria-controls="cmp">
+  <span class="dot" id="cmpDot"></span>Ask the brewer</button>
+<section class="cmp" id="cmp" aria-label="Brewer assistant">
+  <div class="cmp-head">
+    <div><b>Brewer assistant</b><div class="sub" id="cmpProv">checking…</div></div>
+    <button class="cmp-x" id="cmpX" type="button" aria-label="Close">✕</button>
+  </div>
+  <p class="cmp-setup" id="cmpSetup" hidden></p>
+  <div class="cmp-body" id="cmpBody"></div>
+  <div class="cmp-sugg" id="cmpSugg"></div>
+  <form class="cmp-form" id="cmpForm">
+    <input id="cmpInput" autocomplete="off" placeholder="Ask about your brewer…" aria-label="Message the assistant" />
+    <button class="btn primary" type="submit" id="cmpSend">Send</button>
+  </form>
+</section>
 <script>
   const nav=document.querySelectorAll('nav.side a[data-nav]');
   const secs=document.querySelectorAll('section');
@@ -1073,6 +1120,103 @@ address=0x80000000</code></pre>
   });
 
   render();
+})();
+</script>
+
+<!-- The companion: same /chat brain as the studio, reachable from any page -->
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fab=$("cmpFab"), panel=$("cmp"), body=$("cmpBody"), setup=$("cmpSetup");
+  if(!fab) return;
+  const BASE = location.pathname.replace(/[^/]*$/,"");
+  const history = [];
+  let cfg = null;
+
+  const SUGGESTIONS = ["What does C:3 M:5 mean?", "How do I descale?",
+                       "Build me a strong small cup", "What is a vacuum step for?"];
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function bubble(role, text, actions){
+    const w=document.createElement("div"); w.className="stu-msg "+(role==="me"?"me":"bot");
+    const b=document.createElement("div"); b.className="stu-bubble"; b.textContent=text;
+    if(actions&&actions.length){
+      const r=document.createElement("div"); r.className="stu-acts";
+      actions.forEach(a=>{const c=document.createElement("span");c.className="stu-chip";
+        c.textContent=a.tool.replace(/_/g," ");r.appendChild(c);});
+      b.appendChild(r);
+    }
+    w.appendChild(b); body.appendChild(w); body.scrollTop=body.scrollHeight; return b;
+  }
+
+  // Read the model's state once, like Edibl's /assistant/config, and adapt —
+  // rather than firing a request and making the user interpret a failure.
+  async function loadCfg(){
+    try{
+      cfg = await (await fetch(BASE+"config")).json();
+    }catch(e){ cfg={enabled:false,error:"the add-on is not reachable"}; }
+    $("cmpProv").textContent = cfg.enabled
+      ? `${cfg.provider}${cfg.model?" · "+cfg.model:""}${cfg.documents_ready?" · docs":""}`
+      : "not configured";
+    $("cmpDot").classList.toggle("on", !!cfg.enabled);
+    if(!cfg.enabled){
+      setup.hidden=false;
+      setup.innerHTML = `<b>No model configured.</b> ${esc(cfg.setup_hint||cfg.error||"")} `
+        + `The wiki and the <a data-nav="studio" href="#">recipe builder</a> work without one.`;
+      setup.querySelector("a")?.addEventListener("click",e=>{
+        e.preventDefault(); panel.classList.remove("on");
+        document.querySelector('nav.side a[data-nav="studio"]')?.click();
+      });
+    } else setup.hidden=true;
+  }
+
+  function chips(){
+    const host=$("cmpSugg"); host.innerHTML="";
+    SUGGESTIONS.forEach(s=>{ const b=document.createElement("button"); b.type="button";
+      b.textContent=s; b.onclick=()=>{ $("cmpInput").value=s; $("cmpForm").requestSubmit(); };
+      host.appendChild(b); });
+  }
+
+  function open(){
+    panel.classList.add("on"); fab.setAttribute("aria-expanded","true");
+    fab.style.display="none"; loadCfg();
+    if(!body.children.length){
+      bubble("bot","Ask me about the machine, an error code, or a recipe. I can build and tune one too.");
+      chips();
+    }
+    $("cmpInput").focus();
+  }
+  function close(){ panel.classList.remove("on"); fab.setAttribute("aria-expanded","false"); fab.style.display=""; }
+  fab.onclick=open; $("cmpX").onclick=close;
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&panel.classList.contains("on")) close(); });
+
+  $("cmpForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const inp=$("cmpInput"), msg=inp.value.trim(); if(!msg) return;
+    inp.value=""; bubble("me",msg); history.push({role:"user",content:msg});
+    $("cmpSugg").innerHTML="";
+    const send=$("cmpSend"); send.disabled=true;
+    const thinking=bubble("bot","…");
+    try{
+      const res=await fetch(BASE+"chat",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({message:msg, steps:[], history})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.detail||`HTTP ${res.status}`);
+      thinking.textContent=data.reply||"(no reply)";
+      if(data.actions&&data.actions.length){
+        const r=document.createElement("div"); r.className="stu-acts";
+        data.actions.forEach(a=>{const c=document.createElement("span");c.className="stu-chip";
+          c.textContent=a.tool.replace(/_/g," ");r.appendChild(c);});
+        thinking.appendChild(r);
+      }
+      history.push({role:"assistant",content:data.reply||""});
+    }catch(err){
+      thinking.textContent = String(err.message||err);
+      loadCfg();
+    }finally{ send.disabled=false; $("cmpInput").focus(); body.scrollTop=body.scrollHeight; }
+  });
+
+  loadCfg();   // so the dot reflects reality before the panel is ever opened
 })();
 </script>
 </body>

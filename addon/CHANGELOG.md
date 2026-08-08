@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.2
+- **A floating chat companion on every page**, bottom-right, in the Edibl style —
+  the same tool-using brain as the studio chat, reachable from the wiki, with
+  suggestion chips and Escape-to-close.
+- **New `GET /config`**: the UI reads the model's state once and adapts, instead
+  of firing a request and making you interpret a failure. When no provider is
+  set, the companion says exactly what to change and points at the recipe
+  builder, which needs no model. Carries no secrets — whether a key is set,
+  never the key.
+
 ## 0.7.1
 - **Fixes the add-on being missing from the add-on store.** `apparmor:` takes a
   boolean, not a profile name; the string made the Supervisor refuse the whole
