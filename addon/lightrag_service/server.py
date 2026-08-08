@@ -110,6 +110,7 @@ async def lifespan(_app: FastAPI):
     # one broken feature. Now it is recorded and surfaced per-request.
     global _provider_error
     try:
+        _apply_overrides()          # UI settings win over the add-on options
         _provider = build_provider()
         _provider_error = None
         _LOG.info("LLM provider: %s", _provider.name)
@@ -312,6 +313,87 @@ async def chat_turn(request: Request):
                         for a in turn.actions]}
 
 
+# Settings set from the UI live here and win over the add-on options. Written to
+# /data, which is the add-on's own persistent volume -- the same place its
+# options already live, and not reachable from outside the container.
+SETTINGS_FILE = os.getenv("SETTINGS_FILE", "/data/ui_settings.json")
+
+
+def _load_overrides() -> dict:
+    try:
+        import json
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _apply_overrides() -> None:
+    """Fold saved UI settings into the environment the provider layer reads."""
+    ov = _load_overrides()
+    prov = (ov.get("provider") or "").strip().lower()
+    if not prov:
+        return
+    os.environ["AI_PROVIDER"] = prov
+    up = prov.upper()
+    if ov.get("model"):
+        os.environ[f"{up}_MODEL"] = ov["model"]
+    if ov.get("api_key"):
+        os.environ[f"{up}_API_KEY"] = ov["api_key"]
+    # An empty base_url is meaningful (it means "the vendor default"), so it is
+    # only cleared when the key is present and blank.
+    if "base_url" in ov:
+        if ov["base_url"]:
+            os.environ[f"{up}_BASE_URL"] = ov["base_url"]
+        else:
+            os.environ.pop(f"{up}_BASE_URL", None)
+
+
+def _rebuild_provider() -> None:
+    global _provider, _provider_error
+    try:
+        _apply_overrides()
+        _provider = build_provider()
+        _provider_error = None
+        _LOG.info("LLM provider: %s", _provider.name)
+    except Exception as ex:                          # noqa: BLE001
+        _provider, _provider_error = None, str(ex)
+        _LOG.error("LLM provider not configured: %s", ex)
+
+
+@app.post("/config")
+async def save_config(request: Request):
+    """Set the provider, model and key from the UI, and apply them now.
+
+    Reaching the add-on's Configuration tab is awkward on a phone, and a key you
+    cannot set is a feature you cannot use. This is on the ingress surface, which
+    Home Assistant authenticates, and the key is written to the add-on's own
+    /data volume -- never echoed back, never logged.
+    """
+    body = await request.json()
+    allowed = ("provider", "model", "api_key", "base_url")
+    ov = _load_overrides()
+    for k in allowed:
+        if k in body:
+            ov[k] = str(body[k] or "")
+    # A blank key means "keep the one already saved", so clearing a field by
+    # accident cannot silently sign you out.
+    if not ov.get("api_key"):
+        ov.pop("api_key", None)
+    try:
+        import json
+        os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(ov, f)
+    except OSError as ex:
+        raise HTTPException(status_code=500, detail=f"could not save: {ex}")
+
+    _rebuild_provider()
+    return {"saved": True, "enabled": _provider is not None,
+            "provider": _provider.name if _provider else None,
+            "error": _provider_error}
+
+
 @app.get("/config")
 async def assistant_config():
     """What the UI needs to know about the model, before it asks for anything.
@@ -328,6 +410,8 @@ async def assistant_config():
         "lightrag": ENABLE_LIGHTRAG,
         "documents_ready": bool(ENABLE_LIGHTRAG and _rag is not None),
         # What to change, in the user's terms, when it is not working.
+        "saved_here": {k: v for k, v in _load_overrides().items() if k != "api_key"},
+        "key_saved": bool(_load_overrides().get("api_key")),
         "setup_hint": (
             None if _provider is not None else
             "Open this add-on's Configuration tab and set ai_provider plus a "

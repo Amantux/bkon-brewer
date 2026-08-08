@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.2
+- **Fixes the builder on mobile.** A pre-drawer rule still carried
+  `position:static!important`, which beat the new drawer's `position:fixed` while
+  its `transform` still applied — so the nav sat in the page flow, shifted
+  invisibly off-screen, pushing everything down and leaving a drawer that could
+  never open. The obsolete rule is gone and the builder's own grid now collapses
+  at the same breakpoint as the rest of the page.
+- **Set the provider, model and API key from the Settings page.** Reaching the
+  add-on's Configuration tab is awkward on a phone, and a key you cannot set is a
+  feature you cannot use. Changes apply immediately, with no restart. Settings
+  saved here win over the add-on options; the key is stored in the add-on's own
+  data volume and is never sent back to the page — leaving the field blank keeps
+  the saved one.
+
 ## 0.9.1
 - **The tasting journal is now readable by MCP, automations and voice.** It was
   living only in the browser, where nothing else could see it. It is stored on
