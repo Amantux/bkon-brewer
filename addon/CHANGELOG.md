@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.3
+- **Save and Send moved to the bottom of the studio**, as a full-width action
+  bar under the builder rather than buried in the side panel. **Save** copies a
+  `save_recipe` call (steps, rating and notes); **Send** copies a `brew_saved`
+  call for a recipe already in the library.
+
 ## 0.7.2
 - **A floating chat companion on every page**, bottom-right, in the Edibl style —
   the same tool-using brain as the studio chat, reachable from the wiki, with
