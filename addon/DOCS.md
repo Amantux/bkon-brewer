@@ -54,8 +54,13 @@ It pairs a hand-builder with a chat: build a brew sequence step by step, or say
 *"a strong small cup, less bitter"* and watch the steps change. The chat drives
 the same build / tune / lint / diagnose tools the integration ships, and *"how do
 I descale?"* is answered from the machine's documents. Both sides share one
-recipe, and the byte gauge shows whether it fits a Bluetooth brew; copy the
-`save_recipe` call when you are happy.
+recipe, and the byte gauge shows whether it fits a Bluetooth brew.
+
+**Score it** — the *Score recipe* button (or "score this" in the chat) has the
+model rate the recipe out of 100 and comment, grounded in the confirmed ranges,
+the byte fit and how the vacuum reads. **Rate it yourself** — give it stars and a
+note; they ride along with the `save_recipe` call you copy, and persist via the
+integration's `rate_recipe` service.
 
 The chat needs a generation provider set (below) — without one the builder still
 works, but the chat will say it can't reach the service. It does **not** need

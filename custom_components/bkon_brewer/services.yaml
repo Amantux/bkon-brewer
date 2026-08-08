@@ -99,6 +99,49 @@ save_recipe:
       required: true
       selector:
         object:
+    rating:
+      name: Rating
+      description: Optional 1-5 star rating to store with the recipe (0 clears it).
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 5
+          mode: slider
+    notes:
+      name: Notes
+      description: Optional free-text notes to store with the recipe.
+      required: false
+      selector:
+        text:
+          multiline: true
+
+rate_recipe:
+  name: Rate a recipe
+  description: Attach your own rating and notes to a saved recipe. Does not change the steps.
+  fields:
+    name:
+      name: Name
+      required: true
+      selector:
+        text:
+    rating:
+      name: Rating
+      description: 1-5 stars. Use 0 to clear a rating. Leave empty to change only the notes.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 5
+          mode: slider
+    notes:
+      name: Notes
+      description: Free-text notes — how it tasted, what to try next.
+      required: false
+      selector:
+        text:
+          multiline: true
+
 delete_recipe:
   name: Delete a recipe
   description: Remove a saved recipe from the library.

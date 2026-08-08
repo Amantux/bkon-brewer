@@ -16,7 +16,7 @@ from .const import (
     SIGNAL_EVENT, CONF_ADDRESS, CONF_KB_PATH, CONF_SIMULATE, DEFAULT_KB_FILENAME, DOMAIN,
     SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
-    SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
+    SERVICE_RATE_RECIPE, SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
     SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
     SERVICE_EXPORT_MENU, DEFAULT_RECIPE_DIR,
@@ -391,7 +391,25 @@ def _register_services(hass: HomeAssistant) -> None:
     async def _save_recipe(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
         await library.async_put(call.data["name"], call.data["steps"])
+        # A rating/notes may ride along with a save from the studio.
+        if "rating" in call.data or "notes" in call.data:
+            await library.async_rate(call.data["name"],
+                                     rating=call.data.get("rating"),
+                                     notes=call.data.get("notes"))
         _notify_library_changed(hass)
+
+    async def _rate_recipe(call: ServiceCall) -> dict:
+        """Save the user's rating (1-5, 0 clears) and/or notes for a recipe."""
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        ok = await library.async_rate(call.data["name"],
+                                      rating=call.data.get("rating"),
+                                      notes=call.data.get("notes"))
+        if not ok:
+            raise vol.Invalid(f"No saved recipe named {call.data['name']!r}")
+        _notify_library_changed(hass)
+        rec = library.get_record(call.data["name"])
+        return {"name": rec["name"], "rating": rec.get("rating"),
+                "notes": rec.get("notes", "")}
 
     async def _delete_recipe(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
@@ -411,7 +429,17 @@ def _register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({
             vol.Required("name"): cv.string,
             vol.Required("steps"): [_STEP_SCHEMA],
+            vol.Optional("rating"): vol.All(vol.Coerce(int), vol.Range(min=0, max=5)),
+            vol.Optional("notes"): cv.string,
         }))
+    hass.services.async_register(
+        DOMAIN, SERVICE_RATE_RECIPE, _rate_recipe,
+        schema=vol.Schema({
+            vol.Required("name"): cv.string,
+            vol.Optional("rating"): vol.All(vol.Coerce(int), vol.Range(min=0, max=5)),
+            vol.Optional("notes"): cv.string,
+        }),
+        supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(
         DOMAIN, SERVICE_DELETE_RECIPE, _delete_recipe,
         schema=vol.Schema({vol.Required("name"): cv.string}))

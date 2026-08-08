@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 # LightRAG half switched off they are never touched, so the studio starts
 # without paying for an ONNX runtime it will not use.
 
+import scoring
 import studio_tools
 from chat import run_chat
 from contract import authorized, clean_answer
@@ -243,10 +244,21 @@ async def chat_turn(request: Request):
         except Exception as ex:                       # noqa: BLE001
             return {"answer": f"Could not reach the documents ({ex})."}, None
 
+    async def score_tool(_args: dict, cur_steps):
+        """Score the current recipe. Needs the provider, so it is a closure."""
+        crit = await scoring.score_recipe(_provider, cur_steps)
+        return {"score": crit.score, "verdict": crit.verdict,
+                "comment": crit.comment,
+                "dimensions": [{"name": d.name, "rating": d.rating,
+                                "comment": d.comment} for d in crit.dimensions],
+                "suggestions": crit.suggestions}, None
+
     # Documents are offered only when there are documents to reach; with the
-    # LightRAG half off the tool is absent, not broken.
+    # LightRAG half off the tool is absent, not broken. Scoring only needs the
+    # provider, so it is always available.
     have_docs = ENABLE_LIGHTRAG and _rag is not None
-    tools = studio_tools.registry_for(answer_docs if have_docs else None)
+    tools = studio_tools.registry_for(
+        answer_docs if have_docs else None, score_recipe=score_tool)
 
     try:
         turn = await run_chat(_provider, message, steps, tools, history=history)
@@ -256,6 +268,31 @@ async def chat_turn(request: Request):
     return {"reply": turn.reply, "steps": turn.steps,
             "actions": [{"tool": a.tool, "args": a.args, "result": a.result}
                         for a in turn.actions]}
+
+
+@app.post("/score")
+async def score_endpoint(request: Request):
+    """Score one recipe and return the critique.
+
+    Part of the ingress surface, like /chat. Takes ``{"steps": [...]}`` and
+    returns the model's score, verdict, per-dimension comments and suggestions,
+    with the objective facts (byte fit, linter findings) it was grounded on.
+    """
+    if _provider is None:
+        raise HTTPException(status_code=503, detail="service still starting")
+    body = await request.json()
+    steps = body.get("steps") or []
+    try:
+        crit = await scoring.score_recipe(_provider, steps)
+    except Exception as ex:                            # noqa: BLE001
+        _LOG.exception("scoring failed")
+        raise HTTPException(status_code=502, detail=f"scoring failed: {ex}")
+    return {
+        "score": crit.score, "verdict": crit.verdict, "comment": crit.comment,
+        "dimensions": [{"name": d.name, "rating": d.rating, "comment": d.comment}
+                       for d in crit.dimensions],
+        "suggestions": crit.suggestions, "facts": crit.facts,
+    }
 
 
 @app.post("/documents/text")

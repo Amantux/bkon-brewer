@@ -72,6 +72,8 @@ class RecipeLibrary:
                 "size_bytes": size,
                 "max_bytes": R.MAX_RECIPE_BYTES,
                 "error": error,
+                "rating": rec.get("rating"),
+                "notes": rec.get("notes", ""),
             })
         return out
 
@@ -86,7 +88,8 @@ class RecipeLibrary:
             return None
         return {"id": _slug(rec.get("name", id_or_name)),
                 "name": rec.get("name"), "steps": rec.get("steps", []),
-                "description": rec.get("description", "")}
+                "description": rec.get("description", ""),
+                "rating": rec.get("rating"), "notes": rec.get("notes", "")}
 
     def get(self, id_or_name: str) -> list[R.Step] | None:
         rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
@@ -106,9 +109,41 @@ class RecipeLibrary:
         rec = {"name": name, "steps": steps}
         if description:
             rec["description"] = description
+        # A save is about the steps; a rating and notes are the user's own
+        # feedback and outlive an edit, so carry them across an overwrite.
+        prev = self._recipes.get(rid)
+        if prev:
+            if prev.get("rating") is not None:
+                rec["rating"] = prev["rating"]
+            if prev.get("notes"):
+                rec["notes"] = prev["notes"]
         self._recipes[rid] = rec
         await self.async_save()
         return rid
+
+    async def async_rate(self, id_or_name: str, rating: int | None = None,
+                         notes: str | None = None) -> bool:
+        """Attach the user's rating and notes to a recipe.
+
+        `rating` 1-5 sets a rating, 0 clears it, None leaves it unchanged.
+        `notes` sets the note when given, None leaves it unchanged. Feedback,
+        not a recipe edit: the steps are untouched. Returns False if there is no
+        such recipe.
+        """
+        rid = id_or_name if id_or_name in self._recipes else _slug(id_or_name)
+        rec = self._recipes.get(rid)
+        if rec is None:
+            return False
+        if rating is not None:
+            if int(rating) <= 0:
+                rec.pop("rating", None)
+            else:
+                rec["rating"] = max(1, min(5, int(rating)))
+        if notes is not None:
+            rec["notes"] = str(notes)
+        self._recipes[rid] = rec
+        await self.async_save()
+        return True
 
     async def async_delete(self, id_or_name: str) -> bool:
         rid = id_or_name if id_or_name in self._recipes else _slug(id_or_name)
@@ -124,10 +159,20 @@ class RecipeLibrary:
     # so a change to one recipe is a one-file diff a human can read.
 
     def export_dict(self) -> dict:
-        """The whole library as an ordered, JSON/YAML-round-trippable dict."""
-        return {"version": 1,
-                "recipes": [self.get_record(rid)
-                            for rid in sorted(self._recipes)]}
+        """The whole library as an ordered, JSON/YAML-round-trippable dict.
+
+        Empty feedback fields are pruned so a recipe nobody has rated exports
+        byte-for-byte as before -- rating and notes only appear once set.
+        """
+        records = []
+        for rid in sorted(self._recipes):
+            rec = self.get_record(rid)
+            if rec.get("rating") is None:
+                rec.pop("rating", None)
+            if not rec.get("notes"):
+                rec.pop("notes", None)
+            records.append(rec)
+        return {"version": 1, "recipes": records}
 
     async def async_import_records(self, records: list[dict],
                                    replace: bool = False) -> dict:
@@ -163,6 +208,10 @@ class RecipeLibrary:
             rec_out = {"name": name, "steps": steps}
             if rec.get("description"):
                 rec_out["description"] = rec["description"]
+            if rec.get("rating") is not None:
+                rec_out["rating"] = rec["rating"]
+            if rec.get("notes"):
+                rec_out["notes"] = rec["notes"]
             self._recipes[rid] = rec_out
         await self.async_save()
         return {"added": added, "updated": updated, "skipped": skipped,

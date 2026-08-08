@@ -46,6 +46,7 @@ TOOL_DOCS = {
     "adjust_recipe": 'args {"feedback": str}      tune the CURRENT recipe (stronger, less bitter, hotter, bigger, faster...)',
     "lint_recipe": "args {}                     check the CURRENT recipe for problems",
     "diagnose": 'args {"text": str}          explain an error code or symptom',
+    "score_recipe": 'args {}                     score the CURRENT recipe and comment on it',
     "answer_docs": 'args {"query": str}         answer a how-to question from the machine\'s manuals',
 }
 

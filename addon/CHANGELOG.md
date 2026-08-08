@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+- **Score a recipe** in the studio: a "Score recipe" button and a `score_recipe`
+  chat tool ask the model to rate the current recipe out of 100 and comment on
+  it — grounded in the objective facts (byte fit, linter findings, the confirmed
+  ranges and vacuum relationships) so the critique is about the recipe, not
+  vibes. New `POST /score` endpoint; needs a generation provider.
+- **Your own rating and notes** now persist on a recipe. Star it and jot a note
+  in the studio, and they ride along with the copied `save_recipe` call; a new
+  `rate_recipe` service (and optional `rating`/`notes` on `save_recipe`) stores
+  them. Feedback survives an edit and round-trips through export/import.
+
 ## 0.6.0
 - **Document Q&A is now a toggle** (`enable_lightrag`, on by default). Off, the
   same container serves the wiki and the recipe studio alone: the chat still

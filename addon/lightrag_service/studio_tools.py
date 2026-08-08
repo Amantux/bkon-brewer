@@ -68,15 +68,18 @@ REGISTRY = {
 }
 
 
-def registry_for(answer_docs=None) -> dict:
+def registry_for(answer_docs=None, score_recipe=None) -> dict:
     """The tool set for one chat turn.
 
     `answer_docs` is passed only when the LightRAG half of the add-on is on and
     ready; when it is off the tool is absent entirely rather than present and
     failing, so the system prompt never offers the model something it cannot
-    call. The recipe tools are there either way.
+    call. `score_recipe` needs the provider, so the server injects it as a
+    closure. The plain recipe tools are there either way.
     """
     tools = dict(REGISTRY)
     if answer_docs is not None:
         tools["answer_docs"] = answer_docs
+    if score_recipe is not None:
+        tools["score_recipe"] = score_recipe
     return tools

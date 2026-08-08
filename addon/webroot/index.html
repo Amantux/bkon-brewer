@@ -158,6 +158,32 @@
     border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
   .stu-name:focus{border-color:var(--accent);outline:none}
   .stu-hint{font-size:11.5px;color:var(--ink-soft);margin:10px 0 0;line-height:1.5}
+  .stu-score{display:flex;flex-direction:column;gap:10px}
+  .stu-score-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .stu-score-body{display:flex;flex-direction:column;gap:9px}
+  .stu-scorenum{display:flex;align-items:baseline;gap:8px}
+  .stu-scorenum b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;line-height:1;color:var(--dot,var(--accent))}
+  .stu-scorenum .max{font-size:13px;color:var(--ink-faint);font-family:var(--mono)}
+  .stu-scorenum .verdict{font-size:13px;font-weight:600;color:var(--ink)}
+  .stu-scorebar{height:7px;background:var(--panel-2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .stu-scorebar>i{display:block;height:100%;border-radius:99px;background:var(--dot,var(--accent));transition:width .4s}
+  .stu-scomment{font-size:13px;line-height:1.5;color:var(--ink)}
+  .stu-dims{display:flex;flex-direction:column;gap:6px}
+  .stu-dim{display:grid;grid-template-columns:76px auto 1fr;gap:8px;align-items:baseline;font-size:12px}
+  .stu-dim .dn{font-weight:600;color:var(--ink-soft)}
+  .stu-dim .dr{font-family:var(--mono);letter-spacing:1px;color:var(--accent);font-size:11px}
+  .stu-dim .dc{color:var(--ink-soft)}
+  .stu-sugg{margin:2px 0 0;padding-left:18px;font-size:12.5px;color:var(--ink);display:flex;flex-direction:column;gap:3px}
+  .stu-sugg li{line-height:1.45}
+  .stu-rate{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+  .stu-rate-label{font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--ink-soft);text-transform:uppercase}
+  .stu-stars{display:flex;gap:2px}
+  .stu-star{background:none;border:0;cursor:pointer;font-size:19px;line-height:1;padding:0 1px;color:var(--line-2)}
+  .stu-star.on{color:var(--t-purge)}
+  .stu-star:hover{color:var(--t-purge)}
+  .stu-notes{margin-top:8px;width:100%;font-family:var(--sans);font-size:12.5px;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;resize:vertical;min-height:44px}
+  .stu-notes:focus{border-color:var(--accent);outline:none}
   .stu-foot{font-size:11.5px;color:var(--ink-faint);line-height:1.6;border-top:1px solid var(--line);padding-top:14px;max-width:none}
 </style>
 </head>
@@ -194,7 +220,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>324</b><span>tests passing</span></div>
+        <div><b>363</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -263,6 +289,7 @@
         <tr><td><code>save_recipe</code> · <code>get_recipe</code> · <code>delete_recipe</code></td><td>Create / read / delete</td></tr>
         <tr><td><code>build_recipe</code></td><td>Build from a description ("strong bold cup")</td></tr>
         <tr><td><code>customize_recipe</code></td><td>Adjust from feedback ("stronger", "less bitter")</td></tr>
+        <tr><td><code>rate_recipe</code></td><td>Save your own 1–5 rating and notes (also optional on <code>save_recipe</code>)</td></tr>
         <tr><td><code>lint_recipe</code></td><td>Check for problems before brewing</td></tr>
       </table>
       <h2>Files, git &amp; the machine</h2>
@@ -314,7 +341,8 @@
       <p class="lede">Build a brew sequence by hand, or talk to it — <em>"a strong small
       cup, less bitter"</em> — and watch the steps change. The chat drives the same
       build, tune, lint and diagnose tools the integration ships, and shares this exact
-      recipe. When it fits the Bluetooth budget, copy the Home&nbsp;Assistant call.</p>
+      recipe. Have the model <b>score</b> it and comment; add your own <b>rating and
+      notes</b>; then, when it fits the Bluetooth budget, copy the Home&nbsp;Assistant call.</p>
 
       <div class="stu">
         <!-- builder -->
@@ -339,6 +367,18 @@
             <div class="stu-status" id="stuStatus"></div>
           </div>
 
+          <div class="stu-score card2">
+            <div class="stu-score-head">
+              <h2 style="margin:0">Score</h2>
+              <button class="btn" id="stuScoreBtn" type="button">Score recipe</button>
+            </div>
+            <div class="stu-score-body" id="stuScoreBody">
+              <p class="stu-hint" style="margin:0">Have the model rate this recipe and comment
+                on it — grounded in the confirmed ranges and how the vacuum reads. Needs the
+                add-on's generation provider.</p>
+            </div>
+          </div>
+
           <div class="stu-readout card2">
             <div class="stu-gauge-row">
               <div class="stu-gnum"><span id="stuBytes">0</span><span class="max"> / 599 bytes</span></div>
@@ -347,10 +387,16 @@
             <div class="stu-track"><div class="stu-fill" id="stuBar"></div></div>
             <div class="stu-note" id="stuNote"></div>
             <input class="stu-name" id="stuName" value="Morning Pour Over" spellcheck="false" aria-label="Recipe name" />
+            <div class="stu-rate">
+              <span class="stu-rate-label">Your rating</span>
+              <div class="stu-stars" id="stuStars" role="radiogroup" aria-label="Your rating"></div>
+            </div>
+            <textarea class="stu-notes" id="stuNotes" rows="2" spellcheck="true"
+              placeholder="Your notes — how it tasted, what to try next…" aria-label="Your notes"></textarea>
             <button class="btn primary" id="stuCopy" style="width:100%;margin-top:10px">Copy save_recipe call</button>
             <p class="stu-hint">Paste into <b>Developer Tools → Actions</b> (YAML) and run once
-              to save. Over 599 bytes? It still loads as a <a data-nav="longer" href="#">menu
-              file</a> over USB.</p>
+              to save — your rating and notes ride along. Over 599 bytes? It still loads as a
+              <a data-nav="longer" href="#">menu file</a> over USB.</p>
           </div>
         </aside>
       </div>
@@ -434,7 +480,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (324 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (363 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -738,7 +784,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      324 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      363 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
@@ -893,6 +939,19 @@ address=0x80000000</code></pre>
     if(!hasBo) out.push({type:"bo",values:{bt:"4"}}); return out; }
   const byteLen = s => new TextEncoder().encode(s).length;
 
+  // ---- a brief toast, for copy confirmations ----
+  let flashTimer;
+  function flash(msg){
+    let t=$("stuToast");
+    if(!t){ t=document.createElement("div"); t.id="stuToast";
+      t.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);"
+        +"background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:9px 16px;"
+        +"border-radius:99px;box-shadow:var(--shadow);z-index:60;opacity:0;transition:opacity .18s";
+      document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity="1";
+    clearTimeout(flashTimer); flashTimer=setTimeout(()=>{t.style.opacity="0";},1500);
+  }
+
   // ---- readout gauge ----
   function gauge(){
     const n = byteLen(JSON.stringify(prepare(steps)));
@@ -907,7 +966,20 @@ address=0x80000000</code></pre>
     $("stuNote").textContent=note;
   }
 
-  // ---- save_recipe YAML ----
+  // ---- your rating + notes (persisted via the copied service call) ----
+  let userRating = 0;
+  const starHost = $("stuStars");
+  for(let i=1;i<=5;i++){
+    const b=document.createElement("button"); b.type="button"; b.className="stu-star";
+    b.textContent="★"; b.title=`${i} star${i>1?"s":""}`; b.setAttribute("aria-label",`${i} of 5`);
+    b.onclick=()=>{ userRating = (userRating===i)?0:i; paintStars(); };
+    starHost.appendChild(b);
+  }
+  function paintStars(){
+    [...starHost.children].forEach((b,idx)=>b.classList.toggle("on", idx<userRating));
+  }
+
+  // ---- save_recipe YAML (rating + notes ride along) ----
   function yamlStr(s){ return /[:#'"\n]|^\s|\s$/.test(s) ? `"${s.replace(/"/g,'\\"')}"` : s; }
   function yaml(){
     const name=($("stuName").value||"Untitled").trim();
@@ -918,12 +990,48 @@ address=0x80000000</code></pre>
       for(const k of keys){ const v=st.values[k];
         const r=(typeof v==="string"&&st.type==="dialog")?yamlStr(v):v;
         out+=`        ${k}: ${r}\n`; } }
+    if(userRating) out+=`  rating: ${userRating}\n`;
+    const notes=($("stuNotes").value||"").trim();
+    if(notes) out+=`  notes: ${yamlStr(notes)}\n`;
     return out.trimEnd();
   }
   $("stuName").oninput = gauge;
   $("stuCopy").onclick = () => {
     navigator.clipboard?.writeText(yaml())
       .then(()=>flash("Copied save_recipe call")).catch(()=>flash("Copy blocked — select manually"));
+  };
+
+  // ---- score (LLM critique via the add-on) ----
+  const SCORE_URL = location.pathname.replace(/[^/]*$/,"") + "score";
+  const scoreBtn = $("stuScoreBtn"), scoreBody = $("stuScoreBody");
+  function scoreColor(n){ return n>=75?"var(--good)":n>=50?"var(--warn)":"var(--t-start)"; }
+  function renderScore(d){
+    const dims=(d.dimensions||[]).map(x=>
+      `<div class="stu-dim"><span class="dn">${esc(x.name)}</span>`
+      +`<span class="dr">${"●".repeat(Math.max(0,Math.min(5,x.rating||0)))}${"○".repeat(5-Math.max(0,Math.min(5,x.rating||0)))}</span>`
+      +`<span class="dc">${esc(x.comment||"")}</span></div>`).join("");
+    const sugg=(d.suggestions||[]).length
+      ? `<ul class="stu-sugg">${d.suggestions.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>` : "";
+    scoreBody.style.setProperty("--dot", scoreColor(d.score));
+    scoreBody.innerHTML =
+      `<div class="stu-scorenum"><b>${d.score|0}</b><span class="max">/100</span>`
+      +`<span class="verdict">${esc(d.verdict||"")}</span></div>`
+      +`<div class="stu-scorebar"><i style="width:${Math.max(0,Math.min(100,d.score|0))}%"></i></div>`
+      +(d.comment?`<div class="stu-scomment">${esc(d.comment)}</div>`:"")
+      +(dims?`<div class="stu-dims">${dims}</div>`:"")
+      +sugg;
+  }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  scoreBtn.onclick = async () => {
+    scoreBtn.disabled=true; const was=scoreBtn.textContent; scoreBtn.textContent="Scoring…";
+    try{
+      const res=await fetch(SCORE_URL,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({steps})});
+      if(!res.ok) throw new Error(res.status===503?"add-on still starting":`${res.status}`);
+      renderScore(await res.json());
+    }catch(err){
+      scoreBody.innerHTML=`<p class="stu-hint" style="margin:0;color:var(--t-start)">Couldn't score — is the add-on running with a provider set? (${esc(err.message||err)})</p>`;
+    }finally{ scoreBtn.disabled=false; scoreBtn.textContent=was; }
   };
 
   // ---- chat ----

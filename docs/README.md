@@ -68,7 +68,8 @@ Set up in Home Assistant under one **BKON Brewer** device.
 `send_raw` (developer escape hatch).
 
 **Recipes (CRUD)** — `save_recipe`, `get_recipe`, `delete_recipe`,
-`build_recipe`, `customize_recipe`.
+`build_recipe`, `customize_recipe`, `rate_recipe` (your own 1–5 rating and notes,
+also acceptable as optional fields on `save_recipe`).
 
 **Files & git** — `export_recipes` / `import_recipes` (one JSON per recipe),
 `download_recipes` (a readable .txt), `export_menu` (a machine menu file, for
@@ -105,7 +106,7 @@ See [APP_COMPARISON.md](APP_COMPARISON.md) for a fidelity audit.
 ## Testing
 
 ```
-./tests/run_all.sh          # 324 assertions, no dependencies
+./tests/run_all.sh          # 363 assertions, no dependencies
 ```
 
 The logic that matters — encoding, the advisor, retrieval, provider selection,
