@@ -90,5 +90,45 @@ else:
            abs(starts - outs) <= 1)
     print(f"  ({total} step records across {len(files)} files)")
 
+print("\nbuilding a .bbp — the confirmed parts must hold")
+REC = {"name": "Morning Cup", "code": "205/0/0", "portions": [
+    ("small", [{"type": "start", "values": {"tmp": "205"}},
+               {"type": "fr", "values": {"fwv": "250", "rwv": "30"}},
+               {"type": "vc", "values": {"ps": "24", "tm": "6"}},
+               {"type": "pg", "values": {"ps": "30", "tm": "10", "det": "1"}},
+               {"type": "bo", "values": {"bt": "4"}}])]}
+blob = B.build_menu([{"name": "Home Assistant", "colour": (168, 98, 31), "recipes": [REC]}])
+ok("it is a BKON file", blob[:4] == B.MAGIC_MENU)
+ok("its checksum verifies", B.verify(blob))
+chk = B.selfcheck(blob)
+check("every step reads back", chk["steps_readable"], 5)
+check("one start", chk["starts"], 1)
+check("one brew-out", chk["brew_outs"], 1)
+
+back = B.steps_to_tags(B.iter_steps(blob))
+check("the tags survive exactly", back, [
+    ("start", "<TMP>205</TMP>"),
+    ("fr", "<FWV>250</FWV><RWV>30</RWV>"),
+    ("vc", "<PS>24</PS><TM>6</TM>"),
+    ("pg", "<PS>30</PS><TM>10</TM><DET>1</DET>"),
+    ("bo", "<BT>4</BT>")])
+ok("tags are uppercased like the machine's own files", "<TMP>" in blob.decode("latin-1"))
+
+print("\nthe writer refuses what it cannot encode")
+try:
+    B.build_menu([{"name": "X", "recipes": [{"name": "n", "code": "", "portions": [("small", [{"type": "nope", "values": {}}])]}]}])
+    check("unknown step type", "no error", "BbpError")
+except B.BbpError:
+    check("unknown step type", "BbpError", "BbpError")
+
+print("\nthe self-check is honest about what it proves")
+ok("it names the confirmed part", "checksum" in chk["confirmed"])
+ok("it names the unconfirmed part", "framing" in chk["unconfirmed"])
+
+print("\na service menu uses the other magic")
+sm = B.build_menu([], service=True)
+check("service magic", sm[:4], B.MAGIC_SERVICE)
+ok("still checksums", B.verify(sm))
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

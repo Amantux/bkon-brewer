@@ -16,7 +16,7 @@ from .const import (
     SIGNAL_EVENT, CONF_ADDRESS, CONF_KB_PATH, CONF_SIMULATE, DEFAULT_KB_FILENAME, DOMAIN,
     SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
     SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
-    SERVICE_RATE_RECIPE, SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
+    SERVICE_EXPORT_BBP, SERVICE_RATE_RECIPE, SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
     SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
     SERVICE_EXPORT_MENU, DEFAULT_RECIPE_DIR,
@@ -332,6 +332,55 @@ def _register_services(hass: HomeAssistant) -> None:
                 "recipes": len(recipes),
                 "note": "Load via the machine's Service Menu > Update Recipe "
                         "File (USB). Not limited to 599 bytes like a BLE brew."}
+
+    async def _export_bbp(call: ServiceCall) -> dict:
+        """Write the library as a .bbp menu file. EXPERIMENTAL — see the docs.
+
+        The container checksum and the step records are confirmed against real
+        device files; the category framing is not. The result is reported with a
+        self-check saying exactly which parts are trustworthy, because this file
+        is destined for flash on the user-interface board and overstating it
+        would be the dangerous kind of wrong.
+        """
+        from .protocol import bbp
+        library: RecipeLibrary = hass.data[DOMAIN]["library"]
+        recipes = []
+        for r in library.list():
+            steps = library.get(r["id"])
+            portions = [(bbp.PORTIONS[0],
+                         [{"type": str(s.type), "values": s.values} for s in steps])]
+            recipes.append({"name": r["name"][:255],
+                            "code": (r.get("notes") or "")[:60],
+                            "portions": portions})
+        blob = bbp.build_menu([{
+            "name": call.data.get("menu_name", "Home Assistant"),
+            "colour": (168, 98, 31), "recipes": recipes}])
+        www = hass.config.path("www", "bkon")
+        # The machine wants eight characters or fewer, and a .bbp extension.
+        fname = call.data.get("filename", "hamenu.bbp")
+
+        def _write() -> str:
+            import os
+            os.makedirs(www, exist_ok=True)
+            path = os.path.join(www, fname)
+            with open(path, "wb") as f:
+                f.write(blob)
+            return path
+
+        path = await hass.async_add_executor_job(_write)
+        return {"path": path, "url": f"/local/bkon/{fname}",
+                "recipes": len(recipes), "selfcheck": bbp.selfcheck(blob),
+                "warning": "EXPERIMENTAL. The category framing is inferred and "
+                           "has never been accepted by a machine; the USB path "
+                           "writes to flash on the UI board. Compare against a "
+                           "real 'Export to Recipe File' dump before loading it."}
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT_BBP, _export_bbp,
+        schema=vol.Schema({
+            vol.Optional("menu_name"): cv.string,
+            vol.Optional("filename"): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL)
 
     hass.services.async_register(
         DOMAIN, SERVICE_EXPORT_MENU, _export_menu,

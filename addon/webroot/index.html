@@ -214,6 +214,23 @@
     background:color-mix(in srgb,var(--warn) 10%,transparent);border-bottom:1px solid var(--line)}
   .cmp-setup code{font-size:11.5px}
   @media (max-width:520px){.cmp{right:8px;left:8px;width:auto}}
+  .stu-lib{margin:0 0 16px}
+  .stu-lib-head{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .stu-lib-head h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin:0;font-weight:700}
+  .stu-lib-head .count{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  .stu-lib-head .sp{flex:1}
+  .stu-lib-list{display:flex;flex-wrap:wrap;gap:7px}
+  .stu-chipcard{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);
+    border-radius:99px;padding:5px 6px 5px 12px;font-size:12.5px;box-shadow:var(--shadow)}
+  .stu-chipcard.cur{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  .stu-chipcard button{border:0;background:none;cursor:pointer;font-family:var(--sans);font-size:12.5px;color:var(--ink);padding:0}
+  .stu-chipcard .load{font-weight:600}
+  .stu-chipcard .load:hover{color:var(--accent)}
+  .stu-chipcard .meta{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+  .stu-chipcard .del{color:var(--ink-faint);font-size:14px;line-height:1;padding:0 4px}
+  .stu-chipcard .del:hover{color:var(--t-start)}
+  .stu-lib-empty{font-size:12.5px;color:var(--ink-soft);border:1.5px dashed var(--line-2);
+    border-radius:10px;padding:14px;background:var(--panel-2)}
   .stu-actions{border-top:1px solid var(--line);padding-top:14px;margin:6px 0 14px}
   .stu-actions-btns{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:9px}
   .stu-actions-btns .btn{flex:1 1 180px}
@@ -254,7 +271,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>363</b><span>tests passing</span></div>
+        <div><b>392</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -378,6 +395,16 @@
       recipe. Have the model <b>score</b> it and comment; add your own <b>rating and
       notes</b>; then, when it fits the Bluetooth budget, copy the Home&nbsp;Assistant call.</p>
 
+      <div class="stu-lib">
+        <div class="stu-lib-head">
+          <h2>Your recipes</h2><span class="count" id="stuLibCount"></span>
+          <span class="sp"></span>
+          <button class="btn" id="stuLibSave" type="button">Save to library</button>
+          <button class="btn" id="stuLibNew" type="button">New</button>
+        </div>
+        <div class="stu-lib-list" id="stuLibList"></div>
+      </div>
+
       <div class="stu">
         <!-- builder -->
         <div class="stu-build">
@@ -490,6 +517,22 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
       is unknown. Treat the export as the recipe data in the machine's own terms. Capturing a
       real <em>Export to Recipe File</em> from a unit would settle both the container and the
       folder layout at once.</div>
+      <h2>Exporting a menu file</h2>
+      <div class="note"><b>Experimental — treat the output as a draft, not a menu.</b>
+        <code>bkon_brewer.export_bbp</code> writes the library as a <code>.bbp</code> at
+        <code>/local/bkon/hamenu.bbp</code>. The <b>checksum and every step record are
+        confirmed</b> against real device files and round-trip exactly; the
+        <b>category framing is inferred</b> and has never been accepted by a brewer. The USB
+        path writes to flash on the user-interface board — so don't load this onto hardware
+        you can't recover. Its honest use is as something to <em>diff</em> against a genuine
+        <em>Service Menu → Export to Recipe File</em> dump, which is exactly what would
+        confirm the framing and make this safe.</div>
+      <p>The call reports a self-check saying which parts it can vouch for:</p>
+      <pre><code>service: bkon_brewer.export_bbp
+data:
+  menu_name: Home Assistant
+  filename: hamenu.bbp      # 8 characters or fewer, plus .bbp</code></pre>
+
       <h2>Menu capacity</h2>
       <p>A menu has a fixed shape, stated outright in the menu-development guide:</p>
       <table>
@@ -521,7 +564,7 @@ bkon_brewer.import_recipes   # load them back, each validated</code></pre>
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (363 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (392 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -825,7 +868,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      363 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      392 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
@@ -1024,6 +1067,84 @@ address=0x80000000</code></pre>
     $("stuNote").textContent=note;
   }
 
+  // ---- the local recipe library --------------------------------------------
+  // A real store in the browser, so the studio is somewhere you keep recipes
+  // rather than a scratchpad you lose on refresh. Home Assistant's own library
+  // stays the source of truth for brewing -- Save copies the service call for
+  // that -- but this makes the CRUD loop immediate: create, list, load, update,
+  // delete, all without leaving the page.
+  const LIB_KEY = "bkon.studio.recipes.v1";
+  let library = {};
+  let currentId = null;
+
+  function libLoad(){
+    try{ library = JSON.parse(localStorage.getItem(LIB_KEY) || "{}") || {}; }
+    catch(e){ library = {}; }
+  }
+  function libPersist(){
+    try{ localStorage.setItem(LIB_KEY, JSON.stringify(library)); }
+    catch(e){ flash("Couldn't save — browser storage is full or blocked"); }
+  }
+  const slug = n => n.trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"") || "untitled";
+
+  function libSave(){
+    const name = ($("stuName").value || "Untitled").trim();
+    const id = slug(name);
+    const existed = !!library[id];
+    library[id] = {name, steps: JSON.parse(JSON.stringify(steps)),
+                   rating: userRating || 0, notes: ($("stuNotes").value||"").trim(),
+                   saved: new Date().toISOString().slice(0,10)};
+    currentId = id; libPersist(); libRender();
+    flash(existed ? `Updated "${name}"` : `Saved "${name}"`);
+  }
+  function libOpen(id){
+    const r = library[id]; if(!r) return;
+    steps = JSON.parse(JSON.stringify(r.steps || []));
+    $("stuName").value = r.name || id;
+    $("stuNotes").value = r.notes || "";
+    userRating = r.rating || 0; paintStars();
+    currentId = id; render(); libRender();
+    flash(`Loaded "${r.name || id}"`);
+  }
+  function libDelete(id){
+    const r = library[id]; if(!r) return;
+    if(!confirm(`Delete "${r.name || id}" from your studio library?`)) return;
+    delete library[id];
+    if(currentId === id) currentId = null;
+    libPersist(); libRender(); flash("Deleted");
+  }
+  function libNew(){
+    steps = []; currentId = null;
+    $("stuName").value = "New recipe"; $("stuNotes").value = "";
+    userRating = 0; paintStars(); render(); libRender();
+  }
+  function libRender(){
+    const host = $("stuLibList"), ids = Object.keys(library).sort((a,b)=>
+      (library[a].name||a).localeCompare(library[b].name||b));
+    $("stuLibCount").textContent = ids.length ? `${ids.length} saved` : "";
+    host.innerHTML = "";
+    if(!ids.length){
+      const d=document.createElement("div"); d.className="stu-lib-empty";
+      d.textContent="No saved recipes yet. Build one, then press Save to library — it stays in this browser.";
+      host.appendChild(d); return;
+    }
+    ids.forEach(id=>{
+      const r = library[id];
+      const card=document.createElement("div");
+      card.className="stu-chipcard"+(id===currentId?" cur":"");
+      const open=document.createElement("button"); open.type="button"; open.className="load";
+      open.textContent=r.name||id; open.title="Load this recipe"; open.onclick=()=>libOpen(id);
+      const meta=document.createElement("span"); meta.className="meta";
+      meta.textContent = `${(r.steps||[]).length} steps${r.rating?" · "+"★".repeat(r.rating):""}`;
+      const del=document.createElement("button"); del.type="button"; del.className="del";
+      del.textContent="✕"; del.title="Delete"; del.setAttribute("aria-label",`Delete ${r.name||id}`);
+      del.onclick=()=>libDelete(id);
+      card.append(open, meta, del); host.appendChild(card);
+    });
+  }
+  $("stuLibSave").onclick = libSave;
+  $("stuLibNew").onclick = libNew;
+
   // ---- your rating + notes (persisted via the copied service call) ----
   let userRating = 0;
   const starHost = $("stuStars");
@@ -1140,6 +1261,7 @@ address=0x80000000</code></pre>
   });
 
   render();
+  libLoad(); libRender();
 })();
 </script>
 

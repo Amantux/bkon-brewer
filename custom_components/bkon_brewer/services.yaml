@@ -116,6 +116,28 @@ save_recipe:
         text:
           multiline: true
 
+export_bbp:
+  name: Export a .bbp menu file (experimental)
+  description: >-
+    Write the whole library as a .bbp menu file for the machine's USB
+    "Update Recipe File" path. EXPERIMENTAL — the checksum and step records are
+    confirmed against real device files, but the category framing is inferred
+    and has never been accepted by a brewer. This file goes to flash on the
+    user-interface board; compare it against a real "Export to Recipe File" dump
+    before loading it onto hardware you cannot recover.
+  fields:
+    menu_name:
+      name: Menu name
+      required: false
+      selector:
+        text:
+    filename:
+      name: File name
+      description: Eight characters or fewer, plus .bbp — the machine's limit.
+      required: false
+      selector:
+        text:
+
 rate_recipe:
   name: Rate a recipe
   description: Attach your own rating and notes to a saved recipe. Does not change the steps.

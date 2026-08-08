@@ -31,6 +31,7 @@ SERVICE_EXPORT = "export_recipes"
 SERVICE_IMPORT = "import_recipes"
 SERVICE_DOWNLOAD = "download_recipes"
 SERVICE_EXPORT_MENU = "export_menu"
+SERVICE_EXPORT_BBP = "export_bbp"
 CONF_RECIPE_DIR = "recipe_dir"
 DEFAULT_RECIPE_DIR = "bkon_recipes"
 

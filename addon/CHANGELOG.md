@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0
+- **A recipe library in the studio.** Save, list, load, update and delete
+  recipes without leaving the page — they persist in the browser, so the studio
+  is somewhere you keep work rather than a scratchpad you lose on refresh. Home
+  Assistant's library stays the source of truth for brewing; **Save recipe**
+  still copies the service call for it.
+- **`.bbp` export** via the new `bkon_brewer.export_bbp` service —
+  **experimental**, and labelled as such everywhere. The container checksum and
+  step records are confirmed and round-trip exactly; the category framing is
+  inferred and has never been accepted by a machine.
+
 ## 0.7.3
 - **Save and Send moved to the bottom of the studio**, as a full-width action
   bar under the builder rather than buried in the side panel. **Save** copies a
