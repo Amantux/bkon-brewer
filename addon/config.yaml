@@ -14,7 +14,10 @@ ingress: true
 ingress_port: 9621
 panel_icon: mdi:coffee-maker
 panel_title: BKON RAG
-apparmor: bkon_lightrag
+# A boolean, not a profile name: the Supervisor loads addon/apparmor.txt and
+# names the profile from the slug. Giving it a string here makes the whole
+# config unreadable, and the add-on vanishes from the store.
+apparmor: true
 homeassistant_api: false
 hassio_api: false
 ports:
