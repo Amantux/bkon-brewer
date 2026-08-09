@@ -79,8 +79,14 @@ f = D.lint_recipe([R.fill(250), R.start(200), R.vacuum(24, 4)])
 check("Start not first is flagged",
       any("not first" in x.message for x in sev(f, Severity.WARNING)), True)
 f = D.lint_recipe([R.start(200), R.fill(250), R.start(205), R.vacuum(24, 4)])
-check("two Start steps are flagged",
-      any("Start steps" in x.message for x in sev(f, Severity.WARNING)), True)
+# Worded as an observation, not a verdict: real menus almost never carry a second
+# setpoint, and nothing confirms the firmware acts on one. Asserting "only the
+# first applies" would be stating an outcome nobody has watched.
+w = sev(f, Severity.WARNING)
+check("a second temperature setpoint is flagged",
+      any("setpoint" in x.message.lower() for x in w), True)
+check("and it is described as unconfirmed rather than decided",
+      any("unconfirmed" in x.message.lower() for x in w), True)
 f = D.lint_recipe([R.start(200), R.fill(250), R.vacuum(24, 4), R.dialog("ok?")])
 check("ending on a Dialog is flagged",
       any("ends on a Dialog" in x.message for x in sev(f, Severity.WARNING)), True)

@@ -112,6 +112,9 @@
   .stu-add:hover{border-color:var(--dot);background:var(--panel-2)}
   .stu-add .sw{width:10px;height:10px;border-radius:var(--r-chip);background:var(--dot);flex:none}
   .stu-add .pl{color:var(--ink-faint);font-weight:700}
+  .stu-add-exp{border-style:dashed}
+  .stu-add-exp .exp{font-family:var(--mono);font-size:var(--fs-xs);letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-faint);margin-left:2px}
   .stu-steps{display:flex;flex-direction:column;gap:9px}
   /* Drag to reorder. Pointer Events cover mouse, pen and touch with one code
      path; touch-action:none on the handle stops the browser scrolling the page
@@ -1394,7 +1397,11 @@ address=0x80000000</code></pre>
     dialog: {name:"Dialog", code:"dialog", desc:"Prompt the operator", color:"var(--t-dialog)",
       fields:[{k:"text",label:"Prompt text",type:"text",def:"Add grounds and press start"}]},
   };
-  const ORDER = ["start","fr","vc","pg","dialog"];
+  // The app's own addable set. START is structural there — it is created with the
+  // recipe, not added — so offering it in the palette is how you get two by
+  // accident. A later setpoint is offered separately, below, and labelled for
+  // what it actually is.
+  const ORDER = ["fr","vc","pg","dialog"];
   const DROP_IF_ZERO = new Set(["fwv","rwv","ap","ps","tm","dl"]);
   const MAX = 599;
   const MANUAL_STOP = "Manually stop the purge or it will close when it's finished";
@@ -1410,6 +1417,13 @@ address=0x80000000</code></pre>
   const history = [];
 
   // ---- palette ----
+  //: A start step after the first is not a second beginning — it is a change of
+  //: setpoint. Real device menus almost never contain one (108 of 111 portions
+  //: have exactly one), and nothing confirms the firmware acts on a later one,
+  //: so it is offered apart from the ordinary steps and marked unverified.
+  const TEMP_CHANGE_LABEL = "Change temperature";
+  function isTempChange(i, st){ return st.type === "start" && i > 0; }
+
   const pal = $("stuPalette");
   ORDER.forEach(t => {
     const T = TYPES[t];
@@ -1419,6 +1433,23 @@ address=0x80000000</code></pre>
     b.onclick = () => { steps.push({type:t, values:defaults(t)}); render(); };
     pal.appendChild(b);
   });
+  // Offered apart from the ordinary steps, and marked, because nothing confirms
+  // the machine acts on a setpoint change part-way through a brew.
+  (() => {
+    const b = document.createElement("button");
+    b.className = "stu-add stu-add-exp"; b.type = "button";
+    b.style.setProperty("--dot", "var(--t-start)");
+    b.title = "Set a new temperature mid-brew — unverified on hardware";
+    b.innerHTML = '<span class="sw"></span>' + TEMP_CHANGE_LABEL
+      + '<span class="exp">unverified</span>';
+    b.onclick = () => {
+      if(!steps.length){ flash("Add a Start first — the recipe needs a temperature"); return; }
+      steps.push({type:"start", values:{tmp:200}});
+      render();
+    };
+    pal.appendChild(b);
+  })();
+
   const defaults = t => { const v={}; TYPES[t].fields.forEach(f=>v[f.k]=f.def); return v; };
 
   // ---- render the step list ----
@@ -1430,6 +1461,7 @@ address=0x80000000</code></pre>
     }
     steps.forEach((st, i) => {
       const T = TYPES[st.type]; if (!T) return;
+      const tempChange = isTempChange(i, st);
       const card = document.createElement("div");
       card.className = "stu-card"; card.style.setProperty("--dot", T.color);
       const head = document.createElement("div"); head.className = "stu-head";
@@ -1439,7 +1471,10 @@ address=0x80000000</code></pre>
       grip.dataset.idx=String(i);
       head.appendChild(grip);
       head.insertAdjacentHTML("beforeend", `<span class="stu-idx">${i+1}</span><span class="stu-badge">${T.code}</span>`
-        + `<span class="stu-tname">${T.name}</span><span class="stu-tdesc">${T.desc}</span><span class="stu-sp"></span>`);
+        + `<span class="stu-tname">${tempChange ? TEMP_CHANGE_LABEL : T.name}</span>`
+        + `<span class="stu-tdesc">${tempChange
+             ? "Sets a new temperature mid-brew — unverified on hardware"
+             : T.desc}</span><span class="stu-sp"></span>`);
       card.dataset.idx=String(i);
       const up = ic("↑","Move up",()=>move(i,-1)); up.disabled = i===0;
       const dn = ic("↓","Move down",()=>move(i,1)); dn.disabled = i===steps.length-1;
@@ -1993,7 +2028,9 @@ address=0x80000000</code></pre>
   const QUICK = [["Coffee","a coffee"], ["Green tea","a green tea"],
                  ["Black tea","a black tea"], ["Delicate","a delicate tea"]];
   $("stuBlank").onclick = () => {
-    steps = []; currentId = null; derivedFrom = null;
+    // Start is structural, so a blank recipe is seeded with one rather than
+    // leaving you unable to set a temperature at all.
+    steps = [{type:"start", values:{tmp:205}}]; currentId = null; derivedFrom = null;
     $("stuName").value = "New recipe"; $("stuNotes").value = "";
     userRating = 0; paintStars(); paintPromote(); render(); libRender(); journalRender();
     flash("Blank recipe — add steps below");

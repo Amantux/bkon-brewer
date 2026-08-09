@@ -106,9 +106,12 @@ def lint_recipe(steps: list[R.Step]) -> list[Finding]:
     if types.count(R.StepType.START) > 1:
         findings.append(Finding(
             Severity.WARNING,
-            f"{types.count(R.StepType.START)} Start steps — only the "
-            "temperature of one of them will be what you get.",
-            "Keep a single Start at the top and delete the rest."))
+            f"{types.count(R.StepType.START)} temperature setpoints. Real "
+            "menus almost never do this, and it is unconfirmed whether the "
+            "machine acts on a change part-way through a brew.",
+            "If you did not mean to change temperature mid-brew, keep the "
+            "first and delete the rest. If you did, treat the result as "
+            "untested until you have watched a real brew."))
 
     if types and types[-1] == R.StepType.DIALOG:
         findings.append(Finding(

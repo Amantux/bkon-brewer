@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.1
+- **Start is no longer in the step palette**, matching the vendor app, which
+  treats it as structural and never lets you add one. Offering it is how a
+  recipe ended up with two by accident. A blank recipe is seeded with a Start so
+  you can still set a temperature.
+- **A later temperature step is now called what it is.** A `start` after the
+  first is not a second beginning, it is a change of setpoint, and it renders as
+  **Change temperature**. It is offered as a separate, dashed palette item
+  marked *unverified*: real device menus almost never contain one (108 of 111
+  portions have exactly one setpoint), and nothing confirms the machine acts on
+  a change part-way through a brew.
+- The linter now says that plainly instead of asserting an outcome. It used to
+  claim "only the temperature of one of them will be what you get" — which
+  nobody has ever watched happen.
+
 ## 0.20.0
 - **Fixes four ways the UI could get stuck.** Page switching used a bare
   `section` selector, so navigating anywhere hid the floating assistant while
