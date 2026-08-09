@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.1
+- **Brings the recipe builder back.** The wiki switches pages with
+  `section{display:none}`, and the 0.9.0 restructure made the builder and the
+  recipe store `<section class="zone">` — so the page rule hid them both. They
+  were in the markup, and the script rendered into them, but they were never
+  displayed. The rule is now scoped to `main > section`, which is the pages, and
+  a nested section can no longer be caught by it.
+- Adds a structural test over the served page: no script may reference an
+  element that does not exist, the page rule must stay scoped, the builder and
+  store must be inside the studio page, every nav target must resolve, and the
+  markup must balance.
+
 ## 0.14.0 — answers you can check
 - **Ask the docs**: a surface for questions answered from the machine's own
   service and training documents, with the documents the answer came from listed

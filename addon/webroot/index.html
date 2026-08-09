@@ -42,10 +42,13 @@
   nav.side .grp{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:16px 10px 4px}
 
   main{max-width:820px;padding:36px 40px 80px;width:100%}
-  section{scroll-margin-top:20px;display:none}
-  section.on{display:block;animation:fade .25s ease}
+  /* Page switching applies to the PAGES only — the direct children of <main>.
+     Unscoped, this hid every nested <section> too, which is what made the
+     recipe builder and the recipe store vanish when they became .zone sections. */
+  main > section{scroll-margin-top:20px;display:none}
+  main > section.on{display:block;animation:fade .25s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}}
-  @media (prefers-reduced-motion:reduce){section.on{animation:none}}
+  @media (prefers-reduced-motion:reduce){main > section.on{animation:none}}
 
   h1{font-size:27px;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
   .lede{font-size:16px;color:var(--ink-soft);margin:0 0 28px;max-width:60ch}
@@ -172,7 +175,7 @@
     .cmp{bottom:16px;max-height:min(70vh,560px)}
     .themebtn{display:none}
   }
-  @media (max-width:800px){section{scroll-margin-top:60px}}
+  @media (max-width:800px){main > section{scroll-margin-top:60px}}
   /* pointer:coarse — real touch, any width */
   @media (pointer:coarse){
     .stu-ic{width:40px;height:40px}
@@ -181,7 +184,7 @@
   }
 
   /* ---- The two areas that matter most, given weight ---- */
-  .zone{border:1px solid var(--line-2);border-radius:14px;padding:16px 16px 14px;margin:0 0 18px;
+  .zone{display:block;border:1px solid var(--line-2);border-radius:14px;padding:16px 16px 14px;margin:0 0 18px;
     background:var(--panel);box-shadow:var(--shadow);position:relative}
   .zone::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;
     border-radius:0 3px 3px 0;background:var(--zone,var(--accent))}
@@ -426,7 +429,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>460</b><span>tests passing</span></div>
+        <div><b>480</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -867,7 +870,7 @@ data:
           <tr><td>Pages per category</td><td>4</td></tr>
           <tr><td>Recipe buttons per page</td><td>8</td></tr>
           <tr><td><b>Recipes per category</b></td><td><b>32</b></td></tr>
-          <tr><td><b>Recipes per menu</b></td><td><b>460</b></td></tr>
+          <tr><td><b>Recipes per menu</b></td><td><b>480</b></td></tr>
         </tbody>
       </table>
       <p>The first page of a category is the easiest to reach at the machine, so the
@@ -889,7 +892,7 @@ data:
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (460 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (480 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -1193,7 +1196,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      460 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      480 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
