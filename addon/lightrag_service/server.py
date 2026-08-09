@@ -345,6 +345,10 @@ async def chat_turn(request: Request):
             return {"answer": "No question was given."}, None
         try:
             raw = await _rag.aquery(question, param=_query_param(mode="hybrid"))
+            # No sources here on purpose. The companion is deliberately a
+            # lightweight surface -- citations live on the Ask page, which is
+            # built to show them. Returning them would only pad the transcript
+            # with something nothing renders.
             return {"answer": clean_answer(raw)}, None
         except Exception as ex:                       # noqa: BLE001
             # This handler once hid a NameError as "could not reach the
@@ -815,11 +819,129 @@ async def upload_index(request: Request,
     return {"stored": True, "passages": len(passages), "documents": len(kb.documents)}
 
 
+#: Where the original documents live, when the owner has put them there. The
+#: indexed text is what the answers are drawn from, but "read the source" means
+#: the actual PDF or video, not a reconstruction of it -- so a citation links to
+#: this when it exists and falls back to the text when it does not.
+ORIGINALS_DIR = os.getenv("ORIGINALS_DIR", "/share/bkon_lightrag/originals")
+_MANIFEST = "manifest.json"
+
+#: Only these are served. A whitelist rather than a guess from the extension:
+#: this endpoint hands a file to a browser, and the set of things it is willing
+#: to hand over should be a decision, not a consequence.
+_ORIGINAL_TYPES = {
+    ".pdf": "application/pdf",
+    ".mp4": "video/mp4",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".txt": "text/plain; charset=utf-8",
+}
+
+
+def _manifest() -> dict:
+    """doc name -> stored filename. Empty when nothing has been uploaded."""
+    try:
+        import json as _json
+        with open(os.path.join(ORIGINALS_DIR, _MANIFEST), encoding="utf-8") as f:
+            data = _json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _original_path(doc: str) -> str | None:
+    """The stored original for `doc`, or None.
+
+    The document name arrives from the browser, so it is never joined into a
+    path. It is looked up in the manifest, and the result is checked to be
+    inside the originals directory before anything is opened -- a manifest is
+    written by an authenticated upload, but defence in depth costs two lines.
+    """
+    name = _manifest().get(doc)
+    if not name:
+        return None
+    root = os.path.realpath(ORIGINALS_DIR)
+    full = os.path.realpath(os.path.join(root, name))
+    if os.path.commonpath([root, full]) != root or not os.path.isfile(full):
+        return None
+    if os.path.splitext(full)[1].lower() not in _ORIGINAL_TYPES:
+        return None
+    return full
+
+
+@app.post("/documents/original")
+async def upload_original(request: Request, doc: str, filename: str,
+                          x_api_key: str | None = Header(default=None),
+                          authorization: str | None = Header(default=None)):
+    """Store one original document. Key-guarded, like the index upload.
+
+    The add-on writes it because /share belongs to root and the add-on is the
+    only thing running as root -- which also means this is the only way the
+    originals can get there.
+    """
+    _guard(x_api_key, authorization)
+    doc = (doc or "").strip()
+    if not doc:
+        raise HTTPException(status_code=400, detail="doc is required")
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in _ORIGINAL_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{ext or 'that'} is not a servable type; "
+                   f"expected one of {', '.join(sorted(_ORIGINAL_TYPES))}")
+    body = await request.body()
+    if not body:
+        raise HTTPException(status_code=400, detail="empty upload")
+
+    # Stored under a slug, never under the document name: names carry slashes,
+    # ampersands and colons, and none of that belongs in a path.
+    import hashlib
+    import json as _json
+    import re as _re
+    slug = _re.sub(r"[^A-Za-z0-9]+", "-", doc).strip("-").lower()[:70] or "doc"
+    stored = f"{slug}-{hashlib.sha1(doc.encode()).hexdigest()[:8]}{ext}"
+    try:
+        os.makedirs(ORIGINALS_DIR, exist_ok=True)
+        with open(os.path.join(ORIGINALS_DIR, stored), "wb") as f:
+            f.write(body)
+        man = _manifest()
+        man[doc] = stored
+        with open(os.path.join(ORIGINALS_DIR, _MANIFEST), "w", encoding="utf-8") as f:
+            _json.dump(man, f, indent=1, sort_keys=True)
+    except OSError as ex:
+        raise HTTPException(status_code=500, detail=f"could not store: {ex}")
+    return {"stored": True, "doc": doc, "bytes": len(body), "originals": len(man)}
+
+
+@app.get("/documents/file")
+async def original_file(doc: str):
+    """The original document itself — the thing a citation should open.
+
+    Served inline so the browser's own PDF viewer takes it and `#page=N` works;
+    that is the difference between "here is the document" and "here is the
+    document, open at the paragraph the answer came from".
+    """
+    full = _original_path(doc)
+    if full is None:
+        raise HTTPException(status_code=404, detail=f"no original for {doc!r}")
+    ext = os.path.splitext(full)[1].lower()
+    ascii_name = "".join(c if 32 < ord(c) < 127 and c != '"' else "_" for c in doc)
+    return FileResponse(
+        full, media_type=_ORIGINAL_TYPES[ext],
+        headers={"Content-Disposition":
+                 f'inline; filename="{ascii_name}{ext}"',
+                 "Cache-Control": "private, max-age=3600"})
+
+
 @app.get("/documents")
 async def documents():
     """Every indexed document, for the reader."""
     kb = _load_kb()
-    return {"documents": kb.documents if kb.ready else [], "passages": kb.size if kb.ready else 0}
+    man = _manifest()
+    return {"documents": kb.documents if kb.ready else [],
+            "passages": kb.size if kb.ready else 0,
+            "originals": sorted(d for d in (kb.documents if kb.ready else []) if d in man)}
 
 
 @app.get("/documents/read")
@@ -837,6 +959,30 @@ async def read_document(doc: str, q: str = ""):
     if not passages:
         raise HTTPException(status_code=404, detail=f"no document named {doc!r}")
     return {"doc": doc, "pages": [{"page": p.page, "text": p.text} for p in passages]}
+
+
+def _cite(question: str, k: int = 6) -> list[dict]:
+    """The documents that answer this question, one entry per document.
+
+    Each entry says whether the original document is on the device, so the UI
+    can offer a link to the real thing rather than guessing and producing a dead
+    one.
+    """
+    kb = _load_kb()
+    if not kb.ready:
+        return []
+    man = _manifest()
+    out, seen = [], set()
+    for hit in kb.search(question, k=k):
+        doc = hit.passage.doc
+        if doc in seen:
+            continue
+        seen.add(doc)
+        out.append({"doc": doc, "page": hit.passage.page,
+                    "url": getattr(hit.passage, "url", "") or "",
+                    "original": doc in man,
+                    "excerpt": hit.passage.text.strip()[:220]})
+    return out
 
 
 @app.post("/ask")
@@ -861,18 +1007,8 @@ async def ask_docs(request: Request):
     else:
         question_for_rag = question
 
-    sources = []
+    sources = _cite(question)
     kb = _load_kb()
-    if kb.ready:
-        seen = set()
-        for hit in kb.search(question, k=6):
-            doc = hit.passage.doc
-            if doc in seen:
-                continue
-            seen.add(doc)
-            sources.append({"doc": doc, "page": hit.passage.page,
-                            "url": getattr(hit.passage, "url", "") or "",
-                            "excerpt": hit.passage.text.strip()[:220]})
 
     answer, err = "", None
     if ENABLE_LIGHTRAG and _rag is not None and _provider is not None:

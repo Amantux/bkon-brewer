@@ -2724,18 +2724,34 @@ address=0x80000000</code></pre>
     }
   }
 
+  // One citation, rendered the same wherever it appears. The link goes to the
+  // real document when the originals have been uploaded — a PDF opens in the
+  // browser's own viewer at the cited page, which is the difference between
+  // "here is the source" and "here is the source, at the paragraph in question".
+  function citeHtml(sx){
+    const acts = [];
+    if(sx.original){
+      const frag = sx.page ? "#page="+encodeURIComponent(sx.page) : "";
+      acts.push(`<a class="dg-watch" target="_blank" rel="noopener"`
+        + ` href="${esc(BASE)}documents/file?doc=${encodeURIComponent(sx.doc)}${frag}">`
+        + `${sx.doc.startsWith("Video:") ? "Watch" : "Open original"} ↗</a>`);
+    }
+    if(sx.url)
+      acts.push(`<a class="dg-watch" href="${esc(sx.url)}" target="_blank" rel="noopener">Source ↗</a>`);
+    // The indexed text stays available: it is what the answer was actually
+    // drawn from, and it is searchable in a way a scanned PDF is not.
+    acts.push(`<button type="button" data-doc="${esc(sx.doc)}" data-page="${esc(sx.page||"")}">Text</button>`);
+    const where = sx.doc.startsWith("Video:") ? "video" : (sx.page ? "p."+sx.page : "");
+    return `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
+      + `<span class="pg">${esc(where)}</span>${acts.join("")}</div>`
+      + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`;
+  }
+
+  window.bkonCite = citeHtml;        // same convention as window.bkonMd
+  window.bkonOpenDoc = openDoc;
+
   function renderAnswer(box, d){
-    const cites=(d.sources||[]).map(sx=>{
-      // A video can be linked to; a PDF cannot (it is not on the device and is
-      // not ours to serve), so those open the indexed text instead.
-      const action = sx.url
-        ? `<a class="dg-watch" href="${esc(sx.url)}" target="_blank" rel="noopener">Watch ↗</a>`
-        : `<button type="button" data-doc="${esc(sx.doc)}" data-page="${esc(sx.page||"")}">Read</button>`;
-      const where = sx.url ? "video" : (sx.page ? "p."+sx.page : "");
-      return `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
-        + `<span class="pg">${esc(where)}</span>${action}</div>`
-        + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`;
-    }).join("");
+    const cites=(d.sources||[]).map(citeHtml).join("");
     box.innerHTML = `<div class="md">${md(d.answer||"No answer.")}</div>`
       + (cites ? `<div class="dg-cites"><div class="dg-citehead">Sources</div>${cites}</div>` : "")
       + (d.note ? `<p class="stu-hint" style="margin-top:9px">${esc(d.note)}</p>` : "");

@@ -68,6 +68,24 @@ works, but the chat will say it can't reach the service. It does **not** need
 diagnoses, and the add-on starts immediately with no embedding model to download.
 Only *"how do I descale?"*-style questions need the documents.
 
+## Reading the source
+
+Answers cite the documents they came from. By default a citation opens the
+**indexed text** — what the answer was actually drawn from. Upload the original
+PDFs and it opens the **document itself**, in your browser's viewer, at the
+cited page:
+
+```
+python3 scripts/upload_originals.py --dir /path/to/archive \
+    --url http://homeassistant.local:9621 --key YOUR_SERVICE_KEY
+```
+
+Files are matched to documents by name (`Operation Manual.pdf` → the indexed
+`Operation Manual`); videos by their `.info.json` title. Anything unmatched is
+skipped and listed. They are stored under `/share/bkon_lightrag/originals` and
+served only through Home Assistant's authenticated ingress — delete that folder
+to undo it. Run with `--dry-run` first to see what would go.
+
 ## What the assistant may do
 
 The chat can reach the BKON integration in Home Assistant — but only after you

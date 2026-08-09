@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.25.0 — a citation you can actually open
+- **"Read" now opens the document, not a transcript of it.** Citations linked to
+  the indexed text because the PDFs were not on the device. Upload them with
+  `scripts/upload_originals.py` and a citation becomes **Open original ↗** —
+  the real PDF, in your browser's viewer, scrolled to the cited page. Videos
+  play. The indexed text stays available as **Text**, since it is what the
+  answer was drawn from and is searchable in a way a scanned page is not.
+- The add-on has to write them itself (`/share` belongs to root), so the
+  originals arrive over a key-guarded upload endpoint rather than a file copy —
+  which also makes it a repeatable step rather than something done by hand once.
+- **A link is only offered when there is something behind it.** `/documents`
+  reports which documents have an original, so nothing ever offers a dead link.
+- The document name from the browser is never joined into a path: it resolves
+  through a manifest, and the result is checked to be inside the originals
+  directory before anything is opened. Both gates are tested against the
+  traversal attacks they exist to stop.
+
 ## 0.24.1 — watch it work, then read the answer
 - **The chat shows its steps as it takes them.** *Thinking* → *reading the
   manuals* → *tuning the recipe*, one line each, the current one pulsing and
