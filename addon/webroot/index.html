@@ -116,10 +116,16 @@
   .stu-card.dragging{z-index:6;cursor:grabbing;transition:none;
     box-shadow:0 14px 34px rgba(0,0,0,.30);border-color:var(--accent)}
   .stu-card.shifted{transition:transform .16s cubic-bezier(.2,.7,.3,1)}
-  /* The space it will land in. */
-  .stu-gap{border:2px dashed var(--accent);border-radius:10px;
+  /* The landing space. Absolutely positioned on purpose: as a flow element it
+     re-laid-out the list every time it moved, which stacked on top of the
+     transforms and displaced everything twice — worst when dragging to the top,
+     where it travelled furthest. Out of flow, the transforms alone open the
+     space and this only marks it. */
+  .stu-steps{position:relative}
+  .stu-gap{position:absolute;left:0;right:0;z-index:1;
+    border:2px dashed var(--accent);border-radius:10px;
     background:color-mix(in srgb,var(--accent) 7%,transparent);
-    transition:height .16s ease;pointer-events:none}
+    transition:top .16s cubic-bezier(.2,.7,.3,1);pointer-events:none}
   .stu-card.settling{animation:settle .22s cubic-bezier(.2,.7,.3,1)}
   @keyframes settle{from{box-shadow:0 14px 34px rgba(0,0,0,.30)}to{box-shadow:var(--shadow)}}
   @media (prefers-reduced-motion:reduce){
@@ -453,7 +459,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>480</b><span>tests passing</span></div>
+        <div><b>489</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -897,7 +903,7 @@ data:
           <tr><td>Pages per category</td><td>4</td></tr>
           <tr><td>Recipe buttons per page</td><td>8</td></tr>
           <tr><td><b>Recipes per category</b></td><td><b>32</b></td></tr>
-          <tr><td><b>Recipes per menu</b></td><td><b>480</b></td></tr>
+          <tr><td><b>Recipes per menu</b></td><td><b>489</b></td></tr>
         </tbody>
       </table>
       <p>The first page of a category is the easiest to reach at the machine, so the
@@ -919,7 +925,7 @@ data:
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (480 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (489 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -1223,7 +1229,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      480 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      489 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
@@ -1424,18 +1430,20 @@ address=0x80000000</code></pre>
     const rects = els.map(el=>el.getBoundingClientRect());
     const h = rects[from].height;
     const gapSize = h + 9;                       // card + the flex gap
+    const hostTop = $("stuSteps").getBoundingClientRect().top;
 
-    // A placeholder holds the space the card came out of.
+    // Marks where it will land. Out of the flow, so moving it cannot re-lay-out
+    // the list underneath the transforms.
     const gap = document.createElement("div");
     gap.className = "stu-gap";
     gap.style.height = h + "px";
-    card.parentNode.insertBefore(gap, card);
+    $("stuSteps").appendChild(gap);
 
     card.classList.add("dragging");
     card.style.position = "relative";
     card.style.width = rects[from].width + "px";
 
-    drag = {card, gap, from, to: from, startY: e.clientY, els, rects, h, gapSize};
+    drag = {card, gap, from, to: from, startY: e.clientY, els, rects, h, gapSize, hostTop};
     shiftOthers();
   }
 
@@ -1461,12 +1469,12 @@ address=0x80000000</code></pre>
       el.classList.add("shifted");
       el.style.transform = dy ? `translateY(${dy}px)` : "";
     });
-    // Move the landing space to where it will actually land.
-    const ref = els[to];
-    if(ref && ref !== card){
-      const before = to <= from ? ref : ref.nextSibling;
-      if(gap.nextSibling !== before) card.parentNode.insertBefore(gap, before);
-    }
+    // Where the card will end up, in the list's own coordinates. Moving up it
+    // takes the target's top; moving down, the target's bottom less its own
+    // height, because everything between has shifted up by then.
+    const {rects, h, hostTop} = drag;
+    const top = (to <= from) ? rects[to].top : rects[to].bottom - h;
+    gap.style.top = (top - hostTop) + "px";
   }
 
   function onGripMove(e){

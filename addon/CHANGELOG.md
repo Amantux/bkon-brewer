@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.1
+- **Fixes the visual glitch when dragging a step to the top.** The dashed
+  landing space was a flow element, so moving it re-laid-out the list on top of
+  the transforms already shifting the cards — everything was displaced twice,
+  and worst at the top where the space travelled furthest. It is now positioned
+  out of flow and only marks the slot; the transforms alone open it.
+
 ## 0.16.0
 - **The studio's store is now a shortlist, not the whole library.** It shows up
   to five recipes worth starting from — ranked by whether you rated it, how
