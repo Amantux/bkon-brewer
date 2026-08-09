@@ -75,7 +75,7 @@ Copy `custom_components/bkon_brewer/` into your Home Assistant's
    [below](#choosing-a-provider). This is the one step people miss.
 4. **Start** the add-on, and turn on **Show in sidebar**.
 
-✅ **You should now see** a **BKON RAG** entry in the sidebar. Open it for the
+✅ **You should now see** a **Bkon RAIN** entry in the sidebar. Open it for the
 wiki and the **Recipe Studio**.
 
 5. *(Optional)* To let the integration use the add-on for questions too, point

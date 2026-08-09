@@ -1,5 +1,5 @@
 name: BKON LightRAG
-version: "0.13.3"
+version: "0.13.4"
 slug: bkon_lightrag
 description: Recipe studio and document Q&A for the BKON Brewer — a chat that builds and tunes recipes, plus optional graph-RAG over the machine’s manuals (Ollama / Anthropic / OpenAI-compatible).
 url: https://github.com/Amantux/bkon-brewer/tree/main/addon
@@ -13,7 +13,7 @@ boot: auto
 ingress: true
 ingress_port: 9621
 panel_icon: mdi:coffee-maker
-panel_title: BKON RAG
+panel_title: Bkon RAIN
 # A boolean, not a profile name: the Supervisor loads addon/apparmor.txt and
 # names the profile from the slug. Giving it a string here makes the whole
 # config unreadable, and the add-on vanishes from the store.

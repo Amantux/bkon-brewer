@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.4
+- The sidebar panel is now **Bkon RAIN** — RAIN is the brewing method the machine
+  is built around, which is a better name for the thing than the retrieval
+  technology behind one of its features.
+
 ## 0.13.3
 - **The page no longer caches.** It shipped only an ETag and no `Cache-Control`,
   so a browser was free to keep serving a heuristically-cached copy — meaning an

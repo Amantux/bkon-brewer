@@ -34,7 +34,7 @@ slow and fragile.
    - **Base URL** — leave blank for the vendor default; point at
      `http://host:11434` for a local Ollama.
 
-2. **Start it.** The status page appears in the sidebar (BKON RAG). First start
+2. **Start it.** The status page appears in the sidebar (Bkon RAIN). First start
    downloads the small embedding model; after that it is offline for embeddings.
 
 3. **Feed it the documents** (from the integration repo):
@@ -73,8 +73,6 @@ Only *"how do I descale?"*-style questions need the documents.
 - **Ingress** serves the wiki, the recipe studio and the chat through Home
   Assistant's authenticated proxy — no port to expose. `POST /chat` (one
   tool-using turn) is part of that ingress surface.
-- **9621/tcp** is the API. Map it only so the integration (or another LAN
-  client) can reach it directly; it is guarded by the service API key.
 - **9621/tcp** is the API. Map it only so the integration (or another LAN
   client) can reach it directly; it is guarded by the service API key.
 
