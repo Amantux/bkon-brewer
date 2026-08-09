@@ -63,5 +63,31 @@ check("Answer: prefix", clean_answer("Answer: it descales."), "it descales.")
 check("empty is safe", clean_answer(""), "")
 check("None is safe", clean_answer(None), "")
 
+print("\na figure id is not an image URL")
+# Asked for a diagram, the model sometimes writes ![caption](figure-id). The
+# figure is already rendered beneath the answer, so that markdown puts a broken
+# image on top of a working one.
+import re as _re
+_STRIP = _re.compile(r"!\[([^\]]*)\]\((?![a-z]+:|/)[^)\s]*\)", _re.I)
+def strip(s): return _STRIP.sub("", s)
+
+check("a bare figure id is dropped",
+      strip("See ![air water flow](air-and-water-flow-b0b284bc-p1) below.").strip(),
+      "See  below.".strip())
+check("a real image survives",
+      strip("![x](https://e.com/a.png)"), "![x](https://e.com/a.png)")
+check("so does a rooted path", strip("![x](/local/a.png)"), "![x](/local/a.png)")
+check("and a link is not an image", strip("[link](some-id)"), "[link](some-id)")
+
+html = (ROOT / "addon" / "webroot" / "index.html").read_text() \
+    if "ROOT" in dir() else (Path(__file__).resolve().parents[1]
+                             / "addon" / "webroot" / "index.html").read_text()
+ok = lambda n, c: check(n, bool(c), True)
+ok("the renderer strips them", "!\\[([^\\]]*)\\]" in html)
+chat = (Path(__file__).resolve().parents[1]
+        / "addon" / "lightrag_service" / "chat.py").read_text()
+ok("and the model is told not to write them",
+   "Never write a markdown image" in chat)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

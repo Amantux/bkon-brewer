@@ -2652,7 +2652,14 @@ address=0x80000000</code></pre>
   // Just enough Markdown for what the model actually emits — headings, bold,
   // lists, code, paragraphs. A library would be more than this needs.
   function md(src){
-    const lines = String(src||"").replace(/\r/g,"").split("\n");
+    // The model sometimes writes ![caption](figure-id) for a diagram it asked
+    // for. The figure is already rendered beneath the answer, so that markdown
+    // produces a broken image on top of a working one. Dropped rather than
+    // rewritten: a second copy of the same picture is not an improvement.
+    const lines = String(src||"")
+      .replace(/\r/g,"")
+      .replace(/!\[([^\]]*)\]\((?![a-z]+:|\/)[^)\s]*\)/gi, "")
+      .split("\n");
     const out = []; let list = null;
     const inline = t => esc(t)
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
