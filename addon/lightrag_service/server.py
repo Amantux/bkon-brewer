@@ -306,12 +306,66 @@ async def chat_turn(request: Request):
                                 "comment": d.comment} for d in crit.dimensions],
                 "suggestions": crit.suggestions}, None
 
+    # --- the machine-facing tools ------------------------------------------
+    # Deliberately narrow: every one of these calls a bkon_brewer service and
+    # nothing else. The add-on holds a Supervisor token that could call any
+    # service in Home Assistant, so the allow-list is the boundary -- the model
+    # never gets to name a domain.
+    BKON_READS = {"list_recipes", "open_recipe"}
+    BKON_WRITES = {"save_recipe", "brew_recipe"}
+
+    async def t_list_recipes(_args, _steps):
+        try:
+            recs = await ha.library()
+        except ha.HaError as ex:
+            return {"error": str(ex)}, None
+        return {"recipes": [{"name": r.get("name"), "steps": len(r.get("steps") or []),
+                             "rating": r.get("rating") or 0,
+                             "brewed": r.get("brew_count") or 0,
+                             "notes": (r.get("notes") or "")[:80]}
+                            for r in recs]}, None
+
+    async def t_open_recipe(args, _steps):
+        name = str(args.get("name") or "").strip()
+        try:
+            recs = await ha.library()
+        except ha.HaError as ex:
+            return {"error": str(ex)}, None
+        match = next((r for r in recs if str(r.get("name","")).lower() == name.lower()), None)
+        if match is None:
+            return {"error": f"no recipe named {name!r}",
+                    "available": [r.get("name") for r in recs][:12]}, None
+        steps = [{"type": st.get("type"), "values": {k: str(v) for k, v in (st.get("values") or {}).items()}}
+                 for st in (match.get("steps") or [])]
+        return {"opened": match.get("name"), "steps": len(steps)}, steps
+
+    # Writes never happen here. They come back as a request the UI turns into a
+    # confirm/decline chip, so the user authorises the physical action -- not the
+    # model, and not a sentence the model was persuaded to read.
+    def _needs_ok(action, name, why):
+        async def ask(args, _steps):
+            target = str(args.get("name") or name or "").strip()
+            if not target:
+                return {"error": "which recipe?"}, None
+            return {"awaiting_confirmation": True, "action": action,
+                    "name": target, "why": why}, None
+        return ask
+
+    tools_ha = {
+        "list_recipes": t_list_recipes,
+        "open_recipe": t_open_recipe,
+        "save_recipe": _needs_ok("save_recipe", None, "writes to your Home Assistant library"),
+        "brew_recipe": _needs_ok("brew_recipe", None, "starts a brew on the machine"),
+    }
+
     # Documents are offered only when there are documents to reach; with the
     # LightRAG half off the tool is absent, not broken. Scoring only needs the
     # provider, so it is always available.
     have_docs = ENABLE_LIGHTRAG and _rag is not None
     tools = studio_tools.registry_for(
         answer_docs if have_docs else None, score_recipe=score_tool)
+    if ha.available():
+        tools.update(tools_ha)
 
     try:
         turn = await run_chat(_provider, message, steps, tools,
@@ -538,6 +592,38 @@ async def brew_recipe(request: Request):
     except ha.HaError as ex:
         raise HTTPException(status_code=502, detail=str(ex))
     return {"brewing": True, "name": name}
+
+
+@app.post("/chat/confirm")
+async def chat_confirm(request: Request):
+    """Carry out an action the user just approved in the chat.
+
+    The model can only ever *request* one of these; nothing here is reachable
+    from a tool call. The allow-list is the boundary: two actions, both on
+    bkon_brewer, so a persuaded model cannot reach the rest of Home Assistant.
+    """
+    ALLOWED = {"save_recipe", "brew_recipe"}
+    body = await request.json()
+    action = str(body.get("action") or "")
+    name = str(body.get("name") or "").strip()
+    if action not in ALLOWED:
+        raise HTTPException(status_code=400, detail=f"not an allowed action: {action!r}")
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    try:
+        if action == "save_recipe":
+            data = {"name": name, "steps": body.get("steps") or []}
+            for k in ("rating", "notes"):
+                if body.get(k) not in (None, ""):
+                    data[k] = body[k]
+            await ha.call_service("save_recipe", data)
+            return {"done": True, "action": action, "name": name,
+                    "message": f'Saved "{name}".'}
+        await ha.call_service("brew_saved", {"name": name})
+        return {"done": True, "action": action, "name": name,
+                "message": f'Brewing "{name}".'}
+    except ha.HaError as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
 
 
 @app.post("/recipes/export-bbp")

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.22.0 — the assistant grows up
+- **Replies are formatted.** The companion rendered raw text, so a list arrived
+  as run-on prose and `**24 kPa**` showed its asterisks. It now uses the same
+  Markdown renderer the Diagnose page does — one renderer, not two that drift.
+- **It knows the machine.** Its instructions carried no domain knowledge at all
+  — the words *vacuum* and *kPa* did not appear. It now holds the confirmed
+  facts: vacuum sets concentration and steep sets intensity, the ±2 kPa / ±5 s
+  dial-in convention, the base recipes, the accepted ranges. 353 characters of
+  instruction became 2,594.
+- **It uses tables**, and is told to sort them by whatever actually helps and to
+  say what it sorted by.
+- **It can reach your recipes** — list them, open one — and it can *ask* to save
+  or brew. Those two never happen on the model's say-so: they come back as a
+  chip you answer. The server accepts exactly two actions, both `bkon_brewer`,
+  so a model talked into something cannot reach the rest of Home Assistant.
+- **Undo.** When a tool rewrites your recipe, the message that did it carries a
+  button to put it back.
+
 ## 0.21.0 — Easy mode
 - **A slider for every number, and a plain reading of what it means.** "24 kPa"
   tells you nothing without a feel for the range, so Easy mode turns the numeric

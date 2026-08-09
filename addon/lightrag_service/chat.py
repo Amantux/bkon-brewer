@@ -47,8 +47,30 @@ TOOL_DOCS = {
     "lint_recipe": "args {}                     check the CURRENT recipe for problems",
     "diagnose": 'args {"text": str}          explain an error code or symptom',
     "score_recipe": 'args {}                     score the CURRENT recipe and comment on it',
+    "list_recipes": "args {}                     list the user's saved recipes with their ratings and brew counts",
+    "open_recipe": 'args {"name": str}         load a saved recipe into the builder',
+    "save_recipe": 'args {"name": str}         save the CURRENT recipe (asks the user first)',
+    "brew_recipe": 'args {"name": str}         brew a saved recipe (asks the user first)',
     "answer_docs": 'args {"query": str}         answer a how-to question from the machine\'s manuals',
 }
+
+#: What the machine actually is, from the confirmed documents (docs/INTEL.md).
+#: Without this the assistant is a generic tool-caller that happens to hold
+#: brewing tools -- it could adjust a vacuum without knowing what a vacuum does.
+_GROUNDING = """What you need to know about this machine:
+- It brews under vacuum (RAIN). The vacuum is the point: it sets CONCENTRATION.
+  Steep time sets flavour INTENSITY. Temperature is an ordinary brewing variable.
+- Move the vacuum in steps of about 2 kPa, and steep in steps of 5-10 s. That is
+  the documented dial-in convention, not a guess.
+- Base recipes: low-temp tea starts 175 F / 24 kPa, high-temp 205 F / 20 kPa --
+  a HOTTER brew starts from a SHALLOWER vacuum. In a multi-vacuum sequence, if
+  the first is X kPa the next is about X+2 and the third about X+1. Delicate leaf
+  uses ONE vacuum, a short steep, and water front-loaded.
+- Accepted ranges: temperature 140-212 F, vacuum 0-60 kPa, purge pressure 25-35
+  kPa, fill/rinse 0-600 ml, every time 0-180 s. Outside these it will not brew.
+- A recipe must fit 599 bytes to send over Bluetooth.
+- Steps run in order: start (heat) -> fill -> vacuum (extract) -> purge
+  (separate grounds) -> brew out. A dialog step stops and asks the operator."""
 
 _SYSTEM_HEAD = """You are the assistant in a BKON coffee-brewer recipe studio. You help
 the user build and tune a recipe, and answer questions about the machine.
@@ -66,9 +88,22 @@ Rules:
 - Reply with a single JSON object and nothing else.
 - After a tool runs you get its result; use it, then either call another tool or answer.
 - Keep answers short and practical. Refer to the recipe you changed by what changed.
+- save_recipe and brew_recipe do not act immediately: they ask the user, who
+  confirms or declines. When one returns "awaiting confirmation", say what you
+  have queued and stop -- do not call it again and do not pretend it happened.
 - Tuning the recipe is a tool call, not advice: if the user says it should be
   stronger, less bitter, hotter or bigger, call adjust_recipe with their words
   as the feedback rather than describing what they could change."""
+
+#: The reply is rendered as Markdown, so it should be written as Markdown.
+_FORMATTING = """How to write your answer (it is rendered as Markdown):
+- Use **bold** for values the user should notice, and `code` for step keys.
+- Use a numbered list for a sequence of actions, a bulleted list otherwise.
+- Use a TABLE whenever you are comparing things -- recipes against each other,
+  several options, before-and-after, or a list with more than one attribute per
+  row. Sort the rows in whatever order actually helps: strongest first, most
+  recent first, worst problem first. Say what you sorted by.
+- Keep it short. Two or three sentences plus a list or table beats a paragraph."""
 
 
 def build_system(tools) -> str:
@@ -77,7 +112,8 @@ def build_system(tools) -> str:
     for name in tools:
         doc = TOOL_DOCS.get(name, "args {}")
         lines.append(f"- {name:<14} {doc}")
-    return _SYSTEM_HEAD + "\n".join(lines) + "\n" + _SYSTEM_TAIL
+    return (_SYSTEM_HEAD + "\n".join(lines) + "\n" + _SYSTEM_TAIL
+            + "\n\n" + _GROUNDING + "\n\n" + _FORMATTING)
 
 
 def _extract_json(text: str) -> dict | None:
