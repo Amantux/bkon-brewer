@@ -109,7 +109,7 @@ constraints alone.
 | `dl` | Delay / pause | seconds | Certain — "steep at atmospheric pressure, in seconds" |
 | `tm` | Time / hold time | seconds | Certain |
 | `ps` (vacuum) | Vacuum strength | kPa | Certain — base recipes ~20–24 kPa |
-| `ps` (purge) | Purge pressure | (positive, unit unconfirmed) | High — shares the key, opposite direction |
+
 | `det` | Detection toggle | bool | Medium — boolean in the Purge editor |
 | `manstop` | Manual stop | — | Certain, but **app-side only** — see below |
 | `contr` | Unknown | — | Low — appears only in the purge literal, as `0` |
@@ -118,7 +118,7 @@ constraints alone.
 
 The one nuance the docs surface: **`ps` means different physical things on a
 vacuum step and a purge step** — a vacuum pulls *down* (measured in kPa below
-atmosphere), a purge pushes *up*. Same key, opposite sign, and the purge unit is
+
 not stated where the vacuum's is. The builder labels vacuum pressure as kPa and
 purge pressure generically for that reason.
 
@@ -205,8 +205,8 @@ What remains genuinely needs a live brewer or a BLE capture:
 3. What `contr` does — it is `0` in the only example.
 4. Whether the brewer emits anything unsolicited (temperature, progress) beyond
    the step/recipe completion events.
-5. The **purge** pressure unit specifically — the vacuum's kPa is confirmed, but
-   a purge pushes the opposite direction and its unit is not stated.
+
+
 6. Legal maximums for each field. The RAIN guide gives typical operating values
    (fills of ~35–250 ml, vacuums of ~20–24 kPa, steeps of a few to ~15 seconds)
    but not hard limits.

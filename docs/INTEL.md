@@ -22,6 +22,14 @@ states them outright, which retired the largest open question in
 | Vacuum strength (`ps` on `vc`) | kilopascals | base recipes ~20–24 kPa |
 | Steep / pause / hold (`tm` / `dl`) | seconds | a few seconds to ~15 s |
 
+**Purge pressure is also kPa — confirmed, and previously listed as unknown.**
+Two independent documents settle it. The RAIN guide gives per-roast purge zero
+set points of 28, 29 and 31 kPa (light, medium, dark). The Service Manual states
+the purge figure is a positive pressure, alongside its own kPa conversion table,
+and shows a vacuum of -40 kPa against it. Both sit inside the 25-35 band the
+vendor app's purge editor enforces — from sources that never saw the app. This
+can be struck from the "needs hardware" list.
+
 **The vacuum is the whole point.** The guide frames temperature and time as
 ordinary brewing variables and the *vacuum* as the machine's distinguishing
 mechanism — extraction under reduced pressure, held for only seconds. That is
@@ -65,7 +73,7 @@ accept. These are tighter, and in places different, from the RAIN guide's
 |---|---|---|
 | Temperature | **140–212 °F** (also 60–100 °C, converted to °F on send) | 165–210 |
 | Vacuum setpoint `ps` | **0–60 kPa** | 0–101 |
-| Purge pressure `ps` | **25–35** (unit unconfirmed; real menus ≈30) | 0–100, default 50 |
+| Purge pressure `ps` | **25–35 kPa** (unit now confirmed; real menus ≈30) | 0–100, default 50 |
 | Fill / rinse `fwv` `rwv` | **0–600 ml** | 0–999 |
 | All times `tm` `ap` `dl` | **0–180 s** (under 3 min) | 180 ✓ |
 

@@ -39,7 +39,19 @@ for x in scripts:
     asked |= set(re.findall(r'getElementById\("([A-Za-z0-9_-]+)"\)', x))
 check("no reference to a removed element", sorted(asked - ids), [])
 
-print("\npage switching cannot hide nested content")
+print("\nno interactive element is left without a handler")
+# The mirror of the check above, and the one that was missing: a <form> or a
+# button with an id that no script ever touches is dead. A form is the worse
+# case -- submitting it navigates, which inside the ingress iframe reloads the
+# page and discards whatever the user was building. That is exactly how the
+# studio's "describe it in words" form sat broken.
+scripts = "\n".join(scripts)
+orphans = []
+for m in re.finditer(r'<(form|button|select)\b[^>]*\bid="([A-Za-z0-9_-]+)"', s):
+    tag, eid = m.group(1), m.group(2)
+    if eid not in scripts:
+        orphans.append(f"<{tag} id={eid}>")
+check("every form/button/select with an id is wired up", orphans, [])
 bare = [l.strip() for l in css.split("\n")
         if re.search(r"(^|[,{}\s])section\s*\{", l)
         and "main >" not in l and "main>" not in l]

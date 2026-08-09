@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.20.0
+- **Fixes four ways the UI could get stuck.** Page switching used a bare
+  `section` selector, so navigating anywhere hid the floating assistant while
+  leaving its button hidden too — it was unreachable until you reloaded. The
+  toast hid with opacity alone, leaving an invisible pill permanently swallowing
+  taps across the bottom of the screen. Nav items were links without an `href`,
+  so nothing in the navigation could be reached by keyboard or announced by a
+  screen reader. And **Copy call** silently did nothing on a plain-HTTP Home
+  Assistant, because optional chaining on an undefined clipboard API
+  short-circuits the whole chain — no copy, no error, no message; it now falls
+  back to a selection copy and finally to showing you the text.
+- **Fixes the "describe it in words" form**, which had no handler at all.
+  Pressing Compose submitted it as a GET, reloading the studio inside the ingress
+  iframe and discarding the open recipe.
+- Removes ~70 lines of stylesheet duplicated inside a 600px media query, which
+  also trapped a rule meant for 800px — the document reader never went
+  full-bleed between 601 and 800px.
+- **Purge pressure is kilopascals**, confirmed from two independent documents and
+  struck from the list of things needing hardware.
+
+- **The studio had ten buttons and no answer to "what do I press?".** Save,
+  Save to store, New, Blank recipe, Score, Promote, Discard, Copy call, Send,
+  Remux and Export .bbp all sat at the same weight, so none of them read as the
+  thing you normally do. There is one filled button now — **Save recipe** — with
+  Send to brewer and Remux beside it as plain buttons, and that is the whole bar.
+- **Copy call moved behind a disclosure.** It made sense when Save handed you
+  YAML to paste; Save has actually written to Home Assistant since 0.14, so
+  copying the call is now a scripting and debugging convenience, not a step in
+  the normal path. It still works, one click further away.
+- **Export .bbp moved to the Recipes page.** It exports the *whole library*, not
+  the recipe you have open, so it never belonged next to actions that operate on
+  the current recipe — and it is experimental enough that it should not be one
+  slip of the thumb from Save. The warning about the format travels with it.
+- **"Blank recipe" and "New" were the same button in two places.** Blank recipe
+  stays, in the builder where you start; New is gone. Its function survives —
+  discarding a remux with no parent still falls back to it.
+- **The builder comes first now.** The saved-recipe shortlist was the first thing
+  on the page, which said the studio is somewhere you *retrieve* recipes. It is
+  somewhere you *build* them. The shortlist is a quiet strip underneath, using
+  the small uppercase label the stylesheet already had for it.
+- **Nineteen font sizes became seven, thirteen corner radii became four**, as
+  `--fs-xs … --fs-3xl` and `--r-chip / --r-control / --r-card / --r-pill`. Having
+  9.5, 10 and 10.5 px all in play is not a hierarchy, it is drift — each new
+  element was a fresh guess and nothing lined up with anything. `--fs-xl` is
+  16px on purpose: that is the threshold under which mobile Safari zooms a
+  focused input, so touch form fields land on a real token instead of a
+  hand-written exception.
+- **Emoji are out of the section headings** and stay in the left nav. In the nav
+  they are targets you scan for; in an `<h2>` they were decoration competing with
+  the words. Weight and spacing carry the hierarchy.
+
 ## 0.19.0
 - **Training videos are indexed alongside the documents**, via
   `scripts/build_video_index.py`, which reads the `*.info.json` yt-dlp writes.

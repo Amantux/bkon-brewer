@@ -26,7 +26,7 @@ from .protocol.events import ERROR_MESSAGES
 # the person built it on purpose and deserves to know it looks wrong.
 TEMP_MIN, TEMP_MAX = 140, 212          # deg F (the app also accepts 60-100 C, converted to F)
 VAC_SETPOINT_MAX = 60                  # kPa; the vacuum editor caps the setpoint at 60
-PURGE_PS_MIN, PURGE_PS_MAX = 25, 35    # the purge editor accepts only 25-35
+PURGE_PS_MIN, PURGE_PS_MAX = 25, 35    # kPa (confirmed); the app accepts only 25-35
 FILL_MAX_ML = 600                      # fill and rinse volumes, per step
 FILL_TOTAL_MAX = 900                   # across a whole recipe; a chamber holds one brew
 TIME_MAX_S = 180                       # every time field validates under 3 minutes
