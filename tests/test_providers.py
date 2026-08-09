@@ -150,5 +150,17 @@ try:
 except _oll.ProviderError:
     check("a wholly silent model raises rather than returning ''", True, True)
 
+print("\nevery provider can say which model it is using")
+# The status page reads .model. It used to read an attribute that did not
+# exist and show None, which is how a UI-saved model quietly shadowing the
+# configured one went unnoticed.
+import providers.anthropic as _ant, providers.openai_compat as _oai
+check("ollama reports its model",
+      _oll.OllamaProvider("http://x", "gpt-oss:120b").model, "gpt-oss:120b")
+check("anthropic reports its model",
+      _ant.AnthropicProvider("k", "claude-sonnet-5").model, "claude-sonnet-5")
+check("openai reports its model",
+      _oai.OpenAICompatProvider("k", "gpt-4o").model, "gpt-4o")
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

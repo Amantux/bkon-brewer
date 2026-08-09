@@ -2519,6 +2519,9 @@ address=0x80000000</code></pre>
                         : c.documents_ready ? "LightRAG ready" : "enabled, not ready")
       + `</div>`;
     if(c.setup_hint) html += `<div class="note" style="margin:12px 0 0">${esc(c.setup_hint)}</div>`;
+    // Two places set the model, and the one saved here wins. Say so, or a user
+    // who changes it in Configuration sees no effect and blames the add-on.
+    if(c.shadowing) html += `<div class="note" style="margin:12px 0 0">${esc(c.shadowing)}</div>`;
     host.innerHTML = html;
   }
   $("setRefresh").onclick = loadSettings;

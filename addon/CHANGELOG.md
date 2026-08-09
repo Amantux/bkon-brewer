@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.23.5 — the status page can name your model again
+- **"Model: using the provider default"** was shown no matter what you had set.
+  The status page read a `model` attribute the providers never had — they keep
+  it privately — so it always came back empty. All three now report it.
+- **And it says when two settings disagree.** The model saved in this UI
+  overrides the one in the add-on's Configuration tab, silently. If yours
+  differ, Settings now says which is winning and how to go back — the failure
+  this prevents is changing the model in Configuration, seeing no difference,
+  and concluding the add-on is broken.
+
 ## 0.23.4 — an empty turn is retried, not failed
 - **`think: false` was not the whole answer.** With reasoning suppressed,
   gpt-oss sometimes returns a completely empty turn — reasoning finished,

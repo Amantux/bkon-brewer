@@ -32,6 +32,16 @@ class AIProvider(ABC):
 
     name: str = "base"
 
+    @property
+    def model(self) -> str:
+        """The model in use, for the status page.
+
+        Adapters keep it in `_model`; without this the status page read a
+        `model` attribute that never existed and reported None, so a user whose
+        UI-saved model was shadowing their configured one had no way to see it.
+        """
+        return getattr(self, "_model", "") or ""
+
     @abstractmethod
     def available(self) -> bool:
         """Has everything it needs (key/host/model) to make a call?"""

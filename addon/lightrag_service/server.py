@@ -445,14 +445,26 @@ def _load_overrides() -> dict:
         return {}
 
 
+#: What the add-on Configuration tab asked for, captured before the UI's own
+#: saved settings overwrite it. Without this the two are indistinguishable at
+#: runtime, and a model saved in the UI months ago silently wins over the one
+#: the user just typed into Configuration -- with nothing on screen to say so.
+_ADDON_ENV: dict[str, str] = {}
+
+
 def _apply_overrides() -> None:
     """Fold saved UI settings into the environment the provider layer reads."""
     ov = _load_overrides()
     prov = (ov.get("provider") or "").strip().lower()
     if not prov:
         return
-    os.environ["AI_PROVIDER"] = prov
     up = prov.upper()
+    if not _ADDON_ENV:
+        _ADDON_ENV.update({
+            "provider": os.environ.get("AI_PROVIDER", ""),
+            "model": os.environ.get(f"{up}_MODEL", ""),
+        })
+    os.environ["AI_PROVIDER"] = prov
     if ov.get("model"):
         os.environ[f"{up}_MODEL"] = ov["model"]
     if ov.get("api_key"):
@@ -562,6 +574,17 @@ async def list_models(request: Request):
         return {"models": [], "error": str(ex)[:200]}
 
 
+def _shadowing() -> str | None:
+    """A message if the UI's saved model is overriding the configured one."""
+    saved = (_load_overrides().get("model") or "").strip()
+    configured = (_ADDON_ENV.get("model") or "").strip()
+    if saved and configured and saved != configured:
+        return (f"Using {saved}, saved here. The add-on Configuration tab says "
+                f"{configured} — this setting wins. Clear the model below to "
+                f"go back to {configured}.")
+    return None
+
+
 @app.get("/config")
 async def assistant_config():
     """What the UI needs to know about the model, before it asks for anything.
@@ -582,6 +605,10 @@ async def assistant_config():
         # What to change, in the user's terms, when it is not working.
         "saved_here": {k: v for k, v in _load_overrides().items() if k != "api_key"},
         "key_saved": bool(_load_overrides().get("api_key")),
+        # Named plainly, because the failure it prevents is a user changing the
+        # model in Configuration, seeing no difference, and concluding the
+        # add-on is broken.
+        "shadowing": _shadowing(),
         "setup_hint": (
             None if _provider is not None else
             "Open this add-on's Configuration tab and set ai_provider plus a "
