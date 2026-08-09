@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.16.0
+- **The studio's store is now a shortlist, not the whole library.** It shows up
+  to five recipes worth starting from — ranked by whether you rated it, how
+  often you brew it, and how recently you touched it — each labelled with *why*
+  it is there (`5★ rated`, `brewed 6×`, `remux`, `recent`, `editing`). The full
+  library is a click away on **Recipes**.
+- **Drag to reorder actually feels like dragging.** The card lifts and tracks
+  the pointer with no transition (easing there reads as lag), the others slide
+  out of the way, and a dashed space shows exactly where it will land. Nothing
+  commits until you let go, and the moved card settles so the eye can follow it.
+- **Remux from the studio**, not just the Recipes page — fork whatever is on
+  screen. A remux stays unsaved and clearly marked, can be renamed before
+  promoting, and **promoting under the parent's name is refused** rather than
+  quietly overwriting the recipe the remux exists to leave alone. **Discard**
+  drops it and returns you to the original.
+
 ## 0.15.0
 - **Fixes Export .bbp.** The panel runs inside Home Assistant's ingress iframe,
   and a sandboxed iframe cannot start a download — the click was swallowed with

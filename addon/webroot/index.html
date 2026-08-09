@@ -109,10 +109,24 @@
     border-radius:7px;flex:none;user-select:none;-webkit-user-select:none}
   .stu-grip:hover{background:var(--panel-2);color:var(--ink)}
   .stu-grip:active{cursor:grabbing}
-  .stu-card.dragging{opacity:.9;box-shadow:0 10px 26px rgba(0,0,0,.28);transform:scale(1.015);
-    position:relative;z-index:5}
-  .stu-card.placeholder{opacity:.35;border-style:dashed}
-  .stu-drop{height:3px;border-radius:3px;background:var(--accent);margin:-6px 0}
+  /* The dragged card is lifted and follows the pointer; the others slide out of
+     its way. Transitions live on a class so the dragged card itself is never
+     animated -- it must track the finger exactly, with no lag. */
+  .stu-card{transition:transform .16s cubic-bezier(.2,.7,.3,1)}
+  .stu-card.dragging{z-index:6;cursor:grabbing;transition:none;
+    box-shadow:0 14px 34px rgba(0,0,0,.30);border-color:var(--accent)}
+  .stu-card.shifted{transition:transform .16s cubic-bezier(.2,.7,.3,1)}
+  /* The space it will land in. */
+  .stu-gap{border:2px dashed var(--accent);border-radius:10px;
+    background:color-mix(in srgb,var(--accent) 7%,transparent);
+    transition:height .16s ease;pointer-events:none}
+  .stu-card.settling{animation:settle .22s cubic-bezier(.2,.7,.3,1)}
+  @keyframes settle{from{box-shadow:0 14px 34px rgba(0,0,0,.30)}to{box-shadow:var(--shadow)}}
+  @media (prefers-reduced-motion:reduce){
+    .stu-card,.stu-card.shifted{transition:none}
+    .stu-card.settling{animation:none}
+    .stu-gap{transition:none}
+  }
   @media (max-width:800px){.stu-grip{width:40px;min-height:44px;font-size:18px}}
   @media (pointer:coarse){.stu-grip{width:40px;min-height:44px}}
   .stu-empty{border:1.5px dashed var(--line-2);border-radius:10px;padding:30px 20px;text-align:center;
@@ -374,7 +388,10 @@
   .stu-lib-head .count{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
   .stu-lib-head .sp{flex:1}
   .stu-lib-list{display:flex;flex-wrap:wrap;gap:7px}
-  .stu-chipcard{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);
+  .stu-seeall{font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap}
+  .stu-why{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink-faint);display:block;margin-top:1px}
+  .stu-chipcard{align-items:flex-start!important;display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);
     border-radius:99px;padding:5px 6px 5px 12px;font-size:12.5px;box-shadow:var(--shadow)}
   .stu-chipcard.cur{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
   .stu-chipcard button{border:0;background:none;cursor:pointer;font-family:var(--sans);font-size:12.5px;color:var(--ink);padding:0}
@@ -705,9 +722,10 @@
 
       <section class="zone store" aria-label="Recipe store">
         <div class="zone-head">
-          <h2>📚 Recipe store</h2>
+          <h2>📚 Start from one of yours</h2>
           <span class="count" id="stuLibCount"></span>
           <span class="sp"></span>
+          <a class="stu-seeall" data-nav="browse" href="#" id="stuSeeAll">See all →</a>
           <button class="btn" id="stuLibSave" type="button">Save to store</button>
           <button class="btn" id="stuLibNew" type="button">New</button>
         </div>
@@ -785,6 +803,7 @@
       <div class="note" id="stuPromote" hidden
            style="border-left-color:var(--t-vacuum);background:color-mix(in srgb,var(--t-vacuum) 8%,transparent);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <span id="stuPromoteWhy" style="flex:1"></span>
+        <button class="btn" id="stuPromoteDrop" type="button">Discard</button>
         <button class="btn primary" id="stuPromoteGo" type="button">Promote to its own recipe</button>
       </div>
 
@@ -793,6 +812,7 @@
           <button class="btn primary" id="stuLibSave2" type="button">Save recipe</button>
           <button class="btn" id="stuCopy" type="button" title="Copy the YAML instead">Copy call</button>
           <button class="btn" id="stuBrew" type="button">Send to brewer</button>
+          <button class="btn" id="stuRemux" type="button" title="Fork this into a variant">Remux</button>
           <button class="btn" id="stuBbp" type="button" title="Download a .bbp menu file">Export .bbp</button>
         </div>
         <p class="stu-actions-hint"><b>Export .bbp</b> downloads the machine's own menu-file
@@ -1381,54 +1401,107 @@ address=0x80000000</code></pre>
     });
     gauge();
   }
-  // ---- drag to reorder (mouse, pen, touch) ----
-  let drag=null;
-  function stepCards(){ return [...$("stuSteps").querySelectorAll(".stu-card")]; }
+  // ---- drag to reorder (mouse, pen, touch) ----------------------------------
+  // Pointer Events so one path covers mouse, pen and touch. The dragged card is
+  // lifted and tracks the pointer with no transition (any easing there reads as
+  // lag); the others translate out of the way with one, and a dashed gap shows
+  // exactly where it will land. Nothing is committed until the pointer is
+  // released, so a drag can always be abandoned.
+  let drag = null;
+
+  function cardEls(){ return [...$("stuSteps").querySelectorAll(".stu-card")]; }
+
   function onGripDown(e){
-    const grip=e.target.closest(".stu-grip"); if(!grip) return;
-    const card=grip.closest(".stu-card"); if(!card) return;
+    const grip = e.target.closest && e.target.closest(".stu-grip");
+    if(!grip) return;
+    const card = grip.closest(".stu-card");
+    if(!card || steps.length < 2) return;
     e.preventDefault();
-    grip.setPointerCapture?.(e.pointerId);
-    drag={from:Number(card.dataset.idx), to:Number(card.dataset.idx), card, grip};
+    grip.setPointerCapture && grip.setPointerCapture(e.pointerId);
+
+    const els = cardEls();
+    const from = els.indexOf(card);
+    const rects = els.map(el=>el.getBoundingClientRect());
+    const h = rects[from].height;
+    const gapSize = h + 9;                       // card + the flex gap
+
+    // A placeholder holds the space the card came out of.
+    const gap = document.createElement("div");
+    gap.className = "stu-gap";
+    gap.style.height = h + "px";
+    card.parentNode.insertBefore(gap, card);
+
     card.classList.add("dragging");
+    card.style.position = "relative";
+    card.style.width = rects[from].width + "px";
+
+    drag = {card, gap, from, to: from, startY: e.clientY, els, rects, h, gapSize};
+    shiftOthers();
   }
+
+  function targetIndex(y){
+    // Which slot the pointer is over, by midpoint of each card's original box.
+    const {rects, from} = drag;
+    let to = 0;
+    for(let i = 0; i < rects.length; i++){
+      const mid = rects[i].top + rects[i].height / 2;
+      if(y > mid) to = i;
+    }
+    return Math.max(0, Math.min(rects.length - 1, to));
+  }
+
+  function shiftOthers(){
+    const {els, from, to, gapSize, card, gap} = drag;
+    els.forEach((el, i)=>{
+      if(el === card) return;
+      let dy = 0;
+      // Cards between the origin and the target close the gap behind it.
+      if(from < to && i > from && i <= to) dy = -gapSize;
+      else if(from > to && i >= to && i < from) dy = gapSize;
+      el.classList.add("shifted");
+      el.style.transform = dy ? `translateY(${dy}px)` : "";
+    });
+    // Move the landing space to where it will actually land.
+    const ref = els[to];
+    if(ref && ref !== card){
+      const before = to <= from ? ref : ref.nextSibling;
+      if(gap.nextSibling !== before) card.parentNode.insertBefore(gap, before);
+    }
+  }
+
   function onGripMove(e){
     if(!drag) return;
     e.preventDefault();
-    const y=e.clientY;
-    // Which card is the pointer over? Its midpoint decides above/below.
-    let to=drag.from;
-    stepCards().forEach(c=>{
-      const r=c.getBoundingClientRect(), i=Number(c.dataset.idx);
-      if(y > r.top && y < r.bottom) to = (y < r.top + r.height/2) ? i : i + (i>=drag.from?0:1);
-      else if(y >= r.bottom && i===stepCards().length-1) to = i;
-      else if(y <= r.top && i===0) to = 0;
-    });
-    to=Math.max(0,Math.min(steps.length-1,to));
-    if(to!==drag.to){ drag.to=to; previewOrder(); }
+    const dy = e.clientY - drag.startY;
+    drag.card.style.transform = `translateY(${dy}px)`;
+    const to = targetIndex(e.clientY);
+    if(to !== drag.to){ drag.to = to; shiftOthers(); }
   }
-  function previewOrder(){
-    // Show the landing position without committing, so a drag can be abandoned.
-    stepCards().forEach(c=>c.classList.toggle("placeholder",
-      Number(c.dataset.idx)===drag.from && drag.to!==drag.from));
-  }
+
   function onGripUp(){
     if(!drag) return;
-    const {from,to}=drag;
-    drag.card.classList.remove("dragging");
-    drag=null;
-    if(from!==to && to>=0 && to<steps.length){
-      const [moved]=steps.splice(from,1);
-      steps.splice(to,0,moved);
+    const {card, gap, from, to, els} = drag;
+    els.forEach(el=>{ el.classList.remove("shifted"); el.style.transform = ""; });
+    card.classList.remove("dragging");
+    card.style.position = ""; card.style.width = ""; card.style.transform = "";
+    gap.remove();
+    drag = null;
+    if(from !== to){
+      const [moved] = steps.splice(from, 1);
+      steps.splice(to, 0, moved);
+      render();
+      // A brief settle on the card that moved, so the eye can follow it.
+      const landed = cardEls()[to];
+      if(landed){ landed.classList.add("settling");
+                  setTimeout(()=>landed.classList.remove("settling"), 260); }
     }
-    render();
   }
+
   $("stuSteps").addEventListener("pointerdown", onGripDown);
   $("stuSteps").addEventListener("pointermove", onGripMove);
   $("stuSteps").addEventListener("pointerup", onGripUp);
   $("stuSteps").addEventListener("pointercancel", onGripUp);
-  // Reordering by keyboard stays available through the arrow buttons, so the
-  // drag is an addition rather than the only way to do it.
+  // The arrow buttons stay, so reordering is still reachable by keyboard.
 
   function ic(txt,title,fn){ const b=document.createElement("button"); b.className="stu-ic";
     b.type="button"; b.textContent=txt; b.title=title; b.setAttribute("aria-label",title); b.onclick=fn; return b; }
@@ -1687,16 +1760,51 @@ address=0x80000000</code></pre>
     render(); libRender(); journalRender(); paintPromote();
   };
 
-  // A remux is unsaved until promoted, so the difference is visible.
+  // A remux is unsaved until promoted, so the difference is always visible.
   function paintPromote(){
     const bar=$("stuPromote"); if(!bar) return;
     bar.hidden = !derivedFrom;
-    if(derivedFrom) $("stuPromoteWhy").textContent =
-      `This is a remux of "${derivedFrom}". Promote it to keep it as its own recipe.`;
+    if(derivedFrom) $("stuPromoteWhy").innerHTML =
+      `Remux of <b>${escLint(derivedFrom)}</b> — unsaved. Rename it above if you like, then `
+      + `promote to keep it. The original is untouched either way.`;
   }
+
+  // Fork what is on screen. The name is picked so it cannot collide, and the
+  // original stays exactly as it was — that is the whole point of a remux.
+  function remuxCurrent(){
+    const base = ($("stuName").value || "Recipe").trim().replace(/\s+v\d+$/, "");
+    const taken = new Set(Object.values(library).map(r=>r.name));
+    let n = 2, name = `${base} v${n}`;
+    while(taken.has(name)){ n++; name = `${base} v${n}`; }
+    derivedFrom = base;
+    currentId = null;                       // unsaved until promoted
+    $("stuName").value = name;
+    $("stuNotes").value = "";
+    userRating = 0; paintStars();
+    paintPromote(); libRender(); journalRender();
+    flash(`Remuxed as "${name}" — the original is untouched`);
+  }
+  $("stuRemux") && ($("stuRemux").onclick = remuxCurrent);
+
   $("stuPromoteGo") && ($("stuPromoteGo").onclick = () => {
-    libSave();                       // saves under its new name, HA included
+    const name = ($("stuName").value || "").trim();
+    if(!name){ flash("Give it a name first"); return; }
+    if(name === derivedFrom){
+      // Promoting under the parent's name would overwrite the thing the remux
+      // exists to leave alone.
+      flash(`That is the original's name — rename it, or this replaces "${derivedFrom}"`);
+      return;
+    }
+    libSave();                              // saves under the new name, HA included
     derivedFrom = null; paintPromote();
+  });
+  $("stuPromoteDrop") && ($("stuPromoteDrop").onclick = () => {
+    if(!confirm("Discard this remux? The original is unaffected.")) return;
+    const parent = derivedFrom;
+    derivedFrom = null; paintPromote();
+    const pid = parent && Object.keys(library).find(k=>library[k].name===parent);
+    if(pid) libOpen(pid); else libNew();
+    flash("Remux discarded");
   });
 
   window.bkonStudioSteps = () => JSON.parse(JSON.stringify(steps));
@@ -1747,55 +1855,65 @@ address=0x80000000</code></pre>
     $("stuName").value = "New recipe"; $("stuNotes").value = "";
     userRating = 0; paintStars(); render(); libRender();
   }
+  // The studio shows a handful of good starting points, not the whole library —
+  // the Recipes page is for browsing. Ranked by what makes a recipe worth
+  // starting from: you rated it, you brew it, or you were just working on it.
+  const HIGHLIGHT_MAX = 5;
+  function rankRecipes(){
+    const now = Date.now();
+    return Object.keys(library).map(id=>{
+      const r = library[id];
+      const rating = r.rating || 0;
+      const brews  = r.brews || 0;
+      const when   = Date.parse(r.last || r.saved || "") || 0;
+      const days   = when ? (now - when) / 86400000 : 999;
+      const recent = days < 1 ? 3 : days < 7 ? 2 : days < 30 ? 1 : 0;
+      const current = id === currentId ? 4 : 0;
+      // Why it is here, in the user's terms — a highlight with no reason is noise.
+      let why = "";
+      if(current) why = "editing";
+      else if(rating >= 4) why = `${rating}★ rated`;
+      else if(brews >= 2) why = `brewed ${brews}×`;
+      else if(r.derived_from) why = "remux";
+      else if(recent >= 2) why = "recent";
+      return {id, r, why, score: rating * 2 + Math.min(brews, 6) + recent + current};
+    }).sort((a,b)=> b.score - a.score
+                 || String(a.r.name||"").localeCompare(String(b.r.name||"")));
+  }
+
   function libRender(){
-    const host = $("stuLibList"), ids = Object.keys(library).sort((a,b)=>
-      (library[a].name||a).localeCompare(library[b].name||b));
-    $("stuLibCount").textContent = ids.length ? `${ids.length} saved` : "";
+    const host = $("stuLibList");
+    const ranked = rankRecipes();
+    const total = ranked.length;
+    $("stuLibCount").textContent = total ? `${total} saved` : "";
+    const seeAll = $("stuSeeAll");
+    if(seeAll) seeAll.hidden = total <= HIGHLIGHT_MAX;
     host.innerHTML = "";
-    if(!ids.length){
+    if(!total){
       const d=document.createElement("div"); d.className="stu-lib-empty";
-      d.textContent="No saved recipes yet. Build one, then press Save to library — it stays in this browser.";
+      d.textContent="Nothing saved yet. Build one and press Save to store — your best and most-brewed show up here.";
       host.appendChild(d); return;
     }
-    ids.forEach(id=>{
-      const r = library[id];
+    ranked.slice(0, HIGHLIGHT_MAX).forEach(({id, r, why})=>{
       const card=document.createElement("div");
       card.className="stu-chipcard"+(id===currentId?" cur":"");
       const open=document.createElement("button"); open.type="button"; open.className="load";
-      open.textContent=r.name||id; open.title="Load this recipe"; open.onclick=()=>libOpen(id);
+      open.title="Load this recipe"; open.onclick=()=>libOpen(id);
+      const nm=document.createElement("span"); nm.textContent=r.name||id;
+      open.appendChild(nm);
+      if(why){ const w=document.createElement("span"); w.className="stu-why"; w.textContent=why; open.appendChild(w); }
       const meta=document.createElement("span"); meta.className="meta";
-      meta.textContent = `${(r.steps||[]).length} steps${r.rating?" · "+"★".repeat(r.rating):""}`;
+      meta.textContent = `${(r.steps||[]).length} steps`;
       const del=document.createElement("button"); del.type="button"; del.className="del";
       del.textContent="✕"; del.title="Delete"; del.setAttribute("aria-label",`Delete ${r.name||id}`);
       del.onclick=()=>libDelete(id);
       card.append(open, meta, del); host.appendChild(card);
     });
   }
-  // Describe it in words. The compiler is deterministic and runs with no model,
-  // so this works whether or not a provider is configured.
-  $("nlForm").addEventListener("submit", async e=>{
-    e.preventDefault();
-    const text=$("nlText").value.trim(); if(!text) return;
-    const btn=$("nlGo"), out=$("nlOut"), was=btn.textContent;
-    btn.disabled=true; btn.textContent="…"; out.textContent="Composing…"; out.style.color="";
-    try{
-      const res=await fetch(BASE_URL+"compose",{method:"POST",
-        headers:{"Content-Type":"application/json"}, body:JSON.stringify({description:text})});
-      const d=await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
-      steps = (d.steps||[]).map(x=>({type:x.type, values:{...x.values}}));
-      if(!$("stuName").value || $("stuName").value==="New recipe") $("stuName").value=text.slice(0,40);
-      render();
-      out.textContent = d.summary || "";
-      if(d.unmet && d.unmet.length) out.style.color="var(--warn)";
-    }catch(err){
-      out.textContent=String(err.message||err); out.style.color="var(--t-start)";
-    }finally{ btn.disabled=false; btn.textContent=was; }
-  });
 
-  // Start blank, or from a known base — neither needs a sentence typed.
-  // The bases come from the compiler's own styles, so a one-tap start and a
-  // described one produce the same recipe rather than two rival definitions.
+  // Start blank, or from a known base — neither needs a sentence typed. The
+  // bases run through the same compiler a typed description does, so a one-tap
+  // start and a described one cannot drift apart.
   const QUICK = [["Coffee","a coffee"], ["Green tea","a green tea"],
                  ["Black tea","a black tea"], ["Delicate","a delicate tea"]];
   $("stuBlank").onclick = () => {
