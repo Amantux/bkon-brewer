@@ -303,11 +303,15 @@
   .setform{display:flex;flex-direction:column;gap:10px;max-width:520px}
   .setrow{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:center}
   .setrow>span{font-size:12px;font-weight:600;color:var(--ink-soft)}
+  .setmodel{display:flex;gap:8px}
+  .setmodel select{flex:1;min-width:0}
   .setrow input,.setrow select{font-family:var(--sans);font-size:14px;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 11px;width:100%}
   .setrow input:focus,.setrow select:focus{border-color:var(--accent);outline:none}
   @media (max-width:600px){.setrow{grid-template-columns:1fr;gap:4px}
-    .setrow input,.setrow select{font-size:16px;padding:12px}}
+    .setmodel{display:flex;gap:8px}
+  .setmodel select{flex:1;min-width:0}
+  .setrow input,.setrow select{font-size:16px;padding:12px}}
 
   /* ---- Floating chat companion (every page) ---- */
   .cmp-fab{position:fixed;right:16px;bottom:66px;z-index:40;display:flex;align-items:center;gap:8px;
@@ -594,12 +598,17 @@
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI-compatible</option>
               </select></label>
-            <label class="setrow"><span>Model</span>
-              <input id="setModel" autocomplete="off" placeholder="gpt-oss:120b" /></label>
-            <label class="setrow"><span>API key</span>
-              <input id="setKey" type="password" autocomplete="off" placeholder="leave blank to keep the saved key" /></label>
             <label class="setrow"><span>Base URL</span>
               <input id="setUrl" autocomplete="off" placeholder="http://192.168.1.10:11434 — blank for the vendor default" /></label>
+            <label class="setrow"><span>API key</span>
+              <input id="setKey" type="password" autocomplete="off" placeholder="leave blank to keep the saved key" /></label>
+            <div class="setrow"><span>Model</span>
+              <div class="setmodel">
+                <select id="setModelPick" aria-label="Model"><option value="">— fetch the list —</option></select>
+                <button class="btn" id="setFetch" type="button">Fetch models</button>
+              </div></div>
+            <div class="setrow"><span></span>
+              <input id="setModel" autocomplete="off" placeholder="…or type a model name" aria-label="Model name" /></div>
             <div class="setrow"><span></span>
               <button class="btn primary" type="submit" id="setSave">Save &amp; apply</button></div>
           </form>
@@ -1857,43 +1866,9 @@ address=0x80000000</code></pre>
     }finally{ scoreBtn.disabled=false; scoreBtn.textContent=was; }
   };
 
-  // ---- chat ----
-  const ENDPOINT = location.pathname.replace(/[^/]*$/,"") + "chat";
-  const log = $("stuLog");
-  function bubble(role, text, actions){
-    const wrap=document.createElement("div"); wrap.className="stu-msg "+(role==="me"?"me":"bot");
-    const b=document.createElement("div"); b.className="stu-bubble"; b.textContent=text;
-    if(actions && actions.length){
-      const row=document.createElement("div"); row.className="stu-acts";
-      actions.forEach(a=>{ const c=document.createElement("span"); c.className="stu-chip";
-        c.textContent=a.tool.replace(/_/g," "); row.appendChild(c); });
-      b.appendChild(row);
-    }
-    wrap.appendChild(b); log.appendChild(wrap); log.scrollTop=log.scrollHeight;
-    return b;
-  }
-  function status(msg, err){ const s=$("stuStatus"); s.textContent=msg||""; s.classList.toggle("err",!!err); }
-
-  $("stuForm").addEventListener("submit", async e => {
-    e.preventDefault();
-    const input=$("stuText"), msg=input.value.trim(); if(!msg) return;
-    input.value=""; bubble("me", msg); history.push({role:"user",content:msg});
-    const send=$("stuSend"); send.disabled=true; status("Thinking…");
-    try{
-      const res = await fetch(ENDPOINT, {method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({message:msg, steps, history})});
-      if(!res.ok){ const t=await res.text().catch(()=>"");
-        throw new Error(res.status===503?"add-on still starting":`${res.status} ${t.slice(0,120)}`); }
-      const data = await res.json();
-      if(Array.isArray(data.steps)){ steps = data.steps.map(s=>({type:s.type, values:{...s.values}})); render(); }
-      bubble("bot", data.reply || "(no reply)", data.actions);
-      history.push({role:"assistant",content:data.reply||""});
-      status("");
-    }catch(err){
-      bubble("bot", "Sorry — I couldn't reach the studio service. Is the LightRAG add-on running with a provider set?");
-      status(String(err.message||err), true);
-    }finally{ send.disabled=false; input.focus(); }
-  });
+  // The embedded studio chat was removed in 0.9.0 — the floating companion
+  // replaced it. Its handlers lingered here and crashed on a null element,
+  // killing everything below, including the first render and the library load.
 
   render();
   libLoad(); libRender(); journalRender(); libSync();
@@ -2062,6 +2037,43 @@ address=0x80000000</code></pre>
   $("setRefresh").onclick = loadSettings;
 
   // Prefill from what was saved here, so the form reflects reality.
+  // Provider → key → model: the list can only be fetched once the first two are
+  // known, so the order of the form is the order of the dependency.
+  async function fetchModels(){
+    const btn=$("setFetch"), pick=$("setModelPick"), was=btn.textContent;
+    btn.disabled=true; btn.textContent="…";
+    try{
+      const res=await fetch(BASE+"config/models",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({provider:$("setProvider").value,
+                             api_key:$("setKey").value, base_url:$("setUrl").value.trim()})});
+      const d=await res.json();
+      const models=d.models||[];
+      pick.innerHTML = models.length
+        ? `<option value="">— choose a model —</option>`
+          + models.map(m=>`<option value="${m.replace(/"/g,"&quot;")}">${m}</option>`).join("")
+        : `<option value="">— none returned —</option>`;
+      const cur=$("setModel").value.trim();
+      if(cur && models.includes(cur)) pick.value=cur;
+      $("setMsg").textContent = models.length
+        ? `${models.length} model${models.length===1?"":"s"} available.`
+        : (d.error || "The provider returned no models.");
+      $("setMsg").style.color = models.length ? "var(--good)" : "var(--warn)";
+    }catch(err){
+      $("setMsg").textContent=String(err.message||err); $("setMsg").style.color="var(--t-start)";
+    }finally{ btn.disabled=false; btn.textContent=was; }
+  }
+  $("setFetch").onclick = fetchModels;
+  // Choosing from the list fills the field the save actually reads, so the two
+  // can never disagree about which model you picked.
+  $("setModelPick").addEventListener("change", e=>{
+    if(e.target.value) $("setModel").value = e.target.value;
+  });
+  // Changing provider invalidates the list — it belonged to the old one.
+  $("setProvider").addEventListener("change", ()=>{
+    $("setModelPick").innerHTML = `<option value="">— fetch the list —</option>`;
+  });
+
   async function prefill(){
     try{
       const c = await (await fetch(BASE+"config")).json();

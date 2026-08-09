@@ -43,7 +43,7 @@ import scoring
 import studio_tools
 from chat import run_chat
 from contract import authorized, clean_answer
-from providers.config import build_provider
+from providers.config import build_provider, llm_url_ok
 
 logging.basicConfig(level=logging.INFO)
 _LOG = logging.getLogger("bkon_lightrag")
@@ -393,6 +393,57 @@ async def save_config(request: Request):
     return {"saved": True, "enabled": _provider is not None,
             "provider": _provider.name if _provider else None,
             "error": _provider_error}
+
+
+@app.post("/config/models")
+async def list_models(request: Request):
+    """Ask the provider what models it actually has.
+
+    Takes the provider and key from the request rather than what is saved, so
+    the list can be fetched before anything is committed -- you pick a model you
+    know exists instead of typing one from memory and finding out later.
+    """
+    import aiohttp
+    body = await request.json()
+    provider = (body.get("provider") or "").strip().lower()
+    key = (body.get("api_key") or "").strip()
+    base = (body.get("base_url") or "").strip().rstrip("/")
+    if not key:                              # fall back to the saved one
+        key = (_load_overrides().get("api_key") or "").strip()
+        if not key:
+            up = provider.upper()
+            key = os.getenv(f"{up}_API_KEY", "")
+
+    try:
+        if provider == "ollama":
+            host = base or "https://ollama.com"
+            if not llm_url_ok(host):
+                raise HTTPException(status_code=400, detail="that base URL is refused")
+            url, headers = f"{host}/api/tags", {}
+            if key:
+                headers["Authorization"] = f"Bearer {key}"
+            pick = lambda d: [m["name"] for m in (d.get("models") or []) if m.get("name")]
+        elif provider == "anthropic":
+            url = (base or "https://api.anthropic.com") + "/v1/models"
+            headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+            pick = lambda d: [m["id"] for m in (d.get("data") or []) if m.get("id")]
+        else:                                 # openai-compatible
+            url = (base or "https://api.openai.com/v1") + "/models"
+            headers = {"Authorization": f"Bearer {key}"}
+            pick = lambda d: [m["id"] for m in (d.get("data") or []) if m.get("id")]
+
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, headers=headers) as resp:
+                data = await resp.json(content_type=None)
+                if resp.status >= 400:
+                    return {"models": [], "error":
+                            f"{provider} returned {resp.status}: {str(data)[:160]}"}
+                return {"models": sorted(pick(data))[:200]}
+    except HTTPException:
+        raise
+    except Exception as ex:                   # noqa: BLE001
+        return {"models": [], "error": str(ex)[:200]}
 
 
 @app.get("/config")

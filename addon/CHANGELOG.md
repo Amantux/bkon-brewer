@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.2
+- **Fixes the studio being half-dead.** Handlers for the embedded chat removed
+  back in 0.9.0 were still in the script and called `addEventListener` on an
+  element that no longer existed. That threw, and everything below it never ran
+  — including the first render, loading your saved recipes, and syncing with
+  Home Assistant. The builder looked present but could not really be used.
+- **Settings now goes provider → base URL → key → model**, which is the order
+  the dependencies actually run in, and **Fetch models** lists what the provider
+  really has so you pick one instead of typing it from memory. Changing provider
+  clears the list, because it belonged to the previous one.
+
 ## 0.13.1
 - **Just start building.** The describe box sat at the top of the builder, which
   made writing a sentence feel like step one. Building is the primary path now:
