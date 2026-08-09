@@ -117,6 +117,15 @@ check("a blank is retried, not rendered", t.reply, "here it is")
 t = run(C.run_chat(FakeProvider(['{"answer":""}', '{"answer":"a real one"}']), "hi", [], {}))
 check("an empty answer field is retried too", t.reply, "a real one")
 
+# A small model handed a template sometimes sends the template back. An
+# angle-bracketed stub on screen looks like the app produced it, not the model.
+t = run(C.run_chat(FakeProvider(['{"answer":"<your message to the user>"}',
+                                 '{"answer":"the actual answer"}']), "hi", [], {}))
+check("the example echoed back is retried", t.reply, "the actual answer")
+check("but a real answer containing < is left alone",
+      run(C.run_chat(FakeProvider(['{"answer":"use <30 kPa here"}']), "hi", [], {})).reply,
+      "use <30 kPa here")
+
 t = run(C.run_chat(FakeProvider(["", "", "", "", ""]), "hi", [], {}))
 check("never blank, even when the model never speaks", t.reply.strip() != "", True)
 check("and it says what to do", "different way" in t.reply, True)

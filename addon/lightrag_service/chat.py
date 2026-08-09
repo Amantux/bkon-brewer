@@ -75,10 +75,12 @@ _GROUNDING = """What you need to know about this machine:
 _SYSTEM_HEAD = """You are the assistant in a BKON coffee-brewer recipe studio. You help
 the user build and tune a recipe, and answer questions about the machine.
 
-You have tools. To use one, reply with ONLY a JSON object:
-  {"tool": "<name>", "args": { ... }}
+You have tools. To use one, reply with ONLY a JSON object, like:
+  {"tool": "lint_recipe", "args": {}}
 When you are ready to reply to the user, respond with ONLY:
-  {"answer": "<your message to the user>"}
+  {"answer": "I deepened the vacuum to 26 kPa, which will read stronger."}
+Those are worked examples, not templates -- write your own words in the
+"answer" field. Never send an angle-bracket placeholder back.
 
 Tools:
 """
@@ -159,6 +161,18 @@ def _recipe_context(steps: list[dict] | None) -> str:
     return "\n".join(lines)
 
 
+def _is_placeholder(text: str) -> bool:
+    """Did the model send the example back instead of writing something?
+
+    Small models sometimes echo the shape they were shown --
+    `{"answer": "<your message to the user>"}` -- and an angle-bracketed stub
+    rendered as a reply is worse than an error, because it looks like the app
+    generated it. Cheap to detect and always wrong, so always retried.
+    """
+    t = text.strip()
+    return bool(t.startswith("<") and t.endswith(">") and "\n" not in t)
+
+
 async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict,
                    *, history: list[dict] | None = None, context: str = "",
                    on_step=None, max_iters: int = MAX_ITERS) -> ChatTurn:
@@ -219,11 +233,12 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
 
         if "answer" in obj:
             answer = str(obj["answer"]).strip()
-            if answer:
+            if answer and not _is_placeholder(answer):
                 return ChatTurn(reply=answer, steps=steps or None,
                                 actions=actions)
             transcript.append(
-                "Your answer was empty. Write the actual answer this time.")
+                "That was not an answer -- you sent back the example. Write "
+                "your own words to the user this time.")
             continue
 
         name = obj.get("tool")

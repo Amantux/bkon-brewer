@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.3 — it was sending the example back
+- **`<your message to the user>` as a reply.** The prompt showed the answer
+  shape with an angle-bracket placeholder, and the model sometimes echoed it
+  verbatim. The examples are now worked ones — a real tool call, a real sentence
+  — and an angle-bracketed stub is caught and retried rather than rendered,
+  because a placeholder on screen looks like the app produced it.
+
 ## 0.23.2 — ask the model not to think out loud
 - **Fixes 0.23.1's fix.** Reading `thinking` when `content` was empty stopped
   the blank bubbles, but it put the model's raw deliberation on screen — *"The
