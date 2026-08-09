@@ -193,5 +193,63 @@ re_src = ast.unparse(top("reindex"))
 ok("passages for non-PDF documents are carried across", "carried" in re_src)
 ok("and reported, so the carry-over is visible", "carried_over" in re_src)
 
+print("\nserving a figure is guarded exactly like serving an original")
+# Same shape of risk: a file handed to a browser on the strength of an id the
+# browser supplied. The id is looked up in the figure index and the resolved
+# path checked to be inside the figures directory.
+fp = top("_figure_path")
+ok("the figure lookup exists", fp is not None)
+fsrc = ast.unparse(fp)
+ok("it refuses an id it does not know", "_figures()" in fsrc)
+ok("it checks the resolved path is inside the directory", "commonpath" in fsrc)
+ok("and that the file is really there", "isfile" in fsrc)
+
+env3 = {"os": os, "FIGURES_DIR": tmp, "_FIG_INDEX": "figures.json"}
+exec(compile(ast.Module(body=[top("_figures"), fp], type_ignores=[]),
+             "<fig>", "exec"), env3)
+figure_path = env3["_figure_path"]
+Path(tmp, "figures.json").write_text(json.dumps({
+    "real-p1": {"doc": "D", "page": 1, "caption": "a schematic"},
+    "gone-p9": {"doc": "D", "page": 9, "caption": "missing file"},
+    "../../etc/passwd": {"doc": "X", "page": 1},
+}))
+Path(tmp, "real-p1.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+ok("a stored figure resolves", (figure_path("real-p1") or "").endswith("real-p1.png"))
+check("an unknown id finds nothing", figure_path("nope-p1"), None)
+check("a known id whose file is gone finds nothing", figure_path("gone-p9"), None)
+check("and an id shaped like a path finds nothing",
+      figure_path("../../etc/passwd"), None)
+
+print("\nthe agent can send a picture, but never invent one")
+chat_fn = None
+for n in ast.walk(tree):
+    if isinstance(n, ast.AsyncFunctionDef) and n.name == "chat_turn":
+        chat_fn = n
+show = None
+for n in ast.walk(chat_fn):
+    if isinstance(n, ast.AsyncFunctionDef) and n.name == "show_diagram":
+        show = n
+ok("show_diagram is a tool", show is not None)
+ssrc = ast.unparse(show)
+ok("it searches the index rather than composing an answer", "kb.search(" in ssrc)
+ok("it only returns figures that exist", "figs" in ssrc)
+ok("it says so when there is nothing to show", "note" in ssrc)
+# A tool that can never return anything is worse than no tool.
+csrc = ast.unparse(chat_fn)
+ok("and it is only offered once figures have been described",
+   "v.get('caption')" in csrc and "tools['show_diagram']" in csrc)
+
+print("\ncaptioning is resumable, and fails fast on a blind model")
+cap = top("caption_figures")
+ok("the captioning endpoint exists", cap is not None)
+csrc2 = ast.unparse(cap)
+ok("it is key-guarded", "_guard(" in csrc2)
+ok("it works in batches", "limit" in csrc2)
+ok("it reports what is left", "remaining" in csrc2)
+# 616 identical failures is a waste of everyone's time.
+ok("a model that cannot see stops the run", "VisionUnsupported" in csrc2)
+ok("and a page the model calls useless is remembered, not retried",
+   "skipped" in csrc2)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
