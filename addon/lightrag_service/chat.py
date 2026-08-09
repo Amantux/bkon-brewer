@@ -52,6 +52,7 @@ TOOL_DOCS = {
     "save_recipe": 'args {"name": str}         save the CURRENT recipe (asks the user first)',
     "brew_recipe": 'args {"name": str}         brew a saved recipe (asks the user first)',
     "answer_docs": 'args {"query": str}         answer a how-to question from the machine\'s manuals',
+    "show_diagram": 'args {"query": str}         find a diagram, schematic or screenshot to SHOW the user',
 }
 
 #: What the machine actually is, from the confirmed documents (docs/INTEL.md).
@@ -93,6 +94,10 @@ Rules:
 - save_recipe and brew_recipe do not act immediately: they ask the user, who
   confirms or declines. When one returns "awaiting confirmation", say what you
   have queued and stop -- do not call it again and do not pretend it happened.
+- Most of this machine's documentation is pictures. When the answer is a
+  location, a wiring path, a part, a menu screen or "which one is it?", call
+  show_diagram and let the picture do the work -- then say in one line what to
+  look at in it. Do not describe a diagram you have not been shown.
 - Tuning the recipe is a tool call, not advice: if the user says it should be
   stronger, less bitter, hotter or bigger, call adjust_recipe with their words
   as the feedback rather than describing what they could change."""

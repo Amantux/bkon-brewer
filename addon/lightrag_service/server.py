@@ -358,6 +358,44 @@ async def chat_turn(request: Request):
             _LOG.exception("answer_docs failed")
             return {"answer": f"Could not reach the documents ({ex})."}, None
 
+    async def show_diagram(args: dict, _steps):
+        """Find a diagram, screenshot or photograph worth showing.
+
+        Separate from answer_docs on purpose. answer_docs answers in words and
+        may cite a picture in passing; this is the model deciding that a
+        picture *is* the answer -- "which valve is V5?" is better served by the
+        flow schematic than by three sentences about it. The model chooses to
+        call it; it never chooses what the picture is. Figures come from the
+        index, so it cannot describe one that does not exist.
+        """
+        query = str(args.get("query", "")).strip()
+        if not query:
+            return {"error": "what should the diagram show?"}, None
+        figs = _figures()
+        kb = _load_kb()
+        if not any(v.get("caption") for v in figs.values()):
+            return {"figures": [],
+                    "note": "no pictures have been described yet"}, None
+        if not kb.ready:
+            return {"figures": [], "note": "no index"}, None
+        picked, seen = [], set()
+        for hit in kb.search(query, k=30):
+            fid = getattr(hit.passage, "figure", "") or next(
+                (k for k, v in figs.items()
+                 if v.get("doc") == hit.passage.doc
+                 and v.get("page") == hit.passage.page and v.get("caption")), "")
+            if not fid or fid in seen or fid not in figs:
+                continue
+            seen.add(fid)
+            f = figs[fid]
+            picked.append({"id": fid, "doc": f["doc"], "page": f["page"],
+                           "label": f.get("label") or "",
+                           "caption": (f.get("caption") or "")[:300]})
+            if len(picked) == 3:
+                break
+        return {"figures": picked,
+                "note": "" if picked else "nothing matching to show"}, None
+
     async def score_tool(_args: dict, cur_steps):
         """Score the current recipe. Needs the provider, so it is a closure."""
         crit = await scoring.score_recipe(_provider, cur_steps)
@@ -438,6 +476,10 @@ async def chat_turn(request: Request):
     have_docs = ENABLE_LIGHTRAG and _rag is not None
     tools = studio_tools.registry_for(
         answer_docs if have_docs else None, score_recipe=score_tool)
+    # Offered only when there is something to show. A tool the model can call
+    # but that can never return anything is worse than no tool.
+    if any(v.get("caption") for v in _figures().values()):
+        tools["show_diagram"] = show_diagram
     if ha.available():
         tools.update(tools_ha)
 
@@ -839,6 +881,17 @@ _ORIGINAL_TYPES = {
 }
 
 
+def _slug(name: str) -> str:
+    """A filesystem-safe handle for a document name.
+
+    Document names carry slashes, ampersands, colons and trailing spaces, and
+    none of that belongs in a path. Shared by the stored originals and the
+    figure ids so the two agree on what a document is called on disk.
+    """
+    import re as _re
+    return _re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower()[:70] or "doc"
+
+
 def _manifest() -> dict:
     """doc name -> stored filename. Empty when nothing has been uploaded."""
     try:
@@ -909,9 +962,7 @@ async def upload_original(request: Request, doc: str, filename: str,
     # ampersands and colons, and none of that belongs in a path.
     import hashlib
     import json as _json
-    import re as _re
-    slug = _re.sub(r"[^A-Za-z0-9]+", "-", doc).strip("-").lower()[:70] or "doc"
-    stored = f"{slug}-{hashlib.sha1(doc.encode()).hexdigest()[:8]}{ext}"
+    stored = f"{_slug(doc)}-{hashlib.sha1(doc.encode()).hexdigest()[:8]}{ext}"
     try:
         os.makedirs(ORIGINALS_DIR, exist_ok=True)
         with open(os.path.join(ORIGINALS_DIR, stored), "wb") as f:
@@ -945,6 +996,237 @@ async def delete_original(doc: str,
     except OSError as ex:
         raise HTTPException(status_code=500, detail=f"could not remove: {ex}")
     return {"removed": True, "doc": doc, "originals": len(man)}
+
+
+# --- figures: the documents are mostly pictures ----------------------------
+# Measured over the stored originals: 717 pages, 620 of which carry a diagram,
+# a screenshot or a photograph. Indexing only their text indexes the captions of
+# a picture book, which is why 16 documents had two passages or fewer while
+# their PDFs ran to dozens of pages. So pages are rendered and described, and
+# the descriptions are indexed beside the prose.
+
+FIGURES_DIR = os.getenv("FIGURES_DIR", "/share/bkon_lightrag/figures")
+_FIG_INDEX = "figures.json"
+
+
+def _figures() -> dict:
+    """id -> {doc, page, caption, label}. Empty until a reindex has run."""
+    try:
+        import json as _json
+        with open(os.path.join(FIGURES_DIR, _FIG_INDEX), encoding="utf-8") as f:
+            data = _json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_figures(index: dict) -> None:
+    import json as _json
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    with open(os.path.join(FIGURES_DIR, _FIG_INDEX), "w", encoding="utf-8") as f:
+        _json.dump(index, f, indent=1, sort_keys=True)
+
+
+def _figure_path(fid: str) -> str | None:
+    """The PNG for a figure id, checked the same way an original is."""
+    if fid not in _figures():
+        return None
+    root = os.path.realpath(FIGURES_DIR)
+    full = os.path.realpath(os.path.join(root, f"{fid}.png"))
+    if os.path.commonpath([root, full]) != root or not os.path.isfile(full):
+        return None
+    return full
+
+
+@app.post("/documents/reindex")
+async def reindex(request: Request, render: bool = True,
+                  x_api_key: str | None = Header(default=None),
+                  authorization: str | None = Header(default=None)):
+    """Rebuild the passage index from the stored original PDFs.
+
+    Text comes out per page, so a citation lands on the page it came from
+    rather than somewhere in the document. Pages carrying a picture are
+    rendered and kept; describing them is a separate, slower step
+    (/documents/caption) because it costs a model call each and should be
+    resumable.
+
+    Existing captions survive a reindex -- they are keyed by document and page,
+    and re-describing 616 pages because the text extractor changed would be an
+    expensive way to get the same sentences back.
+    """
+    global _kb
+    _guard(x_api_key, authorization)
+    import figures as F
+
+    man = _manifest()
+    if not man:
+        raise HTTPException(
+            status_code=404,
+            detail="No original documents on the device. Upload them first "
+                   "with scripts/upload_originals.py.")
+
+    old = _figures()
+    passages: list[dict] = []
+    index: dict = {}
+    seen_digests: dict[str, str] = {}
+    stats = {"documents": 0, "pages": 0, "figures": 0, "duplicates": 0,
+             "skipped": []}
+
+    for doc in sorted(man):
+        path = _original_path(doc)
+        if path is None or not path.lower().endswith(".pdf"):
+            continue                                  # videos have no pages
+        try:
+            ex = F.extract(doc, open(path, "rb").read(), render=render)
+        except Exception as exc:                      # noqa: BLE001
+            _LOG.exception("could not read %s", doc)
+            stats["skipped"].append(f"{doc}: {exc}")
+            continue
+        stats["documents"] += 1
+        for page in ex.pages:
+            stats["pages"] += 1
+            if page.text:
+                passages.append({"doc": doc, "page": page.number,
+                                 "text": page.text})
+            if not page.visual or not page.png:
+                continue
+            # Slide decks repeat their backgrounds; an identical rendering is
+            # not a second figure, and describing it again would cost a model
+            # call to learn the same thing.
+            if page.digest in seen_digests:
+                stats["duplicates"] += 1
+                continue
+            fid = f"{_slug(doc)}-p{page.number}"
+            seen_digests[page.digest] = fid
+            try:
+                os.makedirs(FIGURES_DIR, exist_ok=True)
+                with open(os.path.join(FIGURES_DIR, f"{fid}.png"), "wb") as fh:
+                    fh.write(page.png)
+            except OSError as exc:
+                stats["skipped"].append(f"{doc} p{page.number}: {exc}")
+                continue
+            prior = old.get(fid) or {}
+            index[fid] = {"doc": doc, "page": page.number,
+                          "caption": prior.get("caption", ""),
+                          "label": prior.get("label", "")}
+            stats["figures"] += 1
+
+    # A described figure is a passage like any other, so retrieval ranks a
+    # schematic against the prose instead of in a separate world.
+    for fid, fig in index.items():
+        if fig.get("caption"):
+            passages.append(F.as_passage(fig["doc"], fig["page"],
+                                         fig["caption"], fid))
+
+    _write_figures(index)
+    import json as _json
+    try:
+        os.makedirs(os.path.dirname(KB_FILE), exist_ok=True)
+        with open(KB_FILE, "w", encoding="utf-8") as f:
+            _json.dump({"passages": passages}, f)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"could not store: {exc}")
+    _kb = None
+    kb = _load_kb()
+    stats["passages"] = len(passages)
+    stats["described"] = sum(1 for v in index.values() if v.get("caption"))
+    stats["indexed_documents"] = len(kb.documents)
+    return stats
+
+
+@app.post("/documents/caption")
+async def caption_figures(limit: int = 25, redo: bool = False,
+                          x_api_key: str | None = Header(default=None),
+                          authorization: str | None = Header(default=None)):
+    """Describe rendered pages with the vision model. Resumable by design.
+
+    There are ~616 of them, each a model call, so this does `limit` at a time
+    and can be run until it reports nothing left. Descriptions are written for
+    *retrieval* -- they should contain the words a technician would search for
+    when they have the problem the page solves.
+    """
+    _guard(x_api_key, authorization)
+    _need_provider()
+    import figures as F
+    from providers.base import VisionUnsupported
+
+    index = _figures()
+    todo = [fid for fid, v in sorted(index.items())
+            if redo or not (v.get("caption") or v.get("skipped"))][:max(1, limit)]
+    if not todo:
+        return {"done": True, "remaining": 0,
+                "described": sum(1 for v in index.values() if v.get("caption"))}
+
+    described = failed = skipped = 0
+    errors: list[str] = []
+    for fid in todo:
+        path = _figure_path(fid)
+        if path is None:
+            continue
+        png = open(path, "rb").read()
+        try:
+            caption = (await _provider.complete(
+                F.CAPTION_PROMPT, images=[png], max_tokens=400)).strip()
+        except VisionUnsupported as exc:
+            # No point grinding through 600 of these to fail identically.
+            raise HTTPException(status_code=422, detail=str(exc))
+        except Exception as exc:                      # noqa: BLE001
+            failed += 1
+            errors.append(f"{fid}: {exc}")
+            continue
+        if F.is_skip(caption):
+            index[fid]["skipped"] = True
+            skipped += 1
+            continue
+        label = ""
+        try:
+            label = (await _provider.complete(
+                F.LABEL_PROMPT + "\n\n" + caption, max_tokens=40)).strip()
+        except Exception:                             # noqa: BLE001
+            pass                                      # a label is a nicety
+        index[fid]["caption"] = caption
+        index[fid]["label"] = label[:80]
+        described += 1
+
+    _write_figures(index)
+    remaining = sum(1 for v in index.values()
+                    if not (v.get("caption") or v.get("skipped")))
+    return {"described": described, "skipped_by_model": skipped,
+            "failed": failed, "errors": errors[:5], "remaining": remaining,
+            "done": remaining == 0,
+            "note": "run /documents/reindex again to fold new descriptions "
+                    "into the search index" if described else ""}
+
+
+@app.get("/documents/figure")
+async def figure_image(id: str):
+    """The rendered page behind a figure."""
+    full = _figure_path(id)
+    if full is None:
+        raise HTTPException(status_code=404, detail=f"no figure {id!r}")
+    return FileResponse(full, media_type="image/png",
+                        headers={"Cache-Control": "private, max-age=86400"})
+
+
+@app.get("/documents/figures")
+async def list_figures(doc: str = "", q: str = "", limit: int = 24):
+    """Figures, optionally for one document or matching a search."""
+    index = _figures()
+    items = [{"id": k, **v} for k, v in index.items() if v.get("caption")]
+    if doc:
+        items = [i for i in items if i["doc"] == doc]
+    if q:
+        kb = _load_kb()
+        if kb.ready:
+            order = {h.passage.figure: n for n, h in
+                     enumerate(kb.search(q, k=40)) if h.passage.figure}
+            items = [i for i in items if i["id"] in order]
+            items.sort(key=lambda i: order[i["id"]])
+    else:
+        items.sort(key=lambda i: (i["doc"], i["page"]))
+    return {"figures": items[:max(1, min(limit, 60))],
+            "total": len(index),
+            "described": sum(1 for v in index.values() if v.get("caption"))}
 
 
 @app.get("/documents/file")
@@ -1011,16 +1293,30 @@ def _cite(question: str, k: int = 6) -> list[dict]:
     if not kb.ready:
         return []
     man = _manifest()
+    figs = _figures()
     out, seen = [], set()
     for hit in kb.search(question, k=k):
         doc = hit.passage.doc
         if doc in seen:
             continue
         seen.add(doc)
-        out.append({"doc": doc, "page": hit.passage.page,
-                    "url": getattr(hit.passage, "url", "") or "",
-                    "original": doc in man,
-                    "excerpt": hit.passage.text.strip()[:220]})
+        entry = {"doc": doc, "page": hit.passage.page,
+                 "url": getattr(hit.passage, "url", "") or "",
+                 "original": doc in man,
+                 "excerpt": hit.passage.text.strip()[:220]}
+        # If the retrieved passage *is* a described picture, or the page it
+        # came from has one, the citation can show it. Most of this corpus is
+        # diagrams, so an answer about a valve is far better with the schematic
+        # beside it than with a page number.
+        fid = getattr(hit.passage, "figure", "") or ""
+        if not fid:
+            fid = next((k for k, v in figs.items()
+                        if v.get("doc") == doc and v.get("page") == hit.passage.page
+                        and v.get("caption")), "")
+        if fid and fid in figs:
+            entry["figure"] = {"id": fid, "label": figs[fid].get("label") or "",
+                               "caption": figs[fid].get("caption") or ""}
+        out.append(entry)
     return out
 
 
@@ -1063,8 +1359,17 @@ async def ask_docs(request: Request):
         # No model, or it failed — the passages are still a real answer.
         answer = sources[0]["excerpt"]
         err = err or "Answered from the index directly (no model answer available)."
-    return {"answer": answer, "sources": sources[:4], "note": err,
-            "indexed": kb.size if kb.ready else 0}
+    # Pictures shown above the sources, because for this corpus the picture
+    # usually *is* the answer. Looked up from the retrieved passages, never
+    # named by the model -- same rule as the citations.
+    shown, seen_fig = [], set()
+    for sx in sources:
+        fig = sx.get("figure")
+        if fig and fig["id"] not in seen_fig:
+            seen_fig.add(fig["id"])
+            shown.append({**fig, "doc": sx["doc"], "page": sx["page"]})
+    return {"answer": answer, "sources": sources[:4], "figures": shown[:2],
+            "note": err, "indexed": kb.size if kb.ready else 0}
 
 
 @app.post("/lint")

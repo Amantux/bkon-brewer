@@ -33,11 +33,20 @@ class OpenAICompatProvider(AIProvider):
         return self._client
 
     async def complete(self, prompt: str, system: str | None = None,
-                       max_tokens: int = 2048) -> str:
+                       max_tokens: int = 2048,
+                       images: list[bytes] | None = None) -> str:
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        if images:
+            import base64
+            parts = [{"type": "image_url", "image_url": {
+                          "url": "data:image/png;base64," + base64.b64encode(b).decode()}}
+                     for b in images]
+            parts.append({"type": "text", "text": prompt})
+            messages.append({"role": "user", "content": parts})
+        else:
+            messages.append({"role": "user", "content": prompt})
         try:
             resp = await self._get_client().chat.completions.create(
                 model=self._model, messages=messages, max_tokens=max_tokens)

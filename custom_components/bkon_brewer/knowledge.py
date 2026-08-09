@@ -58,10 +58,17 @@ class Passage:
     doc: str
     page: int
     text: str
-    #: Where to go to see the source, when there is somewhere to go. PDFs have
-    #: nowhere — they are not on the device — but a training video does, so a
-    #: citation to one can link out to it. Empty for everything else.
+    #: Where to go to see the source, when there is somewhere to go. A video
+    #: links out; a PDF is served from the device once its originals have been
+    #: uploaded. Empty for everything else.
     url: str = ""
+    #: A described picture, rather than text lifted off the page. Most of this
+    #: corpus is diagrams and screenshots, so a figure's description is indexed
+    #: alongside the prose and ranked against it -- "where does the drain line
+    #: connect?" should be able to match a schematic. `figure` is the id to
+    #: fetch it by.
+    kind: str = ""
+    figure: str = ""
 
 
 @dataclass(slots=True)
@@ -92,7 +99,8 @@ class KnowledgeBase:
             return cls([])
         data = json.loads(p.read_text(encoding="utf-8"))
         return cls([Passage(d["doc"], int(d.get("page", 0)), d["text"],
-                            d.get("url", ""))
+                            d.get("url", ""), d.get("kind", ""),
+                            d.get("figure", ""))
                     for d in data.get("passages", [])])
 
     @property

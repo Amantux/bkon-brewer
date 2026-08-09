@@ -5,7 +5,20 @@ per-vendor specifics the spec calls out. Handled here so callers stay uniform.
 """
 from __future__ import annotations
 
-from .base import AIProvider, ProviderError
+from .base import AIProvider, ProviderError, VisionUnsupported
+
+
+def _media_type(data: bytes) -> str:
+    """From the bytes, not from a filename we may not have."""
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/png"
+
+
 
 
 class AnthropicProvider(AIProvider):
@@ -31,13 +44,22 @@ class AnthropicProvider(AIProvider):
         return self._client
 
     async def complete(self, prompt: str, system: str | None = None,
-                       max_tokens: int = 2048) -> str:
+                       max_tokens: int = 2048,
+                       images: list[bytes] | None = None) -> str:
+        content: list | str = prompt
+        if images:
+            import base64
+            content = [{"type": "image", "source": {
+                            "type": "base64", "media_type": _media_type(b),
+                            "data": base64.b64encode(b).decode()}}
+                       for b in images]
+            content.append({"type": "text", "text": prompt})
         try:
             resp = await self._get_client().messages.create(
                 model=self._model,
                 max_tokens=max_tokens,
                 system=system or "",                 # top-level, not a message
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": content}],
             )
         except Exception as ex:                      # noqa: BLE001
             raise ProviderError(f"anthropic call failed: {ex}") from ex

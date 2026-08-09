@@ -48,5 +48,18 @@ class AIProvider(ABC):
 
     @abstractmethod
     async def complete(self, prompt: str, system: str | None = None,
-                       max_tokens: int = 2048) -> str:
-        """One completion. Raises ProviderError on failure."""
+                       max_tokens: int = 2048,
+                       images: list[bytes] | None = None) -> str:
+        """One completion. Raises ProviderError on failure.
+
+        `images` are raw bytes (PNG/JPEG) sent alongside the prompt. Most of
+        this service's work is text, but the BKON documents are largely
+        pictures -- 620 of 717 pages carry a diagram or a screenshot -- so
+        understanding them is not a side feature here, it is most of the
+        corpus. An adapter whose model cannot see raises VisionUnsupported so
+        the caller can say which model to use instead of failing obscurely.
+        """
+
+
+class VisionUnsupported(ProviderError):
+    """This model cannot read images. Say so plainly rather than guessing."""

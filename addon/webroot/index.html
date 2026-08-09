@@ -468,6 +468,18 @@
   /* A write the model asked for. Nothing happens until this is answered. */
   /* The working, while it is working. One line per step: the running one
      pulses, the finished ones tick. */
+  /* A figure from the documents. Sized to be readable in a chat bubble, and
+     clickable through to the page it came from. */
+  .dg-figs{display:flex;flex-direction:column;gap:12px;margin:12px 0 4px}
+  .dg-fig{margin:0}
+  .dg-fig a{display:block;border:1px solid var(--line);border-radius:var(--r-card);
+    overflow:hidden;background:#fff;line-height:0}
+  .dg-fig a:hover{border-color:var(--accent)}
+  .dg-fig a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .dg-fig img{width:100%;height:auto;display:block;max-height:460px;object-fit:contain}
+  .dg-fig figcaption{font-size:var(--fs-sm);color:var(--ink-soft);margin-top:5px;line-height:1.4}
+  .dg-fig figcaption .src{font-family:var(--mono);font-size:var(--fs-xs);opacity:.7;white-space:nowrap}
+  .cmp-body .dg-fig img{max-height:300px}
   .cmp-trace{display:flex;flex-direction:column;gap:3px}
   .cmp-step{display:flex;gap:7px;align-items:baseline;font-size:var(--fs-sm);color:var(--ink-soft)}
   .cmp-step em{font-style:normal;color:var(--ink-soft);opacity:.75}
@@ -2744,15 +2756,35 @@ address=0x80000000</code></pre>
     const where = sx.doc.startsWith("Video:") ? "video" : (sx.page ? "p."+sx.page : "");
     return `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
       + `<span class="pg">${esc(where)}</span>${acts.join("")}</div>`
+      + (sx.figure ? figureHtml({...sx.figure, doc:sx.doc, page:sx.page}) : "")
       + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`;
   }
 
+  // A picture from the documents. Click opens the original PDF at that page,
+  // so the figure is a way in rather than a dead end.
+  function figureHtml(f, base){
+    const b = base===undefined ? BASE : base;
+    const cap = f.label || f.caption || "";
+    return `<figure class="dg-fig">`
+      + `<a href="${esc(b)}documents/file?doc=${encodeURIComponent(f.doc||"")}`
+      + `#page=${encodeURIComponent(f.page||1)}" target="_blank" rel="noopener">`
+      + `<img loading="lazy" alt="${esc(f.caption||cap||"figure")}"`
+      + ` src="${esc(b)}documents/figure?id=${encodeURIComponent(f.id)}"></a>`
+      + (cap ? `<figcaption>${esc(cap)}`
+             + (f.doc ? ` <span class="src">${esc(f.doc)}${f.page?" p."+esc(f.page):""}</span>` : "")
+             + `</figcaption>` : "")
+      + `</figure>`;
+  }
+
   window.bkonCite = citeHtml;        // same convention as window.bkonMd
+  window.bkonFigure = figureHtml;
   window.bkonOpenDoc = openDoc;
 
   function renderAnswer(box, d){
     const cites=(d.sources||[]).map(citeHtml).join("");
+    const shown=(d.figures||[]).map(f=>figureHtml(f)).join("");
     box.innerHTML = `<div class="md">${md(d.answer||"No answer.")}</div>`
+      + (shown ? `<div class="dg-figs">${shown}</div>` : "")
       + (cites ? `<div class="dg-cites"><div class="dg-citehead">Sources</div>${cites}</div>` : "")
       + (d.note ? `<p class="stu-hint" style="margin-top:9px">${esc(d.note)}</p>` : "");
     box.querySelectorAll("button[data-doc]").forEach(b=>
@@ -3018,6 +3050,17 @@ address=0x80000000</code></pre>
       // Anything the model asked permission for becomes a chip the user answers.
       (data.actions||[]).filter(a=>a.result && a.result.awaiting_confirmation)
         .forEach(a=>thinking.appendChild(confirmChip(a.result)));
+      // A picture the agent decided was the answer. Rendered here even though
+      // citations are not: a diagram of the valve you asked about is the point,
+      // not a footnote to it.
+      const figs = (data.actions||[])
+        .filter(a=>a.tool==="show_diagram" && a.result && a.result.figures)
+        .flatMap(a=>a.result.figures);
+      if(figs.length && typeof window.bkonFigure === "function"){
+        const box=document.createElement("div"); box.className="dg-figs";
+        box.innerHTML = figs.map(f=>window.bkonFigure(f, BASE)).join("");
+        thinking.appendChild(box);
+      }
       const work = workSummary(data.actions);
       if(work) thinking.appendChild(work);
       history.push({role:"assistant",content:data.reply||""});

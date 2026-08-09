@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 
-from .base import AIProvider, ChatResult, ProviderError
+from .base import AIProvider, ChatResult, ProviderError, VisionUnsupported
 
 
 class OllamaProvider(AIProvider):
@@ -31,11 +31,16 @@ class OllamaProvider(AIProvider):
         return self._client
 
     async def complete(self, prompt: str, system: str | None = None,
-                       max_tokens: int = 2048) -> str:
+                       max_tokens: int = 2048,
+                       images: list[bytes] | None = None) -> str:
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        user = {"role": "user", "content": prompt}
+        if images:
+            # The SDK takes raw bytes and base64s them itself.
+            user["images"] = list(images)
+        messages.append(user)
 
         # Reasoning models (gpt-oss, deepseek-r1, qwen3) split their output:
         # deliberation into `thinking`, the conclusion into `content`. Asked for
@@ -49,8 +54,11 @@ class OllamaProvider(AIProvider):
         #   2. default         -- some builds return nothing at all with
         #                         thinking suppressed, so give it back
         #   3. default, again  -- purely for the intermittency
+        # Looking at a picture is deliberate work; suppressing the model's
+        # reasoning makes the descriptions notably worse. Thinking stays on.
+        attempts = (None,) if images else (False, None, None)
         last = None
-        for think in (False, None, None):
+        for think in attempts:
             try:
                 resp = await self._call(messages, max_tokens, think)
             except _ThinkUnsupported:
@@ -83,6 +91,10 @@ class OllamaProvider(AIProvider):
             return await self._get_client().chat(**kwargs)
         except Exception as ex:                      # noqa: BLE001
             text = str(ex).lower()
+            if "image" in text or "vision" in text or "multimodal" in text:
+                raise VisionUnsupported(
+                    f"{self._model} cannot read images ({ex}). Choose a model "
+                    f"that can see -- gemma and qwen-vl families do.") from ex
             if think is not None and ("think" in text or "does not support" in text):
                 raise _ThinkUnsupported from ex
             raise ProviderError(f"ollama call failed: {ex}") from ex
