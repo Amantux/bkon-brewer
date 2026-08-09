@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.17.0 — one place for faults and manuals
+- **Recipes and Diagnose no longer open the wiki group.** They are top-level
+  pages; the nav only knew about three of them, so the rest were treated as wiki
+  entries.
+- **Ask the docs and Diagnose are now one chat: Diagnose & docs.** Diagnose ran
+  through the recipe agent and was returning empty replies; both now use the
+  document-grounded path, which works and returns its sources. Multi-turn, so a
+  follow-up is answered in context.
+- **Answers are formatted properly** — headings, lists, bold and inline code
+  rendered rather than shown as raw Markdown.
+- **Citations you can actually read.** Each source shows the document, the page
+  and an excerpt, with **Read** opening its full indexed text in place. The PDFs
+  are not on the device and are not ours to serve, so the link is to the text the
+  answer was drawn from.
+- The floating companion is unchanged: it stays the recipe agent, without
+  citations, as asked.
+
 ## 0.16.1
 - **Fixes the visual glitch when dragging a step to the top.** The dashed
   landing space was a flow element, so moving it re-laid-out the list on top of

@@ -292,7 +292,7 @@ async def chat_turn(request: Request):
         if not question:
             return {"answer": "No question was given."}, None
         try:
-            raw = await _rag.aquery(question, param=_query_param(mode="hybrid"))
+            raw = await _rag.aquery(question_for_rag, param=_query_param(mode="hybrid"))
             return {"answer": clean_answer(raw)}, None
         except Exception as ex:                       # noqa: BLE001
             return {"answer": f"Could not reach the documents ({ex})."}, None
@@ -623,6 +623,30 @@ async def upload_index(request: Request,
     return {"stored": True, "passages": len(passages), "documents": len(kb.documents)}
 
 
+@app.get("/documents")
+async def documents():
+    """Every indexed document, for the reader."""
+    kb = _load_kb()
+    return {"documents": kb.documents if kb.ready else [], "passages": kb.size if kb.ready else 0}
+
+
+@app.get("/documents/read")
+async def read_document(doc: str, q: str = ""):
+    """The passages of one document, in order — a citation you can open and read.
+
+    The PDFs themselves are not on the device (and are not ours to serve), so a
+    "link to the document" is its indexed text, which is what the answer was
+    drawn from anyway.
+    """
+    kb = _load_kb()
+    if not kb.ready:
+        raise HTTPException(status_code=404, detail="no index")
+    passages = [p for p in kb._passages if p.doc == doc]
+    if not passages:
+        raise HTTPException(status_code=404, detail=f"no document named {doc!r}")
+    return {"doc": doc, "pages": [{"page": p.page, "text": p.text} for p in passages]}
+
+
 @app.post("/ask")
 async def ask_docs(request: Request):
     """Answer from the machine's documents, and say which ones.
@@ -636,6 +660,14 @@ async def ask_docs(request: Request):
     question = (body.get("question") or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="question is required")
+    # Prior turns fold into the query so a follow-up ("and if that fails?") is
+    # answered in context rather than as a fresh question.
+    history = body.get("history") or []
+    if history:
+        prior = " ".join(str(h.get("content", ""))[:200] for h in history[-3:])
+        question_for_rag = f"{prior}\n{question}"[:1200]
+    else:
+        question_for_rag = question
 
     sources = []
     kb = _load_kb()
@@ -652,7 +684,7 @@ async def ask_docs(request: Request):
     answer, err = "", None
     if ENABLE_LIGHTRAG and _rag is not None and _provider is not None:
         try:
-            raw = await _rag.aquery(question, param=_query_param(mode="hybrid"))
+            raw = await _rag.aquery(question_for_rag, param=_query_param(mode="hybrid"))
             answer = clean_answer(raw)
         except Exception as ex:                   # noqa: BLE001
             err = str(ex)[:200]

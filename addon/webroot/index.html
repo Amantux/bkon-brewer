@@ -341,6 +341,44 @@
   .ask-cite b{font-size:12.5px}
   .ask-cite a{font-size:12.5px}
   .ask-cite span{display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:2px}
+  .dg-log{display:flex;flex-direction:column;gap:12px;max-height:none;margin-bottom:4px}
+  .dg-turn{display:flex;flex-direction:column;gap:8px}
+  .dg-q{align-self:flex-end;max-width:88%;background:var(--accent);color:#fff;
+    padding:9px 13px;border-radius:13px;border-bottom-right-radius:4px;font-size:13.5px}
+  .dg-a{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    border-bottom-left-radius:4px;padding:13px 15px;box-shadow:var(--shadow)}
+  /* Prose from the model, given real typography rather than a wall of text. */
+  .md{font-size:13.5px;line-height:1.62;color:var(--ink)}
+  .md h3{font-size:13.5px;margin:14px 0 5px;letter-spacing:-.01em}
+  .md h3:first-child{margin-top:0}
+  .md p{margin:0 0 9px;max-width:none}
+  .md p:last-child{margin-bottom:0}
+  .md ul,.md ol{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+  .md li{line-height:1.55}
+  .md code{font-family:var(--mono);font-size:12px;background:var(--panel-2);
+    padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+  .md strong{font-weight:650}
+  .dg-cites{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);
+    display:flex;flex-direction:column;gap:7px}
+  .dg-citehead{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint)}
+  .dg-cite{display:flex;gap:9px;align-items:baseline;font-size:12.5px}
+  .dg-cite .doc{font-weight:650;flex:1;min-width:0}
+  .dg-cite .pg{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)}
+  .dg-cite button{border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);
+    font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;cursor:pointer;
+    font-family:var(--sans);white-space:nowrap}
+  .dg-cite button:hover{border-color:var(--accent)}
+  .dg-excerpt{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:-2px 0 0 0;
+    padding-left:2px;border-left:2px solid var(--line);padding-left:9px}
+  .dg-reader{background:var(--panel);border:1px solid var(--line-2);border-radius:13px;
+    box-shadow:var(--shadow);padding:16px 18px;margin-top:16px}
+  .dg-reader-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .dg-reader-head h2{margin:0;font-size:15px}
+  .dg-page{border-top:1px solid var(--line);padding:10px 0}
+  .dg-page .n{font-family:var(--mono);font-size:10px;color:var(--ink-faint);display:block;margin-bottom:3px}
+  .dg-page p{font-size:12.5px;line-height:1.6;color:var(--ink);margin:0;white-space:pre-wrap}
+  .dg-thinking{font-size:12.5px;color:var(--ink-faint)}
   .setmodel{display:flex;gap:8px}
   .setmodel select{flex:1;min-width:0}
   .setrow input,.setrow select{font-family:var(--sans);font-size:14px;color:var(--ink);
@@ -355,6 +393,44 @@
   .ask-cite b{font-size:12.5px}
   .ask-cite a{font-size:12.5px}
   .ask-cite span{display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:2px}
+  .dg-log{display:flex;flex-direction:column;gap:12px;max-height:none;margin-bottom:4px}
+  .dg-turn{display:flex;flex-direction:column;gap:8px}
+  .dg-q{align-self:flex-end;max-width:88%;background:var(--accent);color:#fff;
+    padding:9px 13px;border-radius:13px;border-bottom-right-radius:4px;font-size:13.5px}
+  .dg-a{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    border-bottom-left-radius:4px;padding:13px 15px;box-shadow:var(--shadow)}
+  /* Prose from the model, given real typography rather than a wall of text. */
+  .md{font-size:13.5px;line-height:1.62;color:var(--ink)}
+  .md h3{font-size:13.5px;margin:14px 0 5px;letter-spacing:-.01em}
+  .md h3:first-child{margin-top:0}
+  .md p{margin:0 0 9px;max-width:none}
+  .md p:last-child{margin-bottom:0}
+  .md ul,.md ol{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+  .md li{line-height:1.55}
+  .md code{font-family:var(--mono);font-size:12px;background:var(--panel-2);
+    padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+  .md strong{font-weight:650}
+  .dg-cites{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);
+    display:flex;flex-direction:column;gap:7px}
+  .dg-citehead{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint)}
+  .dg-cite{display:flex;gap:9px;align-items:baseline;font-size:12.5px}
+  .dg-cite .doc{font-weight:650;flex:1;min-width:0}
+  .dg-cite .pg{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)}
+  .dg-cite button{border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);
+    font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;cursor:pointer;
+    font-family:var(--sans);white-space:nowrap}
+  .dg-cite button:hover{border-color:var(--accent)}
+  .dg-excerpt{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:-2px 0 0 0;
+    padding-left:2px;border-left:2px solid var(--line);padding-left:9px}
+  .dg-reader{background:var(--panel);border:1px solid var(--line-2);border-radius:13px;
+    box-shadow:var(--shadow);padding:16px 18px;margin-top:16px}
+  .dg-reader-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .dg-reader-head h2{margin:0;font-size:15px}
+  .dg-page{border-top:1px solid var(--line);padding:10px 0}
+  .dg-page .n{font-family:var(--mono);font-size:10px;color:var(--ink-faint);display:block;margin-bottom:3px}
+  .dg-page p{font-size:12.5px;line-height:1.6;color:var(--ink);margin:0;white-space:pre-wrap}
+  .dg-thinking{font-size:12.5px;color:var(--ink-faint)}
   .setmodel{display:flex;gap:8px}
   .setmodel select{flex:1;min-width:0}
   .setrow input,.setrow select{font-size:16px;padding:12px}}
@@ -426,8 +502,7 @@
     <div class="brand"><div class="mark"></div><div><b>BKON Brewer</b><span id="buildStamp">Recipe studio</span></div></div>
     <a data-nav="studio" class="active primary">🧪 Recipe studio</a>
     <a data-nav="browse" class="primary">📖 Recipes</a>
-    <a data-nav="ask" class="primary">📚 Ask the docs</a>
-    <a data-nav="diagnose" class="primary">🩺 Diagnose</a>
+    <a data-nav="ask" class="primary">🩺 Diagnose &amp; docs</a>
     <a data-nav="settings" class="primary">⚙️ Settings</a>
     <button class="grp grp-toggle" id="wikiToggle" type="button" aria-expanded="false" aria-controls="wikiNav">
       <span class="caret">▸</span> Wiki &amp; reference</button>
@@ -597,56 +672,33 @@
         <a data-nav="studio" href="#">studio</a> and save it.</p>
     </section>
 
-    <!-- ASK -->
+    <!-- DIAGNOSE & DOCS -->
     <section id="ask">
-      <div class="eyebrow">The machine's own service documents</div>
-      <h1>Ask the docs</h1>
-      <p class="lede">Questions answered from the brewer's service and training documents,
-      with the documents the answer came from listed underneath — enough to check it, without
-      pretending to per-sentence precision the retrieval does not have.</p>
-
-      <div class="zone" style="--zone:var(--t-fill)">
-        <div class="zone-head"><h2>📚 Ask</h2><span class="why" id="askCount"></span></div>
-        <div class="zone-body">
-          <form class="stu-input" id="askForm" style="margin-bottom:10px">
-            <input id="askText" autocomplete="off" placeholder="How do I descale the machine?"
-              aria-label="Ask the documents" />
-            <button class="btn primary" type="submit" id="askGo">Ask</button>
-          </form>
-          <div class="stu-sugg" id="askChips" style="padding:0 0 8px"></div>
-          <div id="askOut"></div>
-        </div>
-      </div>
-      <p class="stu-foot">Sources are the documents the retriever actually matched, looked up
-        rather than written by the model — so a citation cannot be invented. Confirmed facts
-        drawn from these documents live in
-        <a data-nav="reference" href="#">Units &amp; error codes</a> and
-        <a data-nav="bbp" href="#">The .bbp menu file</a>.</p>
-    </section>
-
-    <!-- DIAGNOSE -->
-    <section id="diagnose">
-      <div class="eyebrow">Something wrong with the machine</div>
-      <h1>Diagnose</h1>
-      <p class="lede">Give it an error code, a status, or just describe what the brewer is
-      doing. It reads the confirmed fault table first, then the machine's own service
-      documents, and tells you the likely cause and what to try.</p>
+      <div class="eyebrow">Faults, symptoms, and the machine's own manuals</div>
+      <h1>Diagnose &amp; docs</h1>
+      <p class="lede">Describe what the brewer is doing, or ask how something works. Answers
+      come from the service documents, with the passages they were drawn from underneath —
+      open one to read it.</p>
 
       <div class="zone" style="--zone:var(--t-start)">
-        <div class="zone-head"><h2>🩺 What's happening?</h2></div>
+        <div class="zone-head"><h2>🩺 Ask</h2><span class="why" id="askCount"></span>
+          <span class="sp"></span>
+          <button class="btn" id="askClear" type="button">Clear</button></div>
         <div class="zone-body">
-          <form class="stu-input" id="dgForm" style="margin-bottom:10px">
-            <input id="dgText" autocomplete="off" placeholder="C:3 M:5 — or “it won’t pull a vacuum”"
-              aria-label="Error code or symptom" />
-            <button class="btn primary" type="submit" id="dgGo">Diagnose</button>
+          <div class="dg-log" id="askLog"></div>
+          <div class="stu-sugg" id="askChips" style="padding:6px 0 10px"></div>
+          <form class="stu-input" id="askForm">
+            <input id="askText" autocomplete="off" placeholder="C:3 M:5 — or “it won’t pull a vacuum”"
+              aria-label="Describe the problem or ask a question" />
+            <button class="btn primary" type="submit" id="askGo">Ask</button>
           </form>
-          <div class="stu-sugg" id="dgChips" style="padding:0 0 8px"></div>
-          <div id="dgOut"></div>
         </div>
       </div>
-      <p class="stu-foot">Codes are read from the confirmed table in
-        <a data-nav="reference" href="#">Units &amp; error codes</a>; anything it can't match
-        there goes to the documents through LightRAG, when that's switched on.</p>
+
+      <div id="askReader" hidden></div>
+      <p class="stu-foot">Sources are the documents the retriever matched, looked up rather
+        than written by the model — a citation cannot be invented. Confirmed facts drawn from
+        them live in <a data-nav="reference" href="#">Units &amp; error codes</a>.</p>
     </section>
 
     <!-- SETTINGS -->
@@ -1261,7 +1313,7 @@ address=0x80000000</code></pre>
     window.scrollTo(0,0);
     if(location.hash!=='#'+id) history.replaceState(null,'','#'+id);
   }
-  const TITLES={studio:'Recipe studio',diagnose:'Diagnose',settings:'Settings'};
+  const TITLES={studio:'Recipe studio',browse:'Recipes',ask:'Diagnose & docs',settings:'Settings'};
   document.querySelectorAll('[data-nav]').forEach(a=>a.addEventListener('click',e=>{
     e.preventDefault(); show(a.dataset.nav); closeDrawer();
     const t=document.getElementById('topbarTitle');
@@ -2326,82 +2378,110 @@ address=0x80000000</code></pre>
 
   loadSettings(); prefill();
 
-  // ---- Ask the docs: an answer, and the documents it came from ----
-  // A few documents map onto a wiki page that already summarises them, so the
-  // citation links there. Everything else is named but not linked — inventing a
-  // destination would be worse than not having one.
-  const DOC_WIKI = {
-    "Error Codes": "reference",
-    "RAIN Menu Development Guide": "reference",
-    "UPLOAD MENU": "bbp",
-    "Software Download Instructions": "bbp",
-  };
-  const ASKCHIPS = ["How do I descale?", "How often should I clean the brew basket?",
-                    "What does the purge valve do?", "How do I update the menu?"];
+  // ---- Diagnose & docs: one chat, answers with readable citations ----------
+  // /ask is used rather than /chat: it is grounded in the documents and returns
+  // the sources, which is the whole point here. The recipe agent stays on the
+  // floating companion; this surface is for faults and manuals.
+  const HIST = [];
+  const ASKCHIPS = ["C:3 M:5", "It won't pull a vacuum", "How do I descale?",
+                    "Water isn't flowing", "How do I update the menu?"];
+
+  // Just enough Markdown for what the model actually emits — headings, bold,
+  // lists, code, paragraphs. A library would be more than this needs.
+  function md(src){
+    const lines = String(src||"").replace(/\r/g,"").split("\n");
+    const out = []; let list = null;
+    const inline = t => esc(t)
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
+    const closeList = () => { if(list){ out.push(`</${list}>`); list = null; } };
+    for(let raw of lines){
+      const l = raw.trim();
+      if(!l){ closeList(); continue; }
+      let m;
+      if((m = l.match(/^#{1,6}\s+(.*)$/))){ closeList(); out.push(`<h3>${inline(m[1])}</h3>`); continue; }
+      if((m = l.match(/^[-*•]\s+(.*)$/))){
+        if(list !== "ul"){ closeList(); out.push("<ul>"); list = "ul"; }
+        out.push(`<li>${inline(m[1])}</li>`); continue;
+      }
+      if((m = l.match(/^\d+[.)]\s+(.*)$/))){
+        if(list !== "ol"){ closeList(); out.push("<ol>"); list = "ol"; }
+        out.push(`<li>${inline(m[1])}</li>`); continue;
+      }
+      closeList();
+      out.push(`<p>${inline(l)}</p>`);
+    }
+    closeList();
+    return out.join("");
+  }
+
+  function turn(q){
+    const wrap=document.createElement("div"); wrap.className="dg-turn";
+    wrap.innerHTML = `<div class="dg-q">${esc(q)}</div>`
+      + `<div class="dg-a"><div class="dg-thinking">Searching the documents…</div></div>`;
+    $("askLog").appendChild(wrap);
+    wrap.scrollIntoView({block:"nearest"});
+    return wrap.querySelector(".dg-a");
+  }
+
+  async function openDoc(doc){
+    const host=$("askReader");
+    host.hidden=false;
+    host.innerHTML=`<div class="dg-reader"><p class="dg-thinking">Opening ${esc(doc)}…</p></div>`;
+    host.scrollIntoView({behavior:"smooth", block:"start"});
+    try{
+      const d=await (await fetch(BASE+"documents/read?doc="+encodeURIComponent(doc))).json();
+      const pages=(d.pages||[]).map(pg=>
+        `<div class="dg-page"><span class="n">page ${pg.page||"—"}</span><p>${esc(pg.text)}</p></div>`).join("");
+      host.innerHTML = `<div class="dg-reader">
+        <div class="dg-reader-head"><h2>${esc(doc)}</h2><span class="sp" style="flex:1"></span>
+          <button class="btn" id="askReaderClose" type="button">Close</button></div>
+        ${pages || '<p class="stu-hint">Nothing indexed for this document.</p>'}</div>`;
+      document.getElementById("askReaderClose").onclick=()=>{host.hidden=true; host.innerHTML="";};
+    }catch(e){
+      host.innerHTML=`<div class="dg-reader"><p class="stu-hint" style="color:var(--t-start)">Could not open it.</p></div>`;
+    }
+  }
+
+  function renderAnswer(box, d){
+    const cites=(d.sources||[]).map((sx,i)=>
+      `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
+      + `<span class="pg">${sx.page?("p."+sx.page):""}</span>`
+      + `<button type="button" data-doc="${esc(sx.doc)}">Read</button></div>`
+      + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`).join("");
+    box.innerHTML = `<div class="md">${md(d.answer||"No answer.")}</div>`
+      + (cites ? `<div class="dg-cites"><div class="dg-citehead">Sources</div>${cites}</div>` : "")
+      + (d.note ? `<p class="stu-hint" style="margin-top:9px">${esc(d.note)}</p>` : "");
+    box.querySelectorAll("button[data-doc]").forEach(b=>
+      b.onclick=()=>openDoc(b.dataset.doc));
+  }
+
   if($("askChips")){
     ASKCHIPS.forEach(t=>{ const b=document.createElement("button"); b.type="button";
       b.textContent=t; b.onclick=()=>{ $("askText").value=t; $("askForm").requestSubmit(); };
       $("askChips").appendChild(b); });
   }
+  $("askClear") && ($("askClear").onclick=()=>{ $("askLog").innerHTML=""; HIST.length=0;
+    $("askReader").hidden=true; $("askReader").innerHTML=""; });
+
   $("askForm") && $("askForm").addEventListener("submit", async e=>{
     e.preventDefault();
     const q=$("askText").value.trim(); if(!q) return;
-    const out=$("askOut"), go=$("askGo");
-    go.disabled=true; out.innerHTML=`<p class="stu-hint">Searching the documents…</p>`;
+    $("askText").value="";
+    const box=turn(q); const go=$("askGo"); go.disabled=true;
     try{
       const res=await fetch(BASE+"ask",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({question:q})});
+        body:JSON.stringify({question:q, history:HIST})});
       const d=await res.json();
       if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
-      const cites=(d.sources||[]).map(sx=>{
-        const nav=DOC_WIKI[sx.doc];
-        const title = nav
-          ? `<a data-nav="${nav}" href="#">${esc(sx.doc)}</a>`
-          : `<b>${esc(sx.doc)}</b>`;
-        const pg = sx.page ? ` <span class="br-meta" style="display:inline">p.${sx.page}</span>` : "";
-        return `<div class="ask-cite">${title}${pg}<span>${esc(sx.excerpt||"")}…</span></div>`;
-      }).join("");
-      out.innerHTML = `<div class="card" style="margin:0">`
-        + `<div class="ask-answer">${esc(d.answer||"No answer.")}</div>`
-        + (cites ? `<div class="ask-src"><div class="ask-srchead">Sources</div>${cites}</div>` : "")
-        + (d.note ? `<p class="stu-hint" style="margin-top:10px">${esc(d.note)}</p>` : "")
-        + `</div>`;
-      if($("askCount") && d.indexed) $("askCount").textContent = `${d.indexed} passages indexed`;
-      // wiki links inside the answer must still navigate
-      out.querySelectorAll('[data-nav]').forEach(a=>a.addEventListener("click",ev=>{
-        ev.preventDefault();
-        document.querySelector(`nav.side a[data-nav="${a.dataset.nav}"]`)?.click();
-      }));
+      renderAnswer(box, d);
+      HIST.push({role:"user",content:q});
+      HIST.push({role:"assistant",content:(d.answer||"").slice(0,400)});
+      if($("askCount") && d.indexed) $("askCount").textContent=`${d.indexed} passages indexed`;
     }catch(err){
-      out.innerHTML=`<p class="stu-hint" style="color:var(--t-start)">${esc(err.message||err)}</p>`;
-    }finally{ go.disabled=false; }
-  });
-
-  // ---- Diagnose: the fault table first, then the documents ----
-  const CHIPS=["C:3 M:5","C:40 M:5","It won't pull a vacuum","Water isn't flowing","How do I descale?"];
-  const chipHost=$("dgChips");
-  CHIPS.forEach(t=>{ const b=document.createElement("button"); b.type="button"; b.textContent=t;
-    b.onclick=()=>{ $("dgText").value=t; $("dgForm").requestSubmit(); }; chipHost.appendChild(b); });
-
-  $("dgForm").addEventListener("submit", async e=>{
-    e.preventDefault();
-    const text=$("dgText").value.trim(); if(!text) return;
-    const out=$("dgOut"), go=$("dgGo");
-    go.disabled=true; out.innerHTML=`<p class="stu-hint">Working…</p>`;
-    try{
-      const res=await fetch(BASE+"chat",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({message:text, steps:[],
-          context:"The user is on the Diagnose page and wants a fault explained. "
-                 +"Use the diagnose tool for a code or symptom, and answer_docs for a how-to. "
-                 +"Give the likely cause and the next thing to try."})});
-      const d=await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
-      const chips=(d.actions||[]).map(a=>`<span class="stu-chip">${esc(a.tool.replace(/_/g," "))}</span>`).join(" ");
-      out.innerHTML = `<div class="card" style="margin:0"><div class="stu-scomment">${esc(d.reply||"")}</div>`
-        + (chips?`<div class="stu-acts" style="margin-top:8px">${chips}</div>`:"") + `</div>`;
-    }catch(err){
-      out.innerHTML = `<p class="stu-hint" style="color:var(--t-start)">${esc(err.message||err)}</p>`;
-    }finally{ go.disabled=false; }
+      box.innerHTML=`<p class="stu-hint" style="color:var(--t-start);margin:0">${esc(err.message||err)}</p>`;
+    }finally{ go.disabled=false; $("askText").focus(); }
   });
 })();
 </script>
