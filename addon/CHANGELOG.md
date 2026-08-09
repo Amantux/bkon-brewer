@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.23.2 — ask the model not to think out loud
+- **Fixes 0.23.1's fix.** Reading `thinking` when `content` was empty stopped
+  the blank bubbles, but it put the model's raw deliberation on screen — *"The
+  user says: list my saved recipes. That's a direct tool call."* — which is
+  worse than an error, because it looks like an answer. The root fix is to stop
+  the reasoning instead: the Ollama call now sends `think: false`, so the answer
+  lands in `content` where every other provider puts it. A model that rejects
+  the parameter is simply asked again without it.
+- Deliberation is still mined, but only for JSON. If the model wrote the tool
+  call into its thinking, that is taken; prose is not.
+
 ## 0.23.1 — the assistant stopped answering; here is why
 - **A blank reply on anything that needed a tool.** Simple questions worked, so
   the provider looked fine, but *"list my saved recipes"* returned an empty

@@ -90,29 +90,53 @@ import providers.ollama as _oll
 
 def run(c): return asyncio.get_event_loop().run_until_complete(c)
 class _FakeClient:
-    def __init__(self, msg, done="stop"): self._m = msg; self._d = done
-    async def chat(self, **kw): return {"message": self._m, "done_reason": self._d}
+    def __init__(self, msg, done="stop", reject_think=False):
+        self._m = msg; self._d = done; self._reject = reject_think
+        self.calls = []
+    async def chat(self, **kw):
+        self.calls.append(kw)
+        if self._reject and "think" in kw:
+            raise RuntimeError("model does not support think")
+        return {"message": self._m, "done_reason": self._d}
 
-def _with(msg, done="stop"):
+def _with(msg, done="stop", reject_think=False):
     p = _oll.OllamaProvider("http://x", "gpt-oss:20b")
-    p._client = _FakeClient(msg, done)
+    p._client = _FakeClient(msg, done, reject_think)
     return p
 
-check("normal content is returned",
-      run(_with({"content": "hello"}).complete("hi")), "hello")
-# The real failure: the model reasoned its way to the JSON we asked for and
-# never wrote a conclusion, so content is empty and the answer is in thinking.
-check("an empty content falls back to thinking",
-      run(_with({"content": "", "thinking": '{"tool":"lint_recipe"}'}).complete("hi")),
-      '{"tool":"lint_recipe"}')
+p = _with({"content": "hello"})
+check("normal content is returned", run(p.complete("hi")), "hello")
+# The root fix: ask the model not to reason, so the answer lands in `content`
+# where every other provider puts it.
+check("thinking is switched off", p._client.calls[0].get("think"), False)
+
+# A model that rejects the parameter is asked again without it, not failed.
+p = _with({"content": "hello"}, reject_think=True)
+check("a model that rejects `think` still answers", run(p.complete("hi")), "hello")
+check("and the retry drops the parameter", "think" in p._client.calls[1], False)
+
 check("content still wins when both are present",
       run(_with({"content": "final", "thinking": "musing"}).complete("hi")), "final")
+# If the model wrote the JSON into its deliberation anyway, take the JSON --
+# but only the JSON. Returning raw chain-of-thought shows the user "We need to
+# call the tool." in place of an answer, which is worse than an error.
+check("JSON is salvaged out of the deliberation",
+      run(_with({"content": "",
+                 "thinking": 'We should call it. {"tool":"lint_recipe"} yes'}
+                ).complete("hi")),
+      '{"tool":"lint_recipe"}')
+try:
+    run(_with({"content": "", "thinking": "We need to call the tool."},
+              done="length").complete("hi"))
+    check("prose-only deliberation raises rather than being shown", False, True)
+except _oll.ProviderError as ex:
+    check("prose-only deliberation raises rather than being shown", True, True)
+    check("and the error names the reason", "length" in str(ex), True)
 try:
     run(_with({"content": "", "thinking": ""}, done="length").complete("hi"))
     check("both empty raises rather than returning ''", False, True)
-except _oll.ProviderError as ex:
+except _oll.ProviderError:
     check("both empty raises rather than returning ''", True, True)
-    check("and the error names the reason", "length" in str(ex), True)
 
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
