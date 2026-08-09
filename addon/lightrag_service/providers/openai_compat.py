@@ -41,6 +41,18 @@ class OpenAICompatProvider(AIProvider):
         try:
             resp = await self._get_client().chat.completions.create(
                 model=self._model, messages=messages, max_tokens=max_tokens)
-            return resp.choices[0].message.content or ""
         except Exception as ex:                      # noqa: BLE001
             raise ProviderError(f"openai call failed: {ex}") from ex
+
+        choice = resp.choices[0]
+        text = (choice.message.content or "").strip()
+        if text:
+            return text
+        # Reasoning models served over this API put deliberation in a separate
+        # field and may finish with no content at all. See ollama.py.
+        text = (getattr(choice.message, "reasoning_content", None) or "").strip()
+        if text:
+            return text
+        raise ProviderError(
+            f"{self._model} returned no text (finish reason: "
+            f"{choice.finish_reason or 'unknown'}).")

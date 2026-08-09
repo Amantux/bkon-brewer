@@ -204,13 +204,27 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
         raw = await provider.complete(prompt, system=system)
         obj = _extract_json(raw)
 
-        # No JSON at all -> treat the whole reply as the answer.
+        # No JSON at all -> treat the whole reply as the answer, unless there
+        # was no reply. A blank is not an answer: rendering "" shows an empty
+        # bubble, which reads as a broken app rather than as a model that said
+        # nothing. Nudge once, then say so plainly.
         if obj is None:
-            return ChatTurn(reply=raw.strip(), steps=steps or None, actions=actions)
+            if raw.strip():
+                return ChatTurn(reply=raw.strip(), steps=steps or None,
+                                actions=actions)
+            transcript.append(
+                "You replied with nothing. Reply now with a single JSON "
+                "object: {\"answer\": \"...\"}.")
+            continue
 
         if "answer" in obj:
-            return ChatTurn(reply=str(obj["answer"]).strip(),
-                            steps=steps or None, actions=actions)
+            answer = str(obj["answer"]).strip()
+            if answer:
+                return ChatTurn(reply=answer, steps=steps or None,
+                                actions=actions)
+            transcript.append(
+                "Your answer was empty. Write the actual answer this time.")
+            continue
 
         name = obj.get("tool")
         fn = tools.get(name)
@@ -239,5 +253,12 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
     transcript.append("Give the user a final answer now as {\"answer\": ...}.")
     raw = await provider.complete("\n".join(transcript), system=system)
     obj = _extract_json(raw) or {}
-    reply = obj.get("answer") or raw.strip()
-    return ChatTurn(reply=str(reply).strip(), steps=steps or None, actions=actions)
+    reply = str(obj.get("answer") or raw or "").strip()
+    if not reply:
+        # Out of rounds with nothing to show. Say which tools did run, so the
+        # turn is still worth something and the failure is legible.
+        ran = ", ".join(dict.fromkeys(a.tool for a in actions))
+        reply = ("I couldn't put an answer together for that. "
+                 + (f"I did run: {ran}. " if ran else "")
+                 + "Try asking it a different way.")
+    return ChatTurn(reply=reply, steps=steps or None, actions=actions)

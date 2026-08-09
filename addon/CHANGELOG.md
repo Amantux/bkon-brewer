@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.23.1 — the assistant stopped answering; here is why
+- **A blank reply on anything that needed a tool.** Simple questions worked, so
+  the provider looked fine, but *"list my saved recipes"* returned an empty
+  bubble every time. The cause: reasoning models (gpt-oss, deepseek-r1, qwen3)
+  split their output — deliberation into `thinking`, the conclusion into
+  `content` — and when the model reasons its way to a tool call without writing
+  a conclusion, `content` is empty and the JSON we asked for is sitting in
+  `thinking`, unread. The adapter now reads it.
+- **And a blank is never rendered again.** The loop retries once, and if the
+  model truly says nothing it says so — naming any tools that did run — rather
+  than showing an empty bubble that is indistinguishable from a crash. All three
+  providers now raise instead of returning `""`, so a silent model reads as a
+  problem with the model rather than a problem with the app.
+
 ## 0.23.0 — it asks before it touches your machine
 - **Nothing reaches Home Assistant unasked — reads included.** The assistant
   could already only *ask* to save or brew, but it listed and opened your

@@ -38,6 +38,30 @@ class OllamaProvider(AIProvider):
             resp = await self._get_client().chat(
                 model=self._model, messages=messages,
                 options={"num_predict": max_tokens})
-            return resp["message"]["content"]
         except Exception as ex:                      # noqa: BLE001
             raise ProviderError(f"ollama call failed: {ex}") from ex
+
+        msg = resp["message"]
+        content = (msg.get("content") or "").strip()
+        if content:
+            return content
+
+        # Reasoning models (gpt-oss, deepseek-r1, qwen3) split their output: the
+        # deliberation goes to `thinking` and only the conclusion to `content`.
+        # When the model reasons its way to a tool call and never writes a
+        # conclusion, `content` comes back empty and the answer -- the JSON we
+        # asked for -- is sitting in `thinking`. Reading only `content` turned
+        # every tool-worthy question into a blank reply, while simple questions
+        # the model answered without thinking worked fine.
+        thinking = (msg.get("thinking") or "").strip()
+        if thinking:
+            return thinking
+
+        # Both empty is a real failure, and it must not be returned as "" --
+        # that renders as an empty bubble and looks like the app is broken
+        # rather than like the model gave us nothing.
+        raise ProviderError(
+            f"{self._model} returned no text (finished: "
+            f"{resp.get('done_reason') or 'unknown'}). If this persists the "
+            f"model may be reasoning past its token budget; try a larger "
+            f"num_predict or a non-reasoning model.")

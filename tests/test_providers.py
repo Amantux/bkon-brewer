@@ -84,5 +84,35 @@ try:
 except ImportError:
     check("anthropic builds without the sdk present", False, True)
 
+print("\na reasoning model that only thinks is still answered")
+import asyncio
+import providers.ollama as _oll
+
+def run(c): return asyncio.get_event_loop().run_until_complete(c)
+class _FakeClient:
+    def __init__(self, msg, done="stop"): self._m = msg; self._d = done
+    async def chat(self, **kw): return {"message": self._m, "done_reason": self._d}
+
+def _with(msg, done="stop"):
+    p = _oll.OllamaProvider("http://x", "gpt-oss:20b")
+    p._client = _FakeClient(msg, done)
+    return p
+
+check("normal content is returned",
+      run(_with({"content": "hello"}).complete("hi")), "hello")
+# The real failure: the model reasoned its way to the JSON we asked for and
+# never wrote a conclusion, so content is empty and the answer is in thinking.
+check("an empty content falls back to thinking",
+      run(_with({"content": "", "thinking": '{"tool":"lint_recipe"}'}).complete("hi")),
+      '{"tool":"lint_recipe"}')
+check("content still wins when both are present",
+      run(_with({"content": "final", "thinking": "musing"}).complete("hi")), "final")
+try:
+    run(_with({"content": "", "thinking": ""}, done="length").complete("hi"))
+    check("both empty raises rather than returning ''", False, True)
+except _oll.ProviderError as ex:
+    check("both empty raises rather than returning ''", True, True)
+    check("and the error names the reason", "length" in str(ex), True)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

@@ -39,8 +39,16 @@ class AnthropicProvider(AIProvider):
                 system=system or "",                 # top-level, not a message
                 messages=[{"role": "user", "content": prompt}],
             )
-            # content is a list of blocks; concatenate the text ones.
-            return "".join(b.text for b in resp.content
-                           if getattr(b, "type", None) == "text")
         except Exception as ex:                      # noqa: BLE001
             raise ProviderError(f"anthropic call failed: {ex}") from ex
+
+        # content is a list of blocks; concatenate the text ones. A thinking
+        # block carries no `.text`, so a turn that was all deliberation lands
+        # here as "" -- which must be reported, not rendered. See ollama.py.
+        text = "".join(b.text for b in resp.content
+                       if getattr(b, "type", None) == "text").strip()
+        if not text:
+            raise ProviderError(
+                f"{self._model} returned no text (stop reason: "
+                f"{getattr(resp, 'stop_reason', None) or 'unknown'}).")
+        return text

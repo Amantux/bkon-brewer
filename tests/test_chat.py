@@ -107,5 +107,28 @@ p = FakeProvider(['{"answer":"ok"}'])
 run(C.run_chat(p, "hi", [{"type": "vc", "values": {"ps": "24"}}], TOOLS))
 check("recipe context is in the prompt", "vc" in p.prompts[0], True)
 
+print("\na blank completion is never shown to the user")
+# Reasoning models can finish a turn having written only deliberation, leaving
+# the content empty. Rendering that "" is an empty bubble -- indistinguishable
+# from a crash. The loop nudges once and, failing that, says what happened.
+t = run(C.run_chat(FakeProvider(["", '{"answer":"here it is"}']), "hi", [], {}))
+check("a blank is retried, not rendered", t.reply, "here it is")
+
+t = run(C.run_chat(FakeProvider(['{"answer":""}', '{"answer":"a real one"}']), "hi", [], {}))
+check("an empty answer field is retried too", t.reply, "a real one")
+
+t = run(C.run_chat(FakeProvider(["", "", "", "", ""]), "hi", [], {}))
+check("never blank, even when the model never speaks", t.reply.strip() != "", True)
+check("and it says what to do", "different way" in t.reply, True)
+
+# A turn that did real work before going quiet should still report the work.
+called = []
+def _t(a, s):
+    called.append(1)
+    return {"ok": True}, None
+t = run(C.run_chat(FakeProvider(['{"tool":"lint_recipe","args":{}}', "", "", "", ""]),
+                   "check", [], {"lint_recipe": _t}))
+check("a silent turn still names the tools it ran", "lint_recipe" in t.reply, True)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
