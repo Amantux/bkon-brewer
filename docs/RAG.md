@@ -100,3 +100,24 @@ Generation runs on your Ollama Cloud plan, so each question is a cloud request
 (billed per your subscription). Embeddings and retrieval are local and free.
 If the plan lapses or the key is wrong, questions keep working — they just fall
 back to the local retriever and the `source` reads `local`.
+
+## Restoring the index without recomputing it
+
+Building the index means extracting 45 PDFs; feeding LightRAG means a model call
+per chunk. Neither needs doing twice. The built index is kept as a release asset
+on the **private** `Amantux/bkon-archive`:
+
+```bash
+GITHUB_TOKEN=<a token that can read the private archive> \
+  ADDON_URL=http://homeassistant.local:9621 \
+  ./scripts/restore_rag.sh
+```
+
+That restores the keyword retriever the integration uses and uploads the same
+index to the add-on for citations. Only the LightRAG graph still needs building,
+via `scripts/ingest_lightrag.py`, because that is the part a model has to write.
+
+**Why it is not in this repository.** The index is 578 passages of BKON/Franke
+document text, verbatim, 149 of them carrying Franke's copyright notice. This
+repo is public and states that no vendor document text is in it. Keeping that
+true is worth one download step.
