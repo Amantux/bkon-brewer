@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.21.0 — Easy mode
+- **A slider for every number, and a plain reading of what it means.** "24 kPa"
+  tells you nothing without a feel for the range, so Easy mode turns the numeric
+  fields into sliders and says what the current position amounts to — *standard
+  — where the base recipes sit*, *deep — more concentration*, *outside the 25–35
+  the app accepts*. The readings come from the documented base recipes, and a
+  value the machine will not take says so rather than being given a flattering
+  description.
+- **Every step now says what it does**, built from its own current values: what
+  a fill pours and steeps, what a vacuum pulls and holds, and for a purge —
+  pressure, hold, delay and rinse — that it separates the grounds from the
+  liquid, and that detection watches the pressure and stops when it reads done.
+- The purge wording follows the Service Manual, which describes the pressure as
+  a depth held for a time. Where the documents are silent — the delay's exact
+  place in the sequence — the sentence describes it without claiming an order.
+- Easy mode is remembered between visits.
+
 ## 0.20.1
 - **Start is no longer in the step palette**, matching the vendor app, which
   treats it as structural and never lets you add one. Offering it is how a

@@ -112,6 +112,20 @@
   .stu-add:hover{border-color:var(--dot);background:var(--panel-2)}
   .stu-add .sw{width:10px;height:10px;border-radius:var(--r-chip);background:var(--dot);flex:none}
   .stu-add .pl{color:var(--ink-faint);font-weight:700}
+  .stu-easy{display:flex;align-items:center;gap:6px;font-size:var(--fs-md);
+    color:var(--ink-soft);cursor:pointer;white-space:nowrap}
+  .stu-easy input{width:16px;height:16px;accent-color:var(--accent)}
+  /* Easy mode: a slider you can feel, with the number and a plain reading of
+     what that number means at its current position. */
+  .stu-range{display:flex;align-items:center;gap:9px}
+  .stu-range input[type=range]{flex:1;min-width:0;accent-color:var(--dot,var(--accent));height:26px}
+  .stu-range .val{font-family:var(--mono);font-size:var(--fs-lg);font-weight:600;
+    min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+  .stu-read{font-size:var(--fs-sm);color:var(--ink-soft);margin-top:2px;line-height:1.4}
+  .stu-flow{font-size:var(--fs-md);color:var(--ink-soft);line-height:1.5;
+    padding:8px 13px 0 15px;border-top:1px dashed var(--line);margin-top:2px}
+  .stu-flow b{color:var(--ink);font-weight:600}
+  @media (max-width:800px){.stu-range input[type=range]{height:34px}}
   .stu-add-exp{border-style:dashed}
   .stu-add-exp .exp{font-family:var(--mono);font-size:var(--fs-xs);letter-spacing:.06em;
     text-transform:uppercase;color:var(--ink-faint);margin-left:2px}
@@ -792,6 +806,8 @@
           <div class="zone-head">
             <h2>Build the recipe</h2>
             <span class="why">tap a step to add it</span>
+            <span class="sp" style="flex:1"></span>
+            <label class="stu-easy"><input type="checkbox" id="stuEasy"><span>Easy mode</span></label>
           </div>
           <div class="zone-body">
             <!-- Building is the primary path: add steps and go. Describing is
@@ -1449,6 +1465,71 @@ address=0x80000000</code></pre>
     };
     pal.appendChild(b);
   })();
+
+  // ---- Easy mode -----------------------------------------------------------
+  // Numbers like "24 kPa" or a purge pressure of 30 mean nothing without a feel
+  // for the range. Easy mode turns them into sliders and says, in words, what
+  // the current position amounts to. Readings are grounded in the documented
+  // base recipes (docs/INTEL.md), and say plainly when a value is outside what
+  // the machine accepts rather than inventing a description for it.
+  let easy = false;
+  try{ easy = localStorage.getItem("bkon.studio.easy") === "1"; }catch(e){}
+
+  const READ = {
+    tmp: v => v < 140 || v > 212 ? "outside what the machine accepts"
+            : v < 170 ? "gentle — delicate leaf territory"
+            : v < 190 ? "moderate — most green and white teas"
+            : v < 203 ? "hot — black tea and coffee"
+            : "very hot — near the top of the range",
+    "vc.ps": v => v === 0 ? "no vacuum — this step does nothing"
+            : v < 18 ? "shallow — light body"
+            : v <= 26 ? "standard — where the base recipes sit"
+            : v <= 40 ? "deep — more concentration"
+            : "very deep — beyond anything in the documented menus",
+    "vc.tm": v => v === 0 ? "no hold — the vacuum does nothing"
+            : v <= 5 ? "brief" : v <= 12 ? "typical steep" : "long — more intensity",
+    "pg.ps": v => v < 25 || v > 35 ? "outside the 25–35 the app accepts"
+            : v <= 28 ? "light push" : v <= 32 ? "standard — real menus use about 30"
+            : "firm push",
+    "pg.tm": v => v <= 5 ? "quick" : v <= 15 ? "typical" : "long",
+    "pg.dl": v => v === 0 ? "starts immediately" : "waits " + v + "s first",
+    "pg.rwv": v => v === 0 ? "no rinse" : v + " ml of rinse water",
+    "fr.fwv": v => v === 0 ? "no fill" : v < 200 ? "small pour" : v < 400 ? "medium" : "large",
+    "fr.rwv": v => v === 0 ? "no rinse" : "rinses down the sides",
+    "fr.ap": v => v === 0 ? "no pause" : "steeps " + v + "s at normal pressure",
+  };
+  const readingFor = (type, key, v) => (READ[type + "." + key] || READ[key] || (() => ""))(Number(v));
+
+  // What the step actually does, in one sentence, from its current values.
+  // Grounded where the documents are explicit (a purge's pressure is a "depth"
+  // held for a time; detection watches for a pressure change) and deliberately
+  // vague where they are silent — the delay's exact position in the sequence is
+  // not documented, so it is described, not sequenced.
+  function flowText(st){
+    const v = st.values || {}, n = k => Number(v[k] || 0);
+    if(st.type === "start") return "Heats the water to <b>" + n("tmp") + " °F</b> before anything else runs.";
+    if(st.type === "fr"){
+      const bits = [];
+      if(n("fwv")) bits.push("pours <b>" + n("fwv") + " ml</b> in");
+      if(n("rwv")) bits.push("rinses <b>" + n("rwv") + " ml</b> down the sides");
+      if(n("ap")) bits.push("then steeps <b>" + n("ap") + "s</b> at normal pressure");
+      return bits.length ? "Water: " + bits.join(", ") + "." : "No water — this step does nothing.";
+    }
+    if(st.type === "vc")
+      return "Pulls a vacuum of <b>" + n("ps") + " kPa</b> and holds it <b>" + n("tm") + "s</b>"
+           + (n("ap") ? ", then pauses <b>" + n("ap") + "s</b> at normal pressure" : "")
+           + ". This is the extraction.";
+    if(st.type === "pg"){
+      const parts = ["pushes air in at <b>" + n("ps") + "</b>", "held <b>" + n("tm") + "s</b>"];
+      if(n("dl")) parts.push("with a <b>" + n("dl") + "s</b> delay");
+      if(n("rwv")) parts.push("plus <b>" + n("rwv") + " ml</b> of rinse");
+      return "Separates the grounds from the liquid: " + parts.join(", ")
+           + (Number(v.det) ? ". Detection watches the pressure and stops when it reads done." : ".");
+    }
+    if(st.type === "dialog") return "Stops and waits for you, showing the prompt above.";
+    if(st.type === "bo") return "Dispenses into the cup.";
+    return "";
+  }
 
   const defaults = t => { const v={}; TYPES[t].fields.forEach(f=>v[f.k]=f.def); return v; };
 
@@ -2113,6 +2194,17 @@ address=0x80000000</code></pre>
       document.removeEventListener("keydown",close); } };
     document.addEventListener("keydown",close);
     ta.addEventListener("blur",close);
+  }
+
+  const easyBox = $("stuEasy");
+  if (easyBox) {
+    easyBox.checked = easy;
+    easyBox.onchange = () => {
+      easy = easyBox.checked;
+      try{ localStorage.setItem("bkon.studio.easy", easy ? "1" : "0"); }catch(e){}
+      render();
+      flash(easy ? "Easy mode on — sliders and plain readings" : "Easy mode off");
+    };
   }
 
   $("stuLibSave") && ($("stuLibSave").onclick = libSave);
