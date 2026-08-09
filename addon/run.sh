@@ -9,6 +9,8 @@
 set -e
 CFG=/data/options.json
 
+# The running version, so the UI can show which build it is.
+export ADDON_VERSION="$(jq -r '.version // "dev"' /etc/addon_version.json 2>/dev/null || echo dev)"
 export LIGHTRAG_API_KEY="$(jq -r '.service_api_key // ""' "$CFG")"
 # The document half is optional. Off, the recipe studio still runs (it needs a
 # provider, not documents) and startup skips the embedding model entirely.

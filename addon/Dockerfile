@@ -24,6 +24,12 @@ RUN python -c "from fastembed import TextEmbedding; \
 
 COPY lightrag_service/ /app/
 COPY webroot/ /app/webroot/
+# The version comes from config.yaml, which is already in the build context —
+# no build-arg plumbing, and it cannot drift from what the Supervisor installed.
+COPY config.yaml /etc/addon_config.yaml
+RUN v=$(grep '^version:' /etc/addon_config.yaml | tr -d ' "' | cut -d':' -f2) \
+    && printf '{"version":"%s"}' "$v" > /etc/addon_version.json \
+    && cat /etc/addon_version.json
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 WORKDIR /app

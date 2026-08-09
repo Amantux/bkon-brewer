@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.3
+- **The page no longer caches.** It shipped only an ETag and no `Cache-Control`,
+  so a browser was free to keep serving a heuristically-cached copy — meaning an
+  add-on update could land while you still saw the previous build, bugs and all,
+  with no way to tell. It now revalidates on every load.
+- **A visible build stamp** under the sidebar title, so *"which version am I
+  looking at"* is answerable from the page rather than inferred.
+
 ## 0.13.2
 - **Fixes the studio being half-dead.** Handlers for the embedded chat removed
   back in 0.9.0 were still in the script and called `addEventListener` on an

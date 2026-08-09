@@ -49,6 +49,10 @@ logging.basicConfig(level=logging.INFO)
 _LOG = logging.getLogger("bkon_lightrag")
 
 # --- configuration, all from the environment -------------------------------
+#: Stamped into the page and reported by /config, so which build you are looking
+#: at is answerable rather than guessed.
+ADDON_VERSION = os.getenv("ADDON_VERSION", "dev")
+
 API_KEY = os.getenv("LIGHTRAG_API_KEY", "")
 WORKING_DIR = os.getenv("WORKING_DIR", "/data/rag_storage")
 
@@ -216,7 +220,13 @@ async def home():
     """
     index = os.path.join(WEBROOT, "index.html")
     if os.path.exists(index):
-        return FileResponse(index)
+        # Revalidate every load. Without this the page ships only an ETag, and a
+        # browser is free to serve a heuristically-cached copy -- which means an
+        # add-on update can land and the user still sees the previous build,
+        # bugs included, with no way to tell.
+        return FileResponse(index, headers={
+            "Cache-Control": "no-cache, must-revalidate",
+            "X-Bkon-Version": ADDON_VERSION})
     provider = _provider.name if _provider else "not started"
     return HTMLResponse(
         f"<!doctype html><meta charset=utf-8><title>BKON LightRAG</title>"
@@ -462,6 +472,7 @@ async def assistant_config():
         "lightrag": ENABLE_LIGHTRAG,
         "documents_ready": bool(ENABLE_LIGHTRAG and _rag is not None),
         "home_assistant": ha.available(),
+        "version": ADDON_VERSION,
         # What to change, in the user's terms, when it is not working.
         "saved_here": {k: v for k, v in _load_overrides().items() if k != "api_key"},
         "key_saved": bool(_load_overrides().get("api_key")),
