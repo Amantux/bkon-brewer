@@ -117,6 +117,88 @@ No quotes, no trailing full stop. Examples: "Brew chamber exploded view",
 
 SKIP = "SKIP"
 
+#: A second pass over a picture, for the things a description throws away.
+#:
+#: A description is prose, and prose loses exactly what is most useful about
+#: these pages: the machine's own dialog text, part numbers, valve labels. The
+#: error-code pages are the clearest case -- the left half is real PDF text, but
+#: the *photograph* of the display carries the wording the machine actually
+#: shows and the service number to call, and none of that is in the text layer.
+#:
+#: Asked as one call with several fields rather than several passes, because a
+#: page is looked at once either way and the model already has it in front of it.
+EXTRACT_PROMPT = """Read this page from a BKON Craft Brewer service document and
+return ONLY a JSON object, no other text, with exactly these keys:
+
+{"visible_text": "", "codes": [], "parts": [], "labels": []}
+
+- visible_text: every word legible in the pictures on this page, transcribed
+  verbatim -- screen messages, callouts, labels, part numbers, phone numbers.
+  Do not summarise and do not add anything that is not written there. Use "" if
+  the page has no pictures with words in them.
+- codes: for each error or fault code shown, an object
+  {"code": "C:3 M:5", "title": "Chamber Not Sealed", "cause": "", "remedy": "",
+   "message": ""} where message is the exact on-screen text if one is shown.
+- parts: for each part listed, {"number": "19006169", "name": "Connector, Elbow"}
+- labels: for each labelled component in a diagram,
+  {"label": "V5", "name": "Proportional Valve"} -- only where the page says what
+  the label means. Do not guess from the letter.
+
+Use empty lists for anything the page does not contain. Copy text exactly as
+written; never invent a part number, a code or a meaning."""
+
+
+def parse_facts(raw: str) -> dict:
+    """The extraction JSON, defensively.
+
+    A model asked for JSON usually returns JSON, sometimes fenced, occasionally
+    with a sentence in front. Anything unparseable becomes empty rather than an
+    exception -- one page's bad output should cost that page, not the run.
+    """
+    import json
+
+    text = (raw or "").strip()
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if fence:
+        text = fence.group(1)
+    else:
+        start, depth = text.find("{"), 0
+        if start < 0:
+            return _empty_facts()
+        for i in range(start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    text = text[start:i + 1]
+                    break
+    try:
+        obj = json.loads(text)
+    except ValueError:
+        return _empty_facts()
+    if not isinstance(obj, dict):
+        return _empty_facts()
+
+    out = _empty_facts()
+    out["visible_text"] = str(obj.get("visible_text") or "").strip()[:4000]
+    for key, fields in (("codes", ("code", "title", "cause", "remedy", "message")),
+                        ("parts", ("number", "name")),
+                        ("labels", ("label", "name"))):
+        for row in (obj.get(key) or [])[:60]:
+            if not isinstance(row, dict):
+                continue
+            clean = {f: str(row.get(f) or "").strip()[:400] for f in fields}
+            # The first field is the identity of the row; without it the row
+            # says nothing and would only pollute a lookup.
+            if clean[fields[0]]:
+                out[key].append(clean)
+    return out
+
+
+def _empty_facts() -> dict:
+    return {"visible_text": "", "codes": [], "parts": [], "labels": []}
+
 
 def is_skip(caption: str) -> bool:
     """Did the model say there is nothing worth indexing here?

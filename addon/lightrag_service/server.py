@@ -396,6 +396,37 @@ async def chat_turn(request: Request):
         return {"figures": picked,
                 "note": "" if picked else "nothing matching to show"}, None
 
+    async def look_up(args: dict, _steps):
+        """Exact lookup of an error code, a part number or a diagram label.
+
+        Separate from the document search because embeddings are poor at
+        exactly the strings that matter most here: "19006211" and "C:3 M:5"
+        are identifiers, not prose, and near-enough is wrong. These come from
+        the tables read out of the pictures, so the answer is whatever the
+        document says -- the model does not get to compose one.
+        """
+        q = str(args.get("query", "")).strip()
+        if not q:
+            return {"error": "look up what?"}, None
+        data = _facts()
+        needle = q.lower().replace(" ", "")
+        hits: list[dict] = []
+        for kind, key in (("codes", "code"), ("parts", "number"),
+                          ("labels", "label")):
+            for row in data[kind].values():
+                ident = str(row.get(key, "")).lower().replace(" ", "")
+                blob = " ".join(str(v) for k, v in row.items()
+                                if k != "seen").lower()
+                if ident and (needle in ident or ident in needle) or needle in blob:
+                    where = (row.get("seen") or [{}])[0]
+                    hits.append({"kind": kind[:-1],
+                                 **{k: v for k, v in row.items() if k != "seen"},
+                                 "doc": where.get("doc"), "page": where.get("page"),
+                                 "figure": where.get("figure")})
+        if not hits:
+            return {"found": [], "note": f"nothing recorded for {q!r}"}, None
+        return {"found": hits[:6], "total": len(hits)}, None
+
     async def score_tool(_args: dict, cur_steps):
         """Score the current recipe. Needs the provider, so it is a closure."""
         crit = await scoring.score_recipe(_provider, cur_steps)
@@ -480,6 +511,8 @@ async def chat_turn(request: Request):
     # but that can never return anything is worse than no tool.
     if any(v.get("caption") for v in _figures().values()):
         tools["show_diagram"] = show_diagram
+    if any(_facts().values()):
+        tools["look_up"] = look_up
     if ha.available():
         tools.update(tools_ha)
 
@@ -1133,9 +1166,13 @@ async def reindex(request: Request, render: bool = True,
     # A described figure is a passage like any other, so retrieval ranks a
     # schematic against the prose instead of in a separate world.
     for fid, fig in index.items():
-        if fig.get("caption"):
-            passages.append(F.as_passage(fig["doc"], fig["page"],
-                                         fig["caption"], fid))
+        if not fig.get("caption"):
+            continue
+        text = fig["caption"]
+        seen_text = ((fig.get("facts") or {}).get("visible_text") or "").strip()
+        if seen_text:
+            text = f"{text}\n\nText in the picture: {seen_text}"
+        passages.append(F.as_passage(fig["doc"], fig["page"], text, fid))
 
     _write_figures(index)
     import json as _json
@@ -1216,6 +1253,119 @@ async def caption_figures(limit: int = 25, redo: bool = False,
             "done": remaining == 0,
             "note": "run /documents/reindex again to fold new descriptions "
                     "into the search index" if described else ""}
+
+
+@app.post("/documents/extract")
+async def extract_facts(limit: int = 20, redo: bool = False,
+                        x_api_key: str | None = Header(default=None),
+                        authorization: str | None = Header(default=None)):
+    """A second look at each picture, for the parts a description loses.
+
+    The descriptions are prose, and prose drops exactly what is most useful
+    here: the wording the machine puts on its own screen, part numbers, the
+    meaning of a valve label. The error-code pages make the case -- their left
+    half is real PDF text, but the photograph of the display carries the remedy
+    and the service number, and that text exists nowhere else.
+
+    Same shape as captioning: a batch at a time, resumable, and it stops at once
+    if the model cannot see rather than failing identically six hundred times.
+    """
+    _guard(x_api_key, authorization)
+    _need_provider()
+    import figures as F
+    from providers.base import VisionUnsupported
+
+    index = _figures()
+    todo = [fid for fid, v in sorted(index.items())
+            if (v.get("caption") or v.get("skipped"))
+            and (redo or "facts" not in v)][:max(1, limit)]
+    if not todo:
+        return {"done": True, "remaining": 0, "note": "nothing left to read"}
+
+    read = failed = 0
+    found = {"codes": 0, "parts": 0, "labels": 0, "text": 0}
+    errors: list[str] = []
+    for fid in todo:
+        path = _figure_path(fid)
+        if path is None:
+            continue
+        try:
+            raw = await _provider.complete(
+                F.EXTRACT_PROMPT, images=[open(path, "rb").read()], max_tokens=1600)
+        except VisionUnsupported as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        except Exception as exc:                      # noqa: BLE001
+            failed += 1
+            errors.append(f"{fid}: {exc}")
+            continue
+        facts = F.parse_facts(raw)
+        index[fid]["facts"] = facts
+        read += 1
+        for k in ("codes", "parts", "labels"):
+            found[k] += len(facts[k])
+        if facts["visible_text"]:
+            found["text"] += 1
+
+    _write_figures(index)
+    remaining = sum(1 for v in index.values()
+                    if (v.get("caption") or v.get("skipped")) and "facts" not in v)
+    return {"read": read, "failed": failed, "errors": errors[:5],
+            "found": found, "remaining": remaining, "done": remaining == 0,
+            "note": "run /documents/reindex to make the transcribed text "
+                    "searchable" if read else ""}
+
+
+def _facts() -> dict:
+    """Everything read out of the pictures, gathered and de-duplicated.
+
+    Rows are keyed on their identity -- a code, a part number, a label -- and
+    the first sighting wins, with every page that showed it recorded. The same
+    error code appears on several pages, and one entry citing three pages is
+    more useful than three entries.
+    """
+    codes: dict[str, dict] = {}
+    parts: dict[str, dict] = {}
+    labels: dict[str, dict] = {}
+    for fid, v in sorted(_figures().items()):
+        facts = v.get("facts") or {}
+        where = {"figure": fid, "doc": v.get("doc"), "page": v.get("page")}
+        for row in facts.get("codes") or []:
+            key = row["code"].upper().replace(" ", "")
+            entry = codes.setdefault(key, {**row, "seen": []})
+            # A later sighting can fill a gap the first one left blank.
+            for f in ("title", "cause", "remedy", "message"):
+                if not entry.get(f) and row.get(f):
+                    entry[f] = row[f]
+            entry["seen"].append(where)
+        for row in facts.get("parts") or []:
+            entry = parts.setdefault(row["number"], {**row, "seen": []})
+            entry["seen"].append(where)
+        for row in facts.get("labels") or []:
+            entry = labels.setdefault(row["label"].upper(), {**row, "seen": []})
+            entry["seen"].append(where)
+    return {"codes": codes, "parts": parts, "labels": labels}
+
+
+@app.get("/facts")
+async def facts(kind: str = "", q: str = "", limit: int = 200):
+    """The tables read out of the pictures: error codes, parts, labels."""
+    data = _facts()
+    if kind and kind not in data:
+        raise HTTPException(status_code=400,
+                            detail=f"kind must be one of {', '.join(data)}")
+    needle = q.strip().lower()
+
+    def rows(name):
+        out = list(data[name].values())
+        if needle:
+            out = [r for r in out
+                   if any(needle in str(v).lower()
+                          for k, v in r.items() if k != "seen")]
+        return out[:max(1, min(limit, 500))]
+
+    wanted = [kind] if kind else list(data)
+    return {name: rows(name) for name in wanted} | {
+        "counts": {k: len(v) for k, v in data.items()}}
 
 
 @app.get("/documents/figure")

@@ -53,6 +53,7 @@ TOOL_DOCS = {
     "brew_recipe": 'args {"name": str}         brew a saved recipe (asks the user first)',
     "answer_docs": 'args {"query": str}         answer a how-to question from the machine\'s manuals',
     "show_diagram": 'args {"query": str}         find a diagram, schematic or screenshot to SHOW the user',
+    "look_up": 'args {"query": str}         exact lookup: an error code (C:3 M:5), a part number, a diagram label (V5)',
 }
 
 #: What the machine actually is, from the confirmed documents (docs/INTEL.md).
@@ -94,6 +95,8 @@ Rules:
 - save_recipe and brew_recipe do not act immediately: they ask the user, who
   confirms or declines. When one returns "awaiting confirmation", say what you
   have queued and stop -- do not call it again and do not pretend it happened.
+- For an error code, a part number or a diagram label, call look_up rather than
+  searching the documents: those are identifiers, and near-enough is wrong.
 - Most of this machine's documentation is pictures. When the answer is a
   location, a wiring path, a part, a menu screen or "which one is it?", call
   show_diagram and let the picture do the work -- then say in one line what to

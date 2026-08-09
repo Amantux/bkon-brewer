@@ -100,5 +100,54 @@ else:
     check("a page of plain text is not a picture", ex.pages[0].visual, False)
     check("so there is nothing to describe", len(ex.visual_pages), 0)
 
+print("\nreading the data back out of a picture")
+# A description is prose, and prose loses what is most useful on these pages:
+# the wording the machine puts on its own screen, part numbers, valve labels.
+# The error-code pages are the case in point -- their left half is real PDF
+# text, but the photograph of the display carries the remedy and the service
+# number, and that text is nowhere else.
+good = """```json
+{"visible_text": "Chamber Not Sealed (C:3 M:5). Brew chamber not closed. Call 1-855-353-7378.",
+ "codes": [{"code": "C:3 M:5", "title": "Chamber Not Sealed",
+            "cause": "A vacuum cannot be created", "remedy": "Inspect the purge valve",
+            "message": "Brew chamber not closed."}],
+ "parts": [{"number": "19006211", "name": "Pump, Vacuum 24VDC"}],
+ "labels": [{"label": "V5", "name": "Proportional Valve"}]}
+```"""
+f = F.parse_facts(good)
+check("the transcription survives fencing",
+      f["visible_text"].startswith("Chamber Not Sealed"), True)
+check("one code", len(f["codes"]), 1)
+check("with its remedy", f["codes"][0]["remedy"], "Inspect the purge valve")
+check("and the machine's own words", f["codes"][0]["message"], "Brew chamber not closed.")
+check("one part", f["parts"][0]["number"], "19006211")
+check("one label", f["labels"][0]["label"], "V5")
+
+print("\nbad output costs one page, not the run")
+for bad in ("I could not read this page", "", "null", "[]", "{oops",
+            '{"codes": "not a list"}'):
+    got = F.parse_facts(bad)
+    check(f"{bad[:24]!r} yields nothing", (got["codes"], got["parts"], got["labels"]),
+          ([], [], []))
+
+print("\na row with no identity is dropped, not kept blank")
+# A part with no number, a code with no code: they cannot be looked up and
+# would only pollute the table.
+f = F.parse_facts('{"parts": [{"number": "", "name": "mystery"},'
+                  ' {"number": "19006169", "name": "Elbow"}],'
+                  ' "codes": [{"code": "", "title": "nameless"}],'
+                  ' "labels": [{"label": "", "name": "unknown"}]}')
+check("the nameless part is gone", [p["number"] for p in f["parts"]], ["19006169"])
+check("the codeless code is gone", f["codes"], [])
+check("the unlabelled label is gone", f["labels"], [])
+
+print("\nthe prompt forbids inventing an identifier")
+low = F.EXTRACT_PROMPT.lower()
+ok("it says never invent", "never invent" in low)
+ok("it asks for verbatim transcription", "verbatim" in low)
+ok("it says not to guess a label's meaning", "do not guess" in low)
+ok("it names the keys it wants", all(k in F.EXTRACT_PROMPT
+   for k in ("visible_text", "codes", "parts", "labels")))
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
