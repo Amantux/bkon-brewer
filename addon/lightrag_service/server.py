@@ -330,9 +330,14 @@ async def chat_turn(request: Request):
         if not question:
             return {"answer": "No question was given."}, None
         try:
-            raw = await _rag.aquery(question_for_rag, param=_query_param(mode="hybrid"))
+            raw = await _rag.aquery(question, param=_query_param(mode="hybrid"))
             return {"answer": clean_answer(raw)}, None
         except Exception as ex:                       # noqa: BLE001
+            # This handler once hid a NameError as "could not reach the
+            # documents" -- a wrong variable name read to the user as a service
+            # outage, and to me as one too. Log the traceback so the next
+            # mistake in here is findable in the add-on log.
+            _LOG.exception("answer_docs failed")
             return {"answer": f"Could not reach the documents ({ex})."}, None
 
     async def score_tool(_args: dict, cur_steps):
@@ -650,7 +655,7 @@ async def save_recipe(request: Request):
 async def delete_recipe(request: Request):
     body = await request.json()
     name = (body.get("name") or "").strip()
-    if not name and action not in ("list_recipes",):
+    if not name:
         raise HTTPException(status_code=400, detail="name is required")
     try:
         await ha.call_service("delete_recipe", {"name": name})
@@ -664,7 +669,7 @@ async def brew_recipe(request: Request):
     """Brew a saved recipe. The one thing that genuinely needs the brewer."""
     body = await request.json()
     name = (body.get("name") or "").strip()
-    if not name and action not in ("list_recipes",):
+    if not name:
         raise HTTPException(status_code=400, detail="name is required")
     try:
         await ha.call_service("brew_saved", {"name": name})

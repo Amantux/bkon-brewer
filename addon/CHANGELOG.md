@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.23.6 — two undefined names, and a check that finds the next one
+- **"Could not reach the documents" was not a document problem.** The chat's
+  `answer_docs` tool queried a variable belonging to a different endpoint. The
+  NameError was caught by a broad `except` and shown as a service outage, so it
+  looked like LightRAG was down when the code was simply wrong. Fixed, and that
+  handler now logs its traceback so the next mistake in there is findable.
+- **A missing name returned 500 instead of 400** on *Delete recipe* and *Brew
+  recipe*, from an over-broad edit in 0.23.0 that put a variable where it did
+  not belong. Only the empty-name path was affected, which is why nothing
+  noticed.
+- **Both were found by a new test, not by reading.** Python does not check a
+  name until the line runs, so a typo in a rarely-taken branch ships. The
+  add-on image carries no linter, so `tests/test_undefined_names.py` walks the
+  service's scopes and resolves every name that is read. It found both of these
+  the first time it ran.
+
 ## 0.23.5 — the status page can name your model again
 - **"Model: using the provider default"** was shown no matter what you had set.
   The status page read a `model` attribute the providers never had — they keep
