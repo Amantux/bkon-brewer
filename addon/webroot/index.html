@@ -373,6 +373,9 @@
   .dg-cite{display:flex;gap:9px;align-items:baseline;font-size:12.5px}
   .dg-cite .doc{font-weight:650;flex:1;min-width:0}
   .dg-cite .pg{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)}
+  .dg-watch{font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap;
+    border:1px solid var(--line-2);padding:4px 10px;border-radius:99px;color:var(--accent)}
+  .dg-watch:hover{border-color:var(--accent)}
   .dg-cite button{border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);
     font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;cursor:pointer;
     font-family:var(--sans);white-space:nowrap}
@@ -443,6 +446,9 @@
   .dg-cite{display:flex;gap:9px;align-items:baseline;font-size:12.5px}
   .dg-cite .doc{font-weight:650;flex:1;min-width:0}
   .dg-cite .pg{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)}
+  .dg-watch{font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap;
+    border:1px solid var(--line-2);padding:4px 10px;border-radius:99px;color:var(--accent)}
+  .dg-watch:hover{border-color:var(--accent)}
   .dg-cite button{border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);
     font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;cursor:pointer;
     font-family:var(--sans);white-space:nowrap}
@@ -2516,11 +2522,17 @@ address=0x80000000</code></pre>
   }
 
   function renderAnswer(box, d){
-    const cites=(d.sources||[]).map((sx,i)=>
-      `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
-      + `<span class="pg">${sx.page?("p."+sx.page):""}</span>`
-      + `<button type="button" data-doc="${esc(sx.doc)}" data-page="${esc(sx.page||"")}">Read</button></div>`
-      + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`).join("");
+    const cites=(d.sources||[]).map(sx=>{
+      // A video can be linked to; a PDF cannot (it is not on the device and is
+      // not ours to serve), so those open the indexed text instead.
+      const action = sx.url
+        ? `<a class="dg-watch" href="${esc(sx.url)}" target="_blank" rel="noopener">Watch ↗</a>`
+        : `<button type="button" data-doc="${esc(sx.doc)}" data-page="${esc(sx.page||"")}">Read</button>`;
+      const where = sx.url ? "video" : (sx.page ? "p."+sx.page : "");
+      return `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
+        + `<span class="pg">${esc(where)}</span>${action}</div>`
+        + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`;
+    }).join("");
     box.innerHTML = `<div class="md">${md(d.answer||"No answer.")}</div>`
       + (cites ? `<div class="dg-cites"><div class="dg-citehead">Sources</div>${cites}</div>` : "")
       + (d.note ? `<p class="stu-hint" style="margin-top:9px">${esc(d.note)}</p>` : "");

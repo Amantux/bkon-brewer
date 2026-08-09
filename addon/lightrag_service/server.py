@@ -679,6 +679,7 @@ async def ask_docs(request: Request):
                 continue
             seen.add(doc)
             sources.append({"doc": doc, "page": hit.passage.page,
+                            "url": getattr(hit.passage, "url", "") or "",
                             "excerpt": hit.passage.text.strip()[:220]})
 
     answer, err = "", None

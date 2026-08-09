@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.19.0
+- **Training videos are indexed alongside the documents**, via
+  `scripts/build_video_index.py`, which reads the `*.info.json` yt-dlp writes.
+  They go into the same index and the same retriever — one place to search, not
+  a second path for video.
+- **A video citation links out.** Passages can now carry a source URL, so a
+  video source shows **Watch ↗** instead of *Read*. Documents have no link
+  because the PDFs are not on the device and are not ours to serve; that is
+  precisely why the field is optional rather than assumed.
+- Transcripts are supported with `--captions`, but YouTube signs caption URLs
+  with an expiry, so the ones recorded in an old archive return 404. Re-run
+  yt-dlp against the live video to get fresh ones; the script handles both.
+
 ## 0.18.0
 - **LightRAG's own "References" block is stripped.** It listed internal
   retrieval artefacts — *(Knowledge Graph)*, *(Document Chunks 1‑8)* — that

@@ -58,6 +58,10 @@ class Passage:
     doc: str
     page: int
     text: str
+    #: Where to go to see the source, when there is somewhere to go. PDFs have
+    #: nowhere — they are not on the device — but a training video does, so a
+    #: citation to one can link out to it. Empty for everything else.
+    url: str = ""
 
 
 @dataclass(slots=True)
@@ -87,7 +91,8 @@ class KnowledgeBase:
         if not p.exists():
             return cls([])
         data = json.loads(p.read_text(encoding="utf-8"))
-        return cls([Passage(d["doc"], int(d.get("page", 0)), d["text"])
+        return cls([Passage(d["doc"], int(d.get("page", 0)), d["text"],
+                            d.get("url", ""))
                     for d in data.get("passages", [])])
 
     @property
