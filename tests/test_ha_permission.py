@@ -162,5 +162,42 @@ stored = [ln for ln in html.splitlines()
           if "haGranted" in ln and ("localStorage" in ln or "sessionStorage" in ln)]
 check("it is never persisted across sessions", stored, [])
 
+print("\nthe progress trace accumulates rather than overwriting")
+# server.py cannot be imported (fastapi, LightRAG), but `note` is a small pure
+# closure over two names. Lifting it out and running it is a real test of the
+# behaviour the browser depends on: that finished steps stay in the list.
+note_fn = find_func("note", chat)
+ok("the turn reports progress", note_fn is not None)
+
+env = {"_PROGRESS": {}, "_PROGRESS_MAX": 32,
+       "_TOOL_SAYS": {"answer_docs": "reading the manuals"},
+       "pid": "p1"}
+exec(compile(ast.Module(body=[note_fn], type_ignores=[]), "<note>", "exec"), env)
+note = env["note"]
+note("thinking")
+note("tool", "answer_docs")
+note("thinking")
+trace = env["_PROGRESS"]["p1"]["steps"]
+
+check("every step is kept", len(trace), 3)
+check("in the order they happened",
+      [s["detail"] for s in trace],
+      ["thinking", "reading the manuals", "thinking"])
+check("a step is finished when the next one starts",
+      [s["done"] for s in trace], [True, True, False])
+check("a tool step names its tool", trace[1]["tool"], "answer_docs")
+
+# An unnamed turn must not accumulate anything -- the browser only sends an id
+# when it intends to poll, and a dict that grows without one is a leak.
+env["_PROGRESS"].clear(); env["pid"] = ""
+note("thinking")
+check("no id means no trace", env["_PROGRESS"], {})
+
+# The trace is bounded, or a runaway loop grows it without limit.
+env["pid"] = "p2"
+for _ in range(40):
+    note("tool", "answer_docs")
+check("the trace is bounded", len(env["_PROGRESS"]["p2"]["steps"]), 16)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

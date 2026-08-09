@@ -288,7 +288,7 @@ _TOOL_SAYS = {
 @app.get("/chat/progress")
 async def chat_progress(id: str = ""):
     """What the turn with this id is doing. Polled while a reply is pending."""
-    return _PROGRESS.get(id) or {"state": "", "detail": ""}
+    return _PROGRESS.get(id) or {"steps": []}
 
 
 @app.post("/chat")
@@ -315,14 +315,28 @@ async def chat_turn(request: Request):
     pid = str(body.get("progress_id") or "")[:64]
 
     def note(kind, name=""):
+        """Append to this turn's visible trace.
+
+        The loop reports "thinking" before each model call and "tool" before
+        each tool call, so a step is finished exactly when the next one starts.
+        Marking it that way is what lets the browser show a running list with
+        the completed steps ticked, rather than one line that keeps changing
+        and loses everything that came before it.
+        """
         if not pid:
             return
         if len(_PROGRESS) > _PROGRESS_MAX:
             _PROGRESS.clear()                        # bounded; it is only a hint
-        _PROGRESS[pid] = {
-            "state": kind,
+        trace = _PROGRESS.setdefault(pid, {"steps": []})["steps"]
+        if trace:
+            trace[-1]["done"] = True
+        trace.append({
+            "kind": kind,
+            "tool": name,
             "detail": _TOOL_SAYS.get(name, name.replace("_", " ")) if name else "thinking",
-        }
+            "done": False,
+        })
+        del trace[:-16]                              # a turn is at most ~9 steps
 
     async def answer_docs(args: dict, _steps):
         """The one tool that needs the running service: ask the manuals."""

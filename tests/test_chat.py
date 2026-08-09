@@ -139,5 +139,32 @@ t = run(C.run_chat(FakeProvider(['{"tool":"lint_recipe","args":{}}', "", "", "",
                    "check", [], {"lint_recipe": _t}))
 check("a silent turn still names the tools it ran", "lint_recipe" in t.reply, True)
 
+print("\nthe turn reports its steps in order, so the browser can list them")
+# The browser turns these into the visible trace. What matters is that each
+# report arrives before the thing it describes, and that a step is finished
+# exactly when the next one starts -- that pairing is what lets the trace tick
+# off completed steps without the server tracking completion itself.
+seen = []
+def _lint(a, st): return {"ok": True}, None
+def _docs(a, st): return {"answer": "descale it"}, None
+t = run(C.run_chat(FakeProvider(['{"tool":"answer_docs","args":{"query":"descale"}}',
+                                 '{"tool":"lint_recipe","args":{}}',
+                                 '{"answer":"done"}']),
+                   "how do I descale", [], {"lint_recipe": _lint, "answer_docs": _docs},
+                   on_step=lambda k, n="": seen.append((k, n))))
+check("thinking is reported before each model call, tools before each tool",
+      seen, [("thinking", ""), ("tool", "answer_docs"),
+             ("thinking", ""), ("tool", "lint_recipe"),
+             ("thinking", "")])
+check("and the turn itself is unaffected", t.reply, "done")
+check("the actions match the reported tools",
+      [a.tool for a in t.actions], ["answer_docs", "lint_recipe"])
+
+# A turn with no tools still reports, so the trace is never empty.
+seen = []
+run(C.run_chat(FakeProvider(['{"answer":"just an answer"}']), "hi", [], {},
+               on_step=lambda k, n="": seen.append(k)))
+check("a toolless turn still reports thinking", seen, ["thinking"])
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

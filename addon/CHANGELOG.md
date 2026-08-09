@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.24.0 — watch it work, then read the answer
+- **The chat shows its steps as it takes them.** *Thinking* → *reading the
+  manuals* → *tuning the recipe*, one line each, the current one pulsing and
+  the finished ones ticked. 0.23.0 showed only the latest step, overwriting
+  what came before, which told you it was busy but not what it had already
+  done.
+- **And folds them away once the answer arrives.** The reply replaces the
+  trace; underneath it sits a *3 steps* disclosure that expands to the same
+  list, each step naming what it worked on. The answer is what you came for —
+  the working is there for when you want to know how it got there.
+- **A turn that fails keeps its trace**, with the step it died on marked, so
+  "it failed while reading the manuals" is visible instead of an error message
+  with no indication of how far it got.
+
 ## 0.23.6 — two undefined names, and a check that finds the next one
 - **"Could not reach the documents" was not a document problem.** The chat's
   `answer_docs` tool queried a variable belonging to a different endpoint. The

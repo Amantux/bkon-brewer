@@ -80,5 +80,39 @@ for tag in ("section", "div", "form", "details", "aside", "main", "nav", "select
     check(f"<{tag}> balanced", o, c)
 check("script tags balanced", s.count("<script>"), s.count("</script>"))
 
+print("\nthe turn shows its working, then folds it away")
+# The point of the trace is that it accumulates. A renderer that overwrites one
+# line looks identical in a screenshot and is useless in practice, so these
+# assert the shape that makes it a list.
+ok("there is a live trace renderer", "function renderTrace(" in s)
+ok("it renders one element per step", "steps.map(" in s)
+ok("a finished step is marked done", 'st.done?" done"' in s)
+ok("the running step is announced to screen readers", 'aria-live","polite"' in s)
+
+ok("there is a collapsed summary", "function workSummary(" in s)
+ok("it uses a native disclosure, so it is keyboard-operable",
+   "<details" in s and "<summary>" in s)
+ok("the answer replaces the trace rather than sitting under it",
+   s.index("function workSummary(") > 0 and "stopPoll();" in s)
+ok("polling stops before the answer is rendered",
+   s.index("stopPoll();\n      if(typeof window.bkonMd") > 0)
+
+# Both sides name a tool the same way, or the same step reads differently
+# depending on whether you caught it live or expanded it later.
+ok("the browser has its own wording map", "const TOOL_SAYS" in s)
+for tool in ("answer_docs", "adjust_recipe", "list_recipes", "brew_recipe"):
+    ok(f"{tool} has plain-language wording", f"{tool}:" in s)
+
+# A failed turn keeps the trace: "it died reading the manuals" beats a bare
+# error message with no indication of how far it got.
+ok("a failed turn keeps its trace", 'classList.add("failed")' in s)
+ok("and shows the error beneath it", "cmp-err" in s)
+
+print("\nevery class the trace uses is actually styled")
+for cls in ("cmp-trace", "cmp-step", "cmp-tick", "cmp-work", "cmp-worklist", "cmp-err"):
+    ok(f".{cls} has a rule", f".{cls}{{" in s or f".{cls} " in s)
+ok("the pulse respects reduced motion",
+   "prefers-reduced-motion" in s and "cmp-pulse" in s)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
