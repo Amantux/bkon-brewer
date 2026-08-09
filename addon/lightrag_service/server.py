@@ -972,9 +972,15 @@ async def documents():
     """Every indexed document, for the reader."""
     kb = _load_kb()
     man = _manifest()
-    return {"documents": kb.documents if kb.ready else [],
+    docs = kb.documents if kb.ready else []
+    return {"documents": docs,
             "passages": kb.size if kb.ready else 0,
-            "originals": sorted(d for d in (kb.documents if kb.ready else []) if d in man)}
+            "originals": sorted(d for d in docs if d in man),
+            # Stored originals for documents that are no longer indexed. Listed
+            # because --prune could not see them otherwise: it compared against
+            # `originals`, which is already filtered to indexed documents, so
+            # the orphans it exists to remove were invisible to it.
+            "orphans": sorted(d for d in man if d not in docs)}
 
 
 @app.get("/documents/read")

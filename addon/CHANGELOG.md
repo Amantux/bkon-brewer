@@ -9,7 +9,8 @@
   else can never be cited, so it was only ever a file taking up room. This also
   stops a mistyped name from quietly creating an orphan.
 - `DELETE /documents/original` and `upload_originals.py --prune` give the way
-  back out.
+  back out. `/documents` reports orphaned originals, without which `--prune`
+  could not find the very things it exists to remove.
 
 ## 0.25.0 — a citation you can actually open
 - **"Read" now opens the document, not a transcript of it.** Citations linked to

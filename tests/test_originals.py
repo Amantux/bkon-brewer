@@ -145,6 +145,18 @@ ok("the document name is not stripped", "doc = (doc or '').strip()" not in src)
 ok("blank is still rejected", "if not (doc or '').strip()" in src)
 ok("an unindexed document is refused", "kb.documents" in src and "404" in src)
 
+# Orphans have to be *reported*, or the prune that removes them cannot find
+# them: the `originals` list is filtered to indexed documents, so anything
+# orphaned is by definition absent from it.
+docs_ep = None
+for n in tree.body:
+    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "documents":
+        docs_ep = n
+ok("the document listing exists", docs_ep is not None)
+src = ast.unparse(docs_ep)
+ok("it reports which documents have an original", "'originals'" in src)
+ok("and which stored originals are orphaned", "'orphans'" in src)
+
 rm = top("delete_original")
 ok("an upload can be undone", rm is not None)
 src = ast.unparse(rm)

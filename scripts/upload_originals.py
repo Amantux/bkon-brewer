@@ -113,8 +113,9 @@ def main() -> int:
         return 1
 
     if args.prune:
-        stored = set(api(args.url, "/documents", args.key).get("originals") or [])
-        for doc in sorted(stored - indexed):
+        # The add-on reports orphans directly. Deriving them from `originals`
+        # cannot work -- that list is already filtered to indexed documents.
+        for doc in api(args.url, "/documents", args.key).get("orphans") or []:
             req = urllib.request.Request(
                 args.url.rstrip("/") + "/documents/original?"
                 + urllib.parse.urlencode({"doc": doc}), method="DELETE")
