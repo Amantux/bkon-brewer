@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.24.0 — watch it work, then read the answer
+## 0.24.1 — watch it work, then read the answer
 - **The chat shows its steps as it takes them.** *Thinking* → *reading the
   manuals* → *tuning the recipe*, one line each, the current one pulsing and
   the finished ones ticked. 0.23.0 showed only the latest step, overwriting
