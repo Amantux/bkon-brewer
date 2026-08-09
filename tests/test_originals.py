@@ -135,5 +135,22 @@ ok("only when the original is there", "if(sx.original)" in html)
 ok("the indexed text stays available too", 'data-doc=' in html)
 ok("it is shared across script blocks", "window.bkonCite" in html)
 
+print("\nthe upload only accepts documents the index knows")
+# Two bugs found on the first real upload, both of which produced an original
+# that no citation could ever reach.
+src = ast.unparse(top("upload_original"))
+ok("the document name is not stripped", "doc = (doc or '').strip()" not in src)
+# One indexed document really is named with a trailing space. Stripping it
+# filed the original under a name nothing asks for, and it silently had none.
+ok("blank is still rejected", "if not (doc or '').strip()" in src)
+ok("an unindexed document is refused", "kb.documents" in src and "404" in src)
+
+rm = top("delete_original")
+ok("an upload can be undone", rm is not None)
+src = ast.unparse(rm)
+ok("removal is key-guarded too", "_guard(" in src)
+ok("it removes the file, not just the entry", "os.remove(" in src)
+ok("and it goes through the checked lookup", "_original_path(" in src)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

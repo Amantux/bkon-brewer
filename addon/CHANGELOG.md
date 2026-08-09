@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.25.1 — the two documents the first upload got wrong
+- **One document silently had no original.** The upload endpoint stripped the
+  document name, and one indexed document really is named with a trailing
+  space — so its original was filed under a name no citation would ever ask
+  for. Names are now stored exactly as the index has them.
+- **An original can only be uploaded for a document that is indexed.** Anything
+  else can never be cited, so it was only ever a file taking up room. This also
+  stops a mistyped name from quietly creating an orphan.
+- `DELETE /documents/original` and `upload_originals.py --prune` give the way
+  back out.
+
 ## 0.25.0 — a citation you can actually open
 - **"Read" now opens the document, not a transcript of it.** Citations linked to
   the indexed text because the PDFs were not on the device. Upload them with

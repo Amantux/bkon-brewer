@@ -72,6 +72,9 @@ def main() -> int:
     ap.add_argument("--key", default="", help="the add-on's service API key")
     ap.add_argument("--dry-run", action="store_true",
                     help="show what would be uploaded and stop")
+    ap.add_argument("--prune", action="store_true",
+                    help="also remove stored originals for documents that are "
+                         "no longer in the index")
     args = ap.parse_args()
 
     if not args.dir.is_dir():
@@ -108,6 +111,20 @@ def main() -> int:
         return 0
     if not found:
         return 1
+
+    if args.prune:
+        stored = set(api(args.url, "/documents", args.key).get("originals") or [])
+        for doc in sorted(stored - indexed):
+            req = urllib.request.Request(
+                args.url.rstrip("/") + "/documents/original?"
+                + urllib.parse.urlencode({"doc": doc}), method="DELETE")
+            if args.key:
+                req.add_header("X-API-Key", args.key)
+            try:
+                urllib.request.urlopen(req, timeout=60)
+                print(f"  removed {doc} (no longer indexed)")
+            except (urllib.error.URLError, OSError) as ex:
+                print(f"  could not remove {doc}: {ex}", file=sys.stderr)
 
     ok = 0
     for doc, path in sorted(found.items()):

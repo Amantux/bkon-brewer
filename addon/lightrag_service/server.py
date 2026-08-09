@@ -881,9 +881,20 @@ async def upload_original(request: Request, doc: str, filename: str,
     originals can get there.
     """
     _guard(x_api_key, authorization)
-    doc = (doc or "").strip()
-    if not doc:
+    # Kept verbatim, not stripped. Document names come from the index and one
+    # of them really does end in a space; stripping it here filed the original
+    # under a name no citation would ever ask for, and the document silently
+    # had no original.
+    if not (doc or "").strip():
         raise HTTPException(status_code=400, detail="doc is required")
+    # An original for a document the index has never heard of can never be
+    # cited, so it is only a file taking up room on the device.
+    kb = _load_kb()
+    if kb.ready and doc not in kb.documents:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{doc!r} is not an indexed document; nothing would ever "
+                   f"cite it. Check the name matches the index exactly.")
     ext = os.path.splitext(filename or "")[1].lower()
     if ext not in _ORIGINAL_TYPES:
         raise HTTPException(
@@ -912,6 +923,28 @@ async def upload_original(request: Request, doc: str, filename: str,
     except OSError as ex:
         raise HTTPException(status_code=500, detail=f"could not store: {ex}")
     return {"stored": True, "doc": doc, "bytes": len(body), "originals": len(man)}
+
+
+@app.delete("/documents/original")
+async def delete_original(doc: str,
+                          x_api_key: str | None = Header(default=None),
+                          authorization: str | None = Header(default=None)):
+    """Remove one stored original. The way back out of an upload."""
+    _guard(x_api_key, authorization)
+    import json as _json
+    man = _manifest()
+    if doc not in man:
+        raise HTTPException(status_code=404, detail=f"no original for {doc!r}")
+    full = _original_path(doc)
+    man.pop(doc, None)
+    try:
+        if full:
+            os.remove(full)
+        with open(os.path.join(ORIGINALS_DIR, _MANIFEST), "w", encoding="utf-8") as f:
+            _json.dump(man, f, indent=1, sort_keys=True)
+    except OSError as ex:
+        raise HTTPException(status_code=500, detail=f"could not remove: {ex}")
+    return {"removed": True, "doc": doc, "originals": len(man)}
 
 
 @app.get("/documents/file")
