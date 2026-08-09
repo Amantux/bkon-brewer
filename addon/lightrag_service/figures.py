@@ -213,6 +213,57 @@ def is_skip(caption: str) -> bool:
     return re.match(r"SKIP\b", t) is not None
 
 
+#: Words that appear in almost every label on this corpus, so they say nothing
+#: about which run a page belongs to.
+_NOISE = {"bkon", "craft", "brewer", "the", "and", "a", "of", "for", "to", "with",
+          "page", "view", "guide", "diagram", "image", "photo", "slide"}
+
+
+def name_run(labels: list[str]) -> str:
+    """What a run of consecutive pages is about, from the pages themselves.
+
+    Their labels overlap when they belong together -- "Purge valve and C:3 M:5
+    error" next to "Purge valve cleaning and interface guide" share the thing
+    they are both about. Words common to most of the run name it; when nothing
+    is common the run is a stretch of the document rather than one subject, and
+    it gets no name rather than a made-up one.
+    """
+    if not labels:
+        return ""
+    counts: dict[str, int] = {}
+    for label in labels:
+        for word in {w for w in re.findall(r"[A-Za-z0-9:]+", label.lower())
+                     if w not in _NOISE and len(w) > 2}:
+            counts[word] = counts.get(word, 0) + 1
+    # In most of the run, not just two pages of thirty.
+    threshold = max(2, int(len(labels) * 0.6))
+    common = [w for w, n in counts.items() if n >= threshold]
+    if not common:
+        return ""
+    common.sort(key=lambda w: (-counts[w], w))
+    # Presented in the order they read in the first label that has them.
+    first = labels[0].lower()
+    common.sort(key=lambda w: (first.find(w) if w in first else 999))
+    return " ".join(common[:4])
+
+
+def runs_of(pages: list[int]) -> list[list[int]]:
+    """Split page numbers into maximal runs of consecutive pages.
+
+    Adjacency is the whole signal, and it is a better one than it sounds: pages
+    that are not illustrated break a run, which is exactly what separates one
+    fault from the next in the error-code deck -- each gets its symptom page and
+    its remedy page, with an unillustrated page between faults.
+    """
+    out: list[list[int]] = []
+    for n in sorted(set(pages)):
+        if out and n == out[-1][-1] + 1:
+            out[-1].append(n)
+        else:
+            out.append([n])
+    return out
+
+
 def as_passage(doc: str, page: int, caption: str, figure_id: str) -> dict:
     """A described figure, in the same shape as a text passage.
 

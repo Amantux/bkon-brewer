@@ -378,6 +378,7 @@ async def chat_turn(request: Request):
                     "note": "no pictures have been described yet"}, None
         if not kb.ready:
             return {"figures": [], "note": "no index"}, None
+        seqs = _sequences()
         picked, seen = [], set()
         for hit in kb.search(query, k=30):
             fid = getattr(hit.passage, "figure", "") or next(
@@ -390,7 +391,8 @@ async def chat_turn(request: Request):
             f = figs[fid]
             picked.append({"id": fid, "doc": f["doc"], "page": f["page"],
                            "label": f.get("label") or "",
-                           "caption": (f.get("caption") or "")[:300]})
+                           "caption": (f.get("caption") or "")[:300],
+                           "seq": _seq_brief(fid, seqs)})
             if len(picked) == 3:
                 break
         return {"figures": picked,
@@ -1315,6 +1317,56 @@ async def extract_facts(limit: int = 20, redo: bool = False,
                     "searchable" if read else ""}
 
 
+def _sequences() -> dict:
+    """Which figures read together, and where each one sits in its run.
+
+    Many of these documents walk through something a page at a time: the
+    operating cycle, a fault and then its remedy, a menu screen by screen.
+    Surfacing one page of that in isolation shows a step without the procedure
+    it belongs to, which is how you end up reading "inspect the purge valve"
+    with no idea that the next page shows how.
+
+    A run is a maximal stretch of consecutive illustrated pages in one
+    document. That sounds crude and is not: an unillustrated page breaks the
+    run, which is precisely what separates one fault from the next in the
+    error-code deck.
+    """
+    import figures as F
+
+    figs = {k: v for k, v in _figures().items() if v.get("caption")}
+    by_doc: dict[str, dict[int, str]] = {}
+    for fid, v in figs.items():
+        by_doc.setdefault(v["doc"], {})[int(v["page"])] = fid
+
+    out: dict[str, dict] = {}
+    for doc, pages in by_doc.items():
+        for run in F.runs_of(list(pages)):
+            if len(run) < 2:
+                continue                     # a lone page is not a sequence
+            ids = [pages[n] for n in run]
+            name = F.name_run([figs[i].get("label") or "" for i in ids])
+            for pos, fid in enumerate(ids):
+                out[fid] = {
+                    "name": name or f"{doc}, pages {run[0]}-{run[-1]}",
+                    "named": bool(name),
+                    "index": pos + 1, "total": len(ids),
+                    "first": ids[0], "last": ids[-1],
+                    "prev": ids[pos - 1] if pos else "",
+                    "next": ids[pos + 1] if pos + 1 < len(ids) else "",
+                    "ids": ids,
+                }
+    return out
+
+
+def _seq_brief(fid: str, seqs: dict | None = None) -> dict:
+    """The part of a sequence worth attaching to a surfaced figure."""
+    seq = (seqs if seqs is not None else _sequences()).get(fid)
+    if not seq:
+        return {}
+    return {k: seq[k] for k in
+            ("name", "named", "index", "total", "prev", "next")}
+
+
 def _facts() -> dict:
     """Everything read out of the pictures, gathered and de-duplicated.
 
@@ -1368,6 +1420,21 @@ async def facts(kind: str = "", q: str = "", limit: int = 200):
         "counts": {k: len(v) for k, v in data.items()}}
 
 
+@app.get("/documents/sequence")
+async def sequence(id: str):
+    """Every page of the run this figure belongs to, in order."""
+    seq = _sequences().get(id)
+    if not seq:
+        raise HTTPException(status_code=404,
+                            detail=f"{id!r} is not part of a multi-page run")
+    figs = _figures()
+    return {"name": seq["name"], "named": seq["named"], "total": seq["total"],
+            "current": id,
+            "pages": [{"id": f, "doc": figs[f]["doc"], "page": figs[f]["page"],
+                       "label": figs[f].get("label") or ""}
+                      for f in seq["ids"] if f in figs]}
+
+
 @app.get("/documents/figure")
 async def figure_image(id: str):
     """The rendered page behind a figure."""
@@ -1394,6 +1461,9 @@ async def list_figures(doc: str = "", q: str = "", limit: int = 24):
             items.sort(key=lambda i: order[i["id"]])
     else:
         items.sort(key=lambda i: (i["doc"], i["page"]))
+    seqs = _sequences()
+    for i in items:
+        i["seq"] = _seq_brief(i["id"], seqs)
     return {"figures": items[:max(1, min(limit, 60))],
             "total": len(index),
             "described": sum(1 for v in index.values() if v.get("caption"))}
@@ -1464,6 +1534,7 @@ def _cite(question: str, k: int = 6) -> list[dict]:
         return []
     man = _manifest()
     figs = _figures()
+    seqs = _sequences()
     out, seen = [], set()
     for hit in kb.search(question, k=k):
         doc = hit.passage.doc
@@ -1485,7 +1556,8 @@ def _cite(question: str, k: int = 6) -> list[dict]:
                         and v.get("caption")), "")
         if fid and fid in figs:
             entry["figure"] = {"id": fid, "label": figs[fid].get("label") or "",
-                               "caption": figs[fid].get("caption") or ""}
+                               "caption": figs[fid].get("caption") or "",
+                               "seq": _seq_brief(fid, seqs)}
         out.append(entry)
     return out
 

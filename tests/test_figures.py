@@ -149,5 +149,43 @@ ok("it says not to guess a label's meaning", "do not guess" in low)
 ok("it names the keys it wants", all(k in F.EXTRACT_PROMPT
    for k in ("visible_text", "codes", "parts", "labels")))
 
+print("\nfinding the pages that read together")
+# An unillustrated page breaks a run. That sounds crude and is the whole trick:
+# in the error-code deck each fault gets a symptom page and a remedy page, with
+# an unillustrated page between faults -- so adjacency separates the faults
+# exactly where a human would.
+check("consecutive pages group",  F.runs_of([1, 2, 3]), [[1, 2, 3]])
+check("a gap starts a new run",   F.runs_of([2, 4, 5, 7, 8, 10, 11, 13]),
+      [[2], [4, 5], [7, 8], [10, 11], [13]])
+check("order does not matter",    F.runs_of([5, 4, 2]), [[2], [4, 5]])
+check("duplicates collapse",      F.runs_of([3, 3, 4]), [[3, 4]])
+check("nothing in, nothing out",  F.runs_of([]), [])
+
+print("\na run is named by what its pages have in common")
+check("a fault and its remedy",
+      F.name_run(["Purge valve and C:3 M:5 error",
+                  "Purge valve cleaning and interface guide"]),
+      "purge valve")
+check("a phase-by-phase walkthrough",
+      F.name_run(["BKON Craft Brewer Brew Cycle-Start schematic",
+                  "BKON Craft Brewer Brew Cycle schematic",
+                  "Brew Cycle-Vacuum flow schematic",
+                  "BKON Craft Brewer Brew Cycle-Purge schematic"]),
+      "brew cycle schematic")
+# The brand name is on almost every label, so it says nothing about which run
+# a page belongs to and must not become the name of every sequence.
+ok("the brand name is never the name",
+   "bkon" not in F.name_run(["BKON Craft Brewer schematic",
+                             "BKON Craft Brewer photo"]))
+# Pages that merely sit next to each other are a stretch of a document, not a
+# subject. Better to say "pages 12-18" than to invent a title for them.
+check("unrelated pages get no name",
+      F.name_run(["Spare parts list", "A wiring harness", "Descaling menu"]), "")
+check("and nothing at all is not a name", F.name_run([]), "")
+# A word on one page of ten is not what the run is about, however distinctive.
+one_of_ten = F.name_run(["purge valve"] + ["heater element %d" % i for i in range(9)])
+ok("a word on one page does not name the run", "purge" not in one_of_ten)
+ok("but the words on nine of ten do", "heater" in one_of_ten)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

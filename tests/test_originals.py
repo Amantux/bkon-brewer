@@ -251,5 +251,34 @@ ok("a model that cannot see stops the run", "VisionUnsupported" in csrc2)
 ok("and a page the model calls useless is remembered, not retried",
    "skipped" in csrc2)
 
+print("\na surfaced figure knows the procedure it belongs to")
+seq_fn = top("_sequences")
+ok("sequences are derived, not stored", seq_fn is not None)
+ssrc = ast.unparse(seq_fn)
+ok("only described figures count", "caption" in ssrc)
+ok("a lone page is not a sequence", "len(run) < 2" in ssrc)
+ok("and each page knows its neighbours", "'prev'" in ssrc and "'next'" in ssrc)
+
+brief = top("_seq_brief")
+ok("there is one shape for attaching it", brief is not None)
+# Attached everywhere a figure can appear, or stepping works in one place and
+# not another for no reason the user can see.
+for fn in ("_cite", "chat_turn", "list_figures"):
+    node = top(fn) or next((n for n in ast.walk(tree)
+                            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                            and n.name == fn), None)
+    ok(f"{fn} attaches it", "_seq_brief(" in ast.unparse(node))
+
+full = top("sequence")
+ok("the whole run can be fetched", full is not None)
+ok("it 404s for a figure that is not in one", "404" in ast.unparse(full))
+
+html2 = (ROOT / "addon" / "webroot" / "index.html").read_text()
+ok("the browser shows the position in the run", 'class="dg-seq"' in html2)
+ok("with previous and next", 'class="pv"' in html2 and 'class="nx"' in html2)
+ok("stepping stays inside the figure already on screen",
+   'documents/sequence?id=' in html2)
+ok("and the ends of a run are not clickable", "disabled" in html2)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
