@@ -10,6 +10,8 @@
   trace; underneath it sits a *3 steps* disclosure that expands to the same
   list, each step naming what it worked on. The answer is what you came for —
   the working is there for when you want to know how it got there.
+- Removed the flat row of tool chips the disclosure replaces, along with its
+  styles — leaving a superseded pattern in place is how it comes back.
 - **A turn that fails keeps its trace**, with the step it died on marked, so
   "it failed while reading the manuals" is visible instead of an error message
   with no indication of how far it got.

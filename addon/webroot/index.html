@@ -255,10 +255,6 @@
   .stu-bubble{font-size:var(--fs-md);line-height:1.5;padding:8px 11px;border-radius:var(--r-card);max-width:88%}
   .stu-msg.bot .stu-bubble{background:var(--panel-2);border:1px solid var(--line);border-bottom-left-radius:var(--r-chip)}
   .stu-msg.me .stu-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:var(--r-chip)}
-  .stu-acts{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-  .stu-chip{font-family:var(--mono);font-size:var(--fs-xs);font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:var(--r-chip);
-    color:var(--t-vacuum);background:color-mix(in srgb,var(--t-vacuum) 12%,transparent);
-    border:1px solid color-mix(in srgb,var(--t-vacuum) 30%,transparent)}
   .stu-input{display:flex;gap:7px}
   .stu-input input{flex:1;font-family:var(--sans);font-size:var(--fs-md);color:var(--ink);background:var(--panel-2);
     border:1px solid var(--line);border-radius:var(--r-control);padding:8px 10px}
@@ -2895,15 +2891,11 @@ address=0x80000000</code></pre>
   }
 
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  function bubble(role, text, actions){
+  // Tools used to be listed here as a flat row of chips. They now live in the
+  // collapsed summary under the answer, so this only makes the bubble.
+  function bubble(role, text){
     const w=document.createElement("div"); w.className="stu-msg "+(role==="me"?"me":"bot");
     const b=document.createElement("div"); b.className="stu-bubble"; b.textContent=text;
-    if(actions&&actions.length){
-      const r=document.createElement("div"); r.className="stu-acts";
-      actions.forEach(a=>{const c=document.createElement("span");c.className="stu-chip";
-        c.textContent=a.tool.replace(/_/g," ");r.appendChild(c);});
-      b.appendChild(r);
-    }
     w.appendChild(b); body.appendChild(w); body.scrollTop=body.scrollHeight; return b;
   }
 
