@@ -280,5 +280,17 @@ ok("stepping stays inside the figure already on screen",
    'documents/sequence?id=' in html2)
 ok("and the ends of a run are not clickable", "disabled" in html2)
 
+print("\na reindex keeps what was learned about a figure")
+# It once carried `caption` and `label` across by naming them, which silently
+# discarded `facts` -- 616 pages of extraction, destroyed by a refresh. Nothing
+# is listed by name now, so a field added later cannot be forgotten here.
+re_src2 = ast.unparse(top("reindex"))
+ok("prior state is carried wholesale",
+   "**old.get(fid) or {}" in re_src2 or "**(old.get(fid) or {})" in re_src2)
+ok("and no field is enumerated to keep",
+   "'caption': prior.get(" not in re_src2 and '"caption": prior.get(' not in re_src2)
+# The bug that made this matter: extraction output lives under `facts`.
+ok("so extracted facts survive", "facts" not in re_src2.split("index[fid] =")[1][:200])
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

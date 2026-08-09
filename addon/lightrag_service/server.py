@@ -1096,9 +1096,10 @@ async def reindex(request: Request, render: bool = True,
     (/documents/caption) because it costs a model call each and should be
     resumable.
 
-    Existing captions survive a reindex -- they are keyed by document and page,
-    and re-describing 616 pages because the text extractor changed would be an
-    expensive way to get the same sentences back.
+    Everything already learned about a figure -- its description, its label, the
+    data read out of it -- survives a reindex. Re-describing 616 pages because
+    the text extractor changed would be an expensive way to get the same
+    sentences back, and re-reading them would be worse.
     """
     global _kb
     _guard(x_api_key, authorization)
@@ -1159,10 +1160,13 @@ async def reindex(request: Request, render: bool = True,
             except OSError as exc:
                 stats["skipped"].append(f"{doc} p{page.number}: {exc}")
                 continue
-            prior = old.get(fid) or {}
-            index[fid] = {"doc": doc, "page": page.number,
-                          "caption": prior.get("caption", ""),
-                          "label": prior.get("label", "")}
+            # Everything already known about this figure is carried across;
+            # only what the extractor recomputes is overwritten. Listing the
+            # fields to keep looked tidier and silently discarded `facts` on
+            # the first reindex after an extraction run -- 616 pages of model
+            # output, gone, because a field added later was not added here.
+            index[fid] = {**(old.get(fid) or {}),
+                          "doc": doc, "page": page.number}
             stats["figures"] += 1
 
     # A described figure is a passage like any other, so retrieval ranks a
