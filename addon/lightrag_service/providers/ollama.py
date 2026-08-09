@@ -39,34 +39,40 @@ class OllamaProvider(AIProvider):
 
         # Reasoning models (gpt-oss, deepseek-r1, qwen3) split their output:
         # deliberation into `thinking`, the conclusion into `content`. Asked for
-        # a JSON tool call, gpt-oss reasons "we need to call the tool" and often
-        # stops there -- `content` empty, nothing usable anywhere. Turning
-        # thinking off puts the whole answer back in `content`, which is where
-        # every other provider puts it. Not every model accepts the parameter,
-        # so a rejection means retry without it rather than fail.
-        try:
-            resp = await self._call(messages, max_tokens, think=False)
-        except _ThinkUnsupported:
-            resp = await self._call(messages, max_tokens, think=None)
-
-        msg = resp["message"]
-        content = (msg.get("content") or "").strip()
-        if content:
-            return content
-
-        # Still nothing in content: if the model wrote the JSON we asked for
-        # into its deliberation, take it from there. Only the JSON -- returning
-        # raw chain-of-thought as a reply shows the user "We need to call the
-        # tool." in place of an answer, which is worse than an error.
-        salvaged = _json_in((msg.get("thinking") or ""))
-        if salvaged:
-            return salvaged
+        # a JSON tool call they sometimes return an empty turn -- reasoning
+        # finished, nothing written, done_reason "stop". It is intermittent: the
+        # same prompt succeeds on a retry. So each attempt tries a different way
+        # of asking rather than the same one twice.
+        #
+        #   1. think off       -- when honoured, the answer lands in `content`
+        #                         like every other provider
+        #   2. default         -- some builds return nothing at all with
+        #                         thinking suppressed, so give it back
+        #   3. default, again  -- purely for the intermittency
+        last = None
+        for think in (False, None, None):
+            try:
+                resp = await self._call(messages, max_tokens, think)
+            except _ThinkUnsupported:
+                continue
+            last = resp
+            msg = resp["message"]
+            content = (msg.get("content") or "").strip()
+            if content:
+                return content
+            # Nothing in content: if the model wrote the JSON we asked for into
+            # its deliberation, take it. Only the JSON -- returning raw
+            # chain-of-thought shows the user "We need to call the tool." in
+            # place of an answer, which is worse than an error.
+            salvaged = _json_in(msg.get("thinking") or "")
+            if salvaged:
+                return salvaged
 
         raise ProviderError(
-            f"{self._model} returned no answer (finished: "
-            f"{resp.get('done_reason') or 'unknown'}). Reasoning models can "
-            f"spend their whole budget thinking; try a larger token budget or "
-            f"a model that answers directly.")
+            f"{self._model} returned no answer three times (finished: "
+            f"{(last or {}).get('done_reason') or 'unknown'}). This model may "
+            f"not answer reliably here — a non-reasoning model is a better fit "
+            f"for the studio.")
 
     async def _call(self, messages, max_tokens, think):
         kwargs = {"model": self._model, "messages": messages,

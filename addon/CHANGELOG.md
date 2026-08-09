@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.23.4 — an empty turn is retried, not failed
+- **`think: false` was not the whole answer.** With reasoning suppressed,
+  gpt-oss sometimes returns a completely empty turn — reasoning finished,
+  nothing written, `done_reason: stop` — which surfaced as a 502. It is
+  intermittent: the same prompt succeeds on a retry. So an empty response is
+  now asked again, up to three times, and each attempt asks a *different* way
+  (thinking off, then thinking back on) rather than repeating a question that
+  already failed. Only if all three come back empty does it error — and it then
+  says what would actually fix it: use a model that answers directly.
+
 ## 0.23.3 — it was sending the example back
 - **`<your message to the user>` as a reply.** The prompt showed the answer
   shape with an angle-bracket placeholder, and the model sometimes echoed it

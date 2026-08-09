@@ -90,18 +90,21 @@ import providers.ollama as _oll
 
 def run(c): return asyncio.get_event_loop().run_until_complete(c)
 class _FakeClient:
-    def __init__(self, msg, done="stop", reject_think=False):
-        self._m = msg; self._d = done; self._reject = reject_think
+    """Returns a scripted sequence of messages, one per call."""
+    def __init__(self, msgs, done="stop", reject_think=False):
+        self._m = list(msgs) if isinstance(msgs, list) else [msgs]
+        self._d = done; self._reject = reject_think
         self.calls = []
     async def chat(self, **kw):
         self.calls.append(kw)
         if self._reject and "think" in kw:
             raise RuntimeError("model does not support think")
-        return {"message": self._m, "done_reason": self._d}
+        m = self._m.pop(0) if len(self._m) > 1 else self._m[0]
+        return {"message": m, "done_reason": self._d}
 
-def _with(msg, done="stop", reject_think=False):
+def _with(msgs, done="stop", reject_think=False):
     p = _oll.OllamaProvider("http://x", "gpt-oss:20b")
-    p._client = _FakeClient(msg, done, reject_think)
+    p._client = _FakeClient(msgs, done, reject_think)
     return p
 
 p = _with({"content": "hello"})
@@ -125,18 +128,27 @@ check("JSON is salvaged out of the deliberation",
                  "thinking": 'We should call it. {"tool":"lint_recipe"} yes'}
                 ).complete("hi")),
       '{"tool":"lint_recipe"}')
+# An empty turn is intermittent -- the same prompt succeeds on a retry -- so an
+# empty response is asked again rather than failed. This is the behaviour that
+# actually keeps the studio usable on a reasoning model.
+p = _with([{"content": ""}, {"content": "second time lucky"}])
+check("an empty turn is retried", run(p.complete("hi")), "second time lucky")
+check("and the retry asks a different way",
+      (p._client.calls[0].get("think"), "think" in p._client.calls[1]), (False, False))
+
+p = _with({"content": "", "thinking": "We need to call the tool."})
 try:
-    run(_with({"content": "", "thinking": "We need to call the tool."},
-              done="length").complete("hi"))
+    run(p.complete("hi"))
     check("prose-only deliberation raises rather than being shown", False, True)
 except _oll.ProviderError as ex:
     check("prose-only deliberation raises rather than being shown", True, True)
-    check("and the error names the reason", "length" in str(ex), True)
+    check("only after three attempts", len(p._client.calls), 3)
+    check("and the error suggests a fix", "non-reasoning" in str(ex), True)
 try:
-    run(_with({"content": "", "thinking": ""}, done="length").complete("hi"))
-    check("both empty raises rather than returning ''", False, True)
+    run(_with({"content": "", "thinking": ""}).complete("hi"))
+    check("a wholly silent model raises rather than returning ''", False, True)
 except _oll.ProviderError:
-    check("both empty raises rather than returning ''", True, True)
+    check("a wholly silent model raises rather than returning ''", True, True)
 
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
