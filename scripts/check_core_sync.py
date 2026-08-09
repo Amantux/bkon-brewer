@@ -20,6 +20,7 @@ PAIRS = [
     (SRC / "diagnostics.py", CORE / "diagnostics.py"),
     (SRC / "templates.py", CORE / "templates.py"),
     (SRC / "nl_recipe.py", CORE / "nl_recipe.py"),
+    (SRC / "knowledge.py", CORE / "knowledge.py"),
     (SRC / "app_recipe.py", CORE / "app_recipe.py"),
     (SRC / "protocol" / "recipe.py", CORE / "protocol" / "recipe.py"),
     (SRC / "protocol" / "events.py", CORE / "protocol" / "events.py"),

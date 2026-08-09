@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.14.0 — answers you can check
+- **Ask the docs**: a surface for questions answered from the machine's own
+  service and training documents, with the documents the answer came from listed
+  underneath and an excerpt from each.
+- **Citations are looked up, not written.** LightRAG produces the prose; the
+  passage index says where it came from. Keeping those separate means the model
+  cannot invent a source that does not exist. A few documents map onto a wiki
+  page that already summarises them and link there; the rest are named but not
+  linked, because inventing a destination is worse than not having one.
+- Deliberately modest: sources are the documents the retriever matched, not
+  per-sentence footnotes — enough to check an answer without claiming a
+  precision the retrieval does not have.
+- New `POST /ask` and `POST /documents/index`. With no model configured, or if
+  generation fails, it still answers from the indexed passages directly and says
+  that is what happened.
+
 ## 0.13.4
 - The sidebar panel is now **Bkon RAIN** — RAIN is the brewing method the machine
   is built around, which is a better name for the thing than the retrieval

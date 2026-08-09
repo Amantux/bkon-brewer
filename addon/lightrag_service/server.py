@@ -558,6 +558,93 @@ async def note_recipe(request: Request):
     return {"noted": True, "name": name}
 
 
+# --- documents: answers with the source they came from ----------------------
+
+KB_FILE = os.getenv("KB_FILE", "/data/kb.json")
+_kb = None
+
+
+def _load_kb():
+    """The passage index, used for provenance -- which document an answer came from.
+
+    LightRAG writes the prose; this says where it came from. Keeping the two
+    separate means a citation is looked up, not generated, so the model cannot
+    invent a source that does not exist.
+    """
+    global _kb
+    if _kb is None:
+        from bkon_core.knowledge import KnowledgeBase
+        _kb = KnowledgeBase.from_file(KB_FILE)
+    return _kb
+
+
+@app.post("/documents/index")
+async def upload_index(request: Request,
+                       x_api_key: str | None = Header(default=None),
+                       authorization: str | None = Header(default=None)):
+    """Store the passage index the citations are looked up in."""
+    global _kb
+    _guard(x_api_key, authorization)
+    body = await request.json()
+    passages = body.get("passages")
+    if not isinstance(passages, list):
+        raise HTTPException(status_code=400, detail="passages[] is required")
+    import json as _json
+    try:
+        os.makedirs(os.path.dirname(KB_FILE), exist_ok=True)
+        with open(KB_FILE, "w", encoding="utf-8") as f:
+            _json.dump({"passages": passages}, f)
+    except OSError as ex:
+        raise HTTPException(status_code=500, detail=f"could not store: {ex}")
+    _kb = None                                    # reload on next use
+    kb = _load_kb()
+    return {"stored": True, "passages": len(passages), "documents": len(kb.documents)}
+
+
+@app.post("/ask")
+async def ask_docs(request: Request):
+    """Answer from the machine's documents, and say which ones.
+
+    Deliberately modest about citation: the sources are the documents the
+    retriever actually matched, not per-sentence footnotes. That is enough to
+    check an answer without pretending to a precision the retrieval does not
+    have.
+    """
+    body = await request.json()
+    question = (body.get("question") or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="question is required")
+
+    sources = []
+    kb = _load_kb()
+    if kb.ready:
+        seen = set()
+        for hit in kb.search(question, k=6):
+            doc = hit.passage.doc
+            if doc in seen:
+                continue
+            seen.add(doc)
+            sources.append({"doc": doc, "page": hit.passage.page,
+                            "excerpt": hit.passage.text.strip()[:220]})
+
+    answer, err = "", None
+    if ENABLE_LIGHTRAG and _rag is not None and _provider is not None:
+        try:
+            raw = await _rag.aquery(question, param=_query_param(mode="hybrid"))
+            answer = clean_answer(raw)
+        except Exception as ex:                   # noqa: BLE001
+            err = str(ex)[:200]
+    elif not sources:
+        err = "No documents indexed yet."
+
+    if not answer and sources:
+        # No model, or it failed — the passages are still a real answer.
+        answer = sources[0]["excerpt"]
+        err = err or "Answered from the index directly (no model answer available)."
+    return {"answer": answer, "sources": sources[:4], "note": err,
+            "indexed": kb.size if kb.ready else 0}
+
+
 @app.post("/lint")
 async def lint(request: Request):
     """Check a recipe and report every problem with its fix. No model needed."""

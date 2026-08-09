@@ -303,13 +303,29 @@
   .setform{display:flex;flex-direction:column;gap:10px;max-width:520px}
   .setrow{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:center}
   .setrow>span{font-size:12px;font-weight:600;color:var(--ink-soft)}
+  .ask-answer{font-size:14px;line-height:1.6;color:var(--ink);margin-bottom:12px;white-space:pre-wrap}
+  .ask-src{display:flex;flex-direction:column;gap:7px}
+  .ask-srchead{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-faint)}
+  .ask-cite{border-left:2px solid var(--line-2);padding:4px 0 4px 10px}
+  .ask-cite b{font-size:12.5px}
+  .ask-cite a{font-size:12.5px}
+  .ask-cite span{display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:2px}
   .setmodel{display:flex;gap:8px}
   .setmodel select{flex:1;min-width:0}
   .setrow input,.setrow select{font-family:var(--sans);font-size:14px;color:var(--ink);
     background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 11px;width:100%}
   .setrow input:focus,.setrow select:focus{border-color:var(--accent);outline:none}
   @media (max-width:600px){.setrow{grid-template-columns:1fr;gap:4px}
-    .setmodel{display:flex;gap:8px}
+    .ask-answer{font-size:14px;line-height:1.6;color:var(--ink);margin-bottom:12px;white-space:pre-wrap}
+  .ask-src{display:flex;flex-direction:column;gap:7px}
+  .ask-srchead{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-faint)}
+  .ask-cite{border-left:2px solid var(--line-2);padding:4px 0 4px 10px}
+  .ask-cite b{font-size:12.5px}
+  .ask-cite a{font-size:12.5px}
+  .ask-cite span{display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.45;margin-top:2px}
+  .setmodel{display:flex;gap:8px}
   .setmodel select{flex:1;min-width:0}
   .setrow input,.setrow select{font-size:16px;padding:12px}}
 
@@ -377,6 +393,7 @@
     <div class="brand"><div class="mark"></div><div><b>BKON Brewer</b><span id="buildStamp">Recipe studio</span></div></div>
     <a data-nav="studio" class="active primary">🧪 Recipe studio</a>
     <a data-nav="browse" class="primary">📖 Recipes</a>
+    <a data-nav="ask" class="primary">📚 Ask the docs</a>
     <a data-nav="diagnose" class="primary">🩺 Diagnose</a>
     <a data-nav="settings" class="primary">⚙️ Settings</a>
     <button class="grp grp-toggle" id="wikiToggle" type="button" aria-expanded="false" aria-controls="wikiNav">
@@ -545,6 +562,33 @@
       <div class="br-grid" id="brGrid"></div>
       <p class="stu-hint" id="brEmpty" hidden>No recipes yet — build one in the
         <a data-nav="studio" href="#">studio</a> and save it.</p>
+    </section>
+
+    <!-- ASK -->
+    <section id="ask">
+      <div class="eyebrow">The machine's own service documents</div>
+      <h1>Ask the docs</h1>
+      <p class="lede">Questions answered from the brewer's service and training documents,
+      with the documents the answer came from listed underneath — enough to check it, without
+      pretending to per-sentence precision the retrieval does not have.</p>
+
+      <div class="zone" style="--zone:var(--t-fill)">
+        <div class="zone-head"><h2>📚 Ask</h2><span class="why" id="askCount"></span></div>
+        <div class="zone-body">
+          <form class="stu-input" id="askForm" style="margin-bottom:10px">
+            <input id="askText" autocomplete="off" placeholder="How do I descale the machine?"
+              aria-label="Ask the documents" />
+            <button class="btn primary" type="submit" id="askGo">Ask</button>
+          </form>
+          <div class="stu-sugg" id="askChips" style="padding:0 0 8px"></div>
+          <div id="askOut"></div>
+        </div>
+      </div>
+      <p class="stu-foot">Sources are the documents the retriever actually matched, looked up
+        rather than written by the model — so a citation cannot be invented. Confirmed facts
+        drawn from these documents live in
+        <a data-nav="reference" href="#">Units &amp; error codes</a> and
+        <a data-nav="bbp" href="#">The .bbp menu file</a>.</p>
     </section>
 
     <!-- DIAGNOSE -->
@@ -2110,6 +2154,57 @@ address=0x80000000</code></pre>
   });
 
   loadSettings(); prefill();
+
+  // ---- Ask the docs: an answer, and the documents it came from ----
+  // A few documents map onto a wiki page that already summarises them, so the
+  // citation links there. Everything else is named but not linked — inventing a
+  // destination would be worse than not having one.
+  const DOC_WIKI = {
+    "Error Codes": "reference",
+    "RAIN Menu Development Guide": "reference",
+    "UPLOAD MENU": "bbp",
+    "Software Download Instructions": "bbp",
+  };
+  const ASKCHIPS = ["How do I descale?", "How often should I clean the brew basket?",
+                    "What does the purge valve do?", "How do I update the menu?"];
+  if($("askChips")){
+    ASKCHIPS.forEach(t=>{ const b=document.createElement("button"); b.type="button";
+      b.textContent=t; b.onclick=()=>{ $("askText").value=t; $("askForm").requestSubmit(); };
+      $("askChips").appendChild(b); });
+  }
+  $("askForm") && $("askForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const q=$("askText").value.trim(); if(!q) return;
+    const out=$("askOut"), go=$("askGo");
+    go.disabled=true; out.innerHTML=`<p class="stu-hint">Searching the documents…</p>`;
+    try{
+      const res=await fetch(BASE+"ask",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({question:q})});
+      const d=await res.json();
+      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
+      const cites=(d.sources||[]).map(sx=>{
+        const nav=DOC_WIKI[sx.doc];
+        const title = nav
+          ? `<a data-nav="${nav}" href="#">${esc(sx.doc)}</a>`
+          : `<b>${esc(sx.doc)}</b>`;
+        const pg = sx.page ? ` <span class="br-meta" style="display:inline">p.${sx.page}</span>` : "";
+        return `<div class="ask-cite">${title}${pg}<span>${esc(sx.excerpt||"")}…</span></div>`;
+      }).join("");
+      out.innerHTML = `<div class="card" style="margin:0">`
+        + `<div class="ask-answer">${esc(d.answer||"No answer.")}</div>`
+        + (cites ? `<div class="ask-src"><div class="ask-srchead">Sources</div>${cites}</div>` : "")
+        + (d.note ? `<p class="stu-hint" style="margin-top:10px">${esc(d.note)}</p>` : "")
+        + `</div>`;
+      if($("askCount") && d.indexed) $("askCount").textContent = `${d.indexed} passages indexed`;
+      // wiki links inside the answer must still navigate
+      out.querySelectorAll('[data-nav]').forEach(a=>a.addEventListener("click",ev=>{
+        ev.preventDefault();
+        document.querySelector(`nav.side a[data-nav="${a.dataset.nav}"]`)?.click();
+      }));
+    }catch(err){
+      out.innerHTML=`<p class="stu-hint" style="color:var(--t-start)">${esc(err.message||err)}</p>`;
+    }finally{ go.disabled=false; }
+  });
 
   // ---- Diagnose: the fault table first, then the documents ----
   const CHIPS=["C:3 M:5","C:40 M:5","It won't pull a vacuum","Water isn't flowing","How do I descale?"];
