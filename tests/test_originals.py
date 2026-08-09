@@ -113,7 +113,7 @@ ok("the upload endpoint exists", up is not None)
 src = ast.unparse(up)
 ok("it requires the service key", "_guard(" in src)
 ok("it rejects a type it could not serve later", "_ORIGINAL_TYPES" in src)
-ok("it stores under a slug, not the document name", "slug" in src)
+ok("it stores under a derived key, not the document name", "_doc_key(" in src)
 ok("and it never writes the supplied filename",
    'os.path.join(ORIGINALS_DIR, stored)' in src)
 
@@ -163,6 +163,35 @@ src = ast.unparse(rm)
 ok("removal is key-guarded too", "_guard(" in src)
 ok("it removes the file, not just the entry", "os.remove(" in src)
 ok("and it goes through the checked lookup", "_original_path(" in src)
+
+print("\ntwo documents one space apart do not become one")
+# This corpus really does contain "Service Training (Part II)" and
+# "Service Training ( Part II)". They slug identically, so figure ids built
+# from the slug collided and 21 figures overwrote each other.
+key_fn = top("_doc_key")
+ok("there is a unique document key", key_fn is not None)
+env2 = {}
+exec(compile(ast.Module(body=[top("_slug"), key_fn], type_ignores=[]),
+             "<key>", "exec"), env2)
+slug, doc_key = env2["_slug"], env2["_doc_key"]
+
+a, b = "Service Training (Part II)", "Service Training ( Part II)"
+check("their slugs really do collide", slug(a), slug(b))
+ok("but their keys do not", doc_key(a) != doc_key(b))
+check("the key is stable across calls", doc_key(a), doc_key(a))
+ok("and it stays filesystem-safe",
+   all(c.isalnum() or c == "-" for c in doc_key("Air/Water: Flow & Return")))
+# Long names must not collide once truncated either.
+long_a = "A" * 90 + "one"
+long_b = "A" * 90 + "two"
+ok("long names stay distinct", doc_key(long_a) != doc_key(long_b))
+
+print("\na reindex does not lose documents that have no PDF")
+# The three videos have no pages to extract. Rebuilding from the PDFs alone
+# deleted them from the index, which is data loss dressed up as a refresh.
+re_src = ast.unparse(top("reindex"))
+ok("passages for non-PDF documents are carried across", "carried" in re_src)
+ok("and reported, so the carry-over is visible", "carried_over" in re_src)
 
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

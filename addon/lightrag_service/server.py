@@ -892,6 +892,17 @@ def _slug(name: str) -> str:
     return _re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower()[:70] or "doc"
 
 
+def _doc_key(name: str) -> str:
+    """A stable, unique handle for a document.
+
+    The slug alone is not unique: this corpus contains "Service Training
+    (Part II)" and "Service Training ( Part II)", one space apart, which slug
+    identically. Their figures overwrote each other until the digest was added.
+    """
+    import hashlib
+    return f"{_slug(name)}-{hashlib.sha1(name.encode()).hexdigest()[:8]}"
+
+
 def _manifest() -> dict:
     """doc name -> stored filename. Empty when nothing has been uploaded."""
     try:
@@ -962,7 +973,7 @@ async def upload_original(request: Request, doc: str, filename: str,
     # ampersands and colons, and none of that belongs in a path.
     import hashlib
     import json as _json
-    stored = f"{_slug(doc)}-{hashlib.sha1(doc.encode()).hexdigest()[:8]}{ext}"
+    stored = f"{_doc_key(doc)}{ext}"
     try:
         os.makedirs(ORIGINALS_DIR, exist_ok=True)
         with open(os.path.join(ORIGINALS_DIR, stored), "wb") as f:
@@ -1066,7 +1077,15 @@ async def reindex(request: Request, render: bool = True,
                    "with scripts/upload_originals.py.")
 
     old = _figures()
-    passages: list[dict] = []
+    # Documents with no PDF (the videos) have nothing to extract, so their
+    # passages are carried across from the current index. Rebuilding from the
+    # PDFs alone would delete them, and a reindex should not lose documents.
+    prior = _load_kb()
+    carried = [{"doc": p.doc, "page": p.page, "text": p.text, "url": p.url}
+               for p in (prior._passages if prior.ready else [])
+               if not (_original_path(p.doc) or "").lower().endswith(".pdf")
+               and not getattr(p, "figure", "")]
+    passages: list[dict] = list(carried)
     index: dict = {}
     seen_digests: dict[str, str] = {}
     stats = {"documents": 0, "pages": 0, "figures": 0, "duplicates": 0,
@@ -1096,7 +1115,7 @@ async def reindex(request: Request, render: bool = True,
             if page.digest in seen_digests:
                 stats["duplicates"] += 1
                 continue
-            fid = f"{_slug(doc)}-p{page.number}"
+            fid = f"{_doc_key(doc)}-p{page.number}"
             seen_digests[page.digest] = fid
             try:
                 os.makedirs(FIGURES_DIR, exist_ok=True)
@@ -1129,6 +1148,7 @@ async def reindex(request: Request, render: bool = True,
     _kb = None
     kb = _load_kb()
     stats["passages"] = len(passages)
+    stats["carried_over"] = len(carried)
     stats["described"] = sum(1 for v in index.values() if v.get("caption"))
     stats["indexed_documents"] = len(kb.documents)
     return stats
