@@ -540,6 +540,28 @@ async def brew_recipe(request: Request):
     return {"brewing": True, "name": name}
 
 
+@app.post("/recipes/export-bbp")
+async def export_bbp_to_www(request: Request):
+    """Write the .bbp where Home Assistant serves it, and say where.
+
+    A blob download does not work here: the panel runs inside Home Assistant's
+    ingress iframe, and a sandboxed iframe cannot start a download — the click
+    is swallowed with no error. So the integration writes the file to
+    /config/www and we hand back the /local URL, which opens as an ordinary
+    top-level navigation and downloads normally.
+    """
+    body = await request.json()
+    data = {"menu_name": str(body.get("menu_name") or "Home Assistant"),
+            "filename": str(body.get("filename") or "hamenu.bbp")}
+    try:
+        await ha.call_service("export_bbp", data)
+    except ha.HaError as ex:
+        raise HTTPException(status_code=502, detail=str(ex))
+    return {"written": True, "url": f"/local/bkon/{data['filename']}",
+            "filename": data["filename"],
+            "warning": "Experimental — the category framing is unconfirmed."}
+
+
 @app.post("/recipes/note")
 async def note_recipe(request: Request):
     """Add a tasting-journal entry against a saved recipe."""

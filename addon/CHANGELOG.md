@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.0
+- **Fixes Export .bbp.** The panel runs inside Home Assistant's ingress iframe,
+  and a sandboxed iframe cannot start a download — the click was swallowed with
+  no error at all. The integration now writes the file and the panel opens it at
+  `/local/bkon/hamenu.bbp`, an ordinary top-level navigation that downloads
+  normally.
+- **Score, tasting journal and the readout moved below the builder.** Building
+  is the task; those panels are what you consult after a change, not while
+  making one. They flow into columns when there is room.
+- **The tasting journal now shows brews alongside tastings** on one timeline —
+  what you changed and how it tasted, next to when it was actually brewed. It
+  carries a remux's lineage, the brew count, and a single derived line naming
+  which change your best- and worst-rated versions followed. Deliberately one
+  line: anything cleverer would be reading patterns into three data points.
+
 ## 0.14.1
 - **Brings the recipe builder back.** The wiki switches pages with
   `section{display:none}`, and the 0.9.0 restructure made the builder and the

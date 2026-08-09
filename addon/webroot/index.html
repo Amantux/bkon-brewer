@@ -91,8 +91,8 @@
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn.primary:hover{filter:brightness(1.06)}
   .btn:disabled{opacity:.5;cursor:default}
-  .stu{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;margin-bottom:12px}
-  @media (max-width:900px){.stu{grid-template-columns:1fr}}
+  .stu{display:block;margin-bottom:12px}
+  
   .stu-palette{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
   .stu-add{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;
     border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 11px 6px 9px;
@@ -143,7 +143,11 @@
   .stu-tog{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);cursor:pointer;padding-top:3px}
   .stu-tog input{width:15px;height:15px;accent-color:var(--accent)}
 
-  .stu-side{display:flex;flex-direction:column;gap:14px;position:sticky;top:14px}
+    /* The panels sit BELOW the builder now: building is the task, and score,
+     journal and readout are what you consult after a change, not while making
+     one. They flow into columns when there is room. */
+  .stu-side{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));
+    gap:14px;margin-top:16px;align-items:start}
   .card2{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px}
   /* ---- Mobile / touch ---- */
   .topbar{display:none;position:sticky;top:0;z-index:30;align-items:center;gap:12px;
@@ -223,6 +227,9 @@
   .stu-name{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);
     border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%}
   .stu-name:focus{border-color:var(--accent);outline:none}
+  .stu-meta-line{font-size:12px;color:var(--ink-soft);margin-bottom:8px}
+  .stu-insight{font-size:12px;line-height:1.5;color:var(--ink);background:color-mix(in srgb,var(--t-vacuum) 9%,transparent);
+    border-left:2px solid var(--t-vacuum);padding:7px 10px;border-radius:0 7px 7px 0;margin:0 0 10px}
   .stu-hint{font-size:11.5px;color:var(--ink-soft);margin:10px 0 0;line-height:1.5}
   .stu-score{display:flex;flex-direction:column;gap:10px}
   .stu-score-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -1556,7 +1563,8 @@ address=0x80000000</code></pre>
       (d.recipes||[]).forEach(r=>{
         library[slug(r.name)] = {name:r.name, steps:r.steps||[],
           rating:r.rating||0, notes:r.notes||"", journal:r.journal||[],
-          brews:r.brew_count||0, last:r.last_brewed||""};
+          brewEvents:r.brews||[], brews:r.brew_count||0, last:r.last_brewed||"",
+          derived_from:r.derived_from||null};
       });
       libRender(); journalRender();
     }catch(e){ haConnected = false; }
@@ -1603,24 +1611,64 @@ address=0x80000000</code></pre>
   }
 
   // The journal, shown under the recipe so the loop is visible, not buried.
+  // It merges two records that are only useful together: what you changed and
+  // how it tasted (intent), and when it was actually brewed (fact).
   function journalRender(){
     const host=$("stuJournal"); if(!host) return;
     const r = currentId && library[currentId];
     const j = (r && r.journal) || [];
-    if(!j.length){
-      host.innerHTML = `<p class="stu-hint" style="margin:0">Save a change with a tasting note and
-        it appears here — what you altered, next to how it tasted. The assistant reads this
-        when you ask what made a difference.</p>`;
+    const brews = (r && r.brewEvents) || [];
+
+    const head = [];
+    if(r && r.derived_from)
+      head.push(`<div class="br-derived" style="margin-bottom:8px">remux of ${esc(r.derived_from)}</div>`);
+    if(r && r.brews)
+      head.push(`<div class="stu-meta-line">Brewed <b>${r.brews}×</b>`
+        + (r.last ? ` · last ${esc(String(r.last).slice(0,10))}` : "") + `</div>`);
+
+    const insight = deriveInsight(j);
+    if(insight) head.push(`<div class="stu-insight">${esc(insight)}</div>`);
+
+    if(!j.length && !brews.length){
+      host.innerHTML = head.join("") + `<p class="stu-hint" style="margin:6px 0 0">Rate it and
+        add a note when you change something — what you altered appears here next to how it
+        tasted, and brews are logged alongside. The assistant reads this when you ask what
+        made a difference.</p>`;
       return;
     }
-    host.innerHTML = j.slice().reverse().map(e=>{
-      const ch = e.changes && e.changes.length ? e.changes.join(" · ") : "no step changes";
-      const stars = e.rating ? " " + "★".repeat(e.rating) : "";
+
+    // One timeline, newest first, so a tasting sits next to the brew it followed.
+    const rows = [
+      ...j.map(e=>({when:e.when||"", kind:"taste", e})),
+      ...brews.map(b=>({when:(b.when||"").slice(0,10), kind:"brew", e:b})),
+    ].sort((a,b)=>String(b.when).localeCompare(String(a.when)));
+
+    host.innerHTML = head.join("") + rows.map(row=>{
+      if(row.kind === "brew")
+        return `<div class="stu-dim" style="grid-template-columns:74px 1fr">`
+          + `<span class="dn" style="color:var(--t-vacuum)">${esc(row.when)}</span>`
+          + `<span class="dc">brewed</span></div>`;
+      const e=row.e;
+      const ch = (e.changes && e.changes.length) ? e.changes.join(" · ") : "no step changes";
+      const stars = e.rating ? ` <span class="br-stars">${"★".repeat(e.rating)}</span>` : "";
       return `<div class="stu-dim" style="grid-template-columns:74px 1fr">`
-        + `<span class="dn">${esc(e.when)}${stars}</span>`
+        + `<span class="dn">${esc(row.when)}${stars}</span>`
         + `<span class="dc"><b>${esc(ch)}</b>${e.taste?" — "+esc(e.taste):""}</span></div>`;
     }).join("");
   }
+
+  // The smallest honest insight: which direction the best-rated versions went.
+  // Anything cleverer would be reading patterns into three data points.
+  function deriveInsight(journal){
+    const rated = (journal||[]).filter(e=>e.rating && (e.changes||[]).length);
+    if(rated.length < 2) return "";
+    const best = rated.reduce((a,b)=>(b.rating>=a.rating?b:a));
+    const worst = rated.reduce((a,b)=>(b.rating<=a.rating?b:a));
+    if(best.rating === worst.rating) return "";
+    return `Your best so far (${best.rating}★) followed: ${best.changes.join(", ")}.`
+         + ` Your lowest (${worst.rating}★) followed: ${worst.changes.join(", ")}.`;
+  }
+
   function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
   // The assistant reads this: the current recipe plus how past changes tasted.
@@ -1839,25 +1887,19 @@ address=0x80000000</code></pre>
   $("stuBbp").onclick = async () => {
     const btn=$("stuBbp"), was=btn.textContent;
     btn.disabled=true; btn.textContent="Building…";
-    const name=($("stuName").value||"Recipe").trim();
-    // Everything in the store, so the file is a menu rather than one drink;
-    // the recipe on screen is included even if it was never saved.
-    const recipes=Object.values(library).map(r=>({name:r.name, steps:r.steps}));
-    if(!recipes.some(r=>r.name===name)) recipes.push({name, steps});
     try{
-      const res=await fetch(BASE_URL+"export/bbp",{method:"POST",
+      if(!haConnected) throw new Error("needs Home Assistant to write the file");
+      const res=await fetch(BASE_URL+"recipes/export-bbp",{method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({recipes, menu_name:"Home Assistant", filename:"hamenu"})});
-      if(!res.ok){ const t=await res.text().catch(()=>""); throw new Error(t.slice(0,120)||`HTTP ${res.status}`); }
-      const blob=await res.blob();
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement("a"); a.href=url; a.download="hamenu.bbp";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 4000);
-      flash(`Exported ${recipes.length} recipe${recipes.length===1?"":"s"} as hamenu.bbp`);
-    }catch(err){
-      flash("Export failed — "+(err.message||err));
-    }finally{ btn.disabled=false; btn.textContent=was; }
+        body:JSON.stringify({menu_name:"Home Assistant", filename:"hamenu.bbp"})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(d.detail||`HTTP ${res.status}`);
+      // Open at the top level: this panel is inside Home Assistant's ingress
+      // iframe, which cannot start a download itself.
+      window.open(d.url, "_blank", "noopener");
+      flash(`Wrote ${d.filename} — opening it`);
+    }catch(err){ flash(`Export failed — ${err.message||err}`); }
+    finally{ btn.disabled=false; btn.textContent=was; }
   };
 
   $("stuBrew").onclick = async () => {
