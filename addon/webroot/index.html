@@ -2762,15 +2762,24 @@ address=0x80000000</code></pre>
   const history = [];
   let cfg = null;
 
+  // Whether the assistant may reach Home Assistant, for this session only.
+  // Deliberately not persisted: a permission you granted last week, for a
+  // question you no longer remember, is not really a permission.
+  let haGranted = false;
+
   // A write the model requested. It never happens until this is tapped, and the
   // server only accepts the two bkon_brewer actions regardless of what is sent.
   function confirmChip(req){
     const box=document.createElement("div"); box.className="cmp-confirm";
-    const label = req.action==="brew_recipe"
-      ? `Brew <b>${esc(req.name)}</b>?` : `Save <b>${esc(req.name)}</b>?`;
+    const READS = {list_recipes:1, open_recipe:1};
+    const label = READS[req.action]
+      ? `Let the assistant read <b>${esc(req.name)}</b>?`
+      : req.action==="brew_recipe"
+        ? `Brew <b>${esc(req.name)}</b>?` : `Save <b>${esc(req.name)}</b>?`;
     box.innerHTML = `<div class="q">${label}<span class="why">${esc(req.why||"")}</span></div>`;
     const yes=document.createElement("button"); yes.className="ok"; yes.type="button";
-    yes.textContent = req.action==="brew_recipe" ? "Brew it" : "Save it";
+    yes.textContent = READS[req.action] ? "Allow" :
+      req.action==="brew_recipe" ? "Brew it" : "Save it";
     const no=document.createElement("button"); no.type="button"; no.textContent="No";
     no.onclick=()=>{ box.innerHTML='<div class="q">Cancelled.</div>'; };
     yes.onclick=async()=>{
@@ -2783,7 +2792,9 @@ address=0x80000000</code></pre>
           headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
         const d=await r.json();
         if(!r.ok) throw new Error(d.detail||`HTTP ${r.status}`);
-        box.innerHTML=`<div class="q">${esc(d.message||"Done.")}</div>`;
+        if(d.grant) haGranted = true;      // for this session only
+        box.innerHTML=`<div class="q">${esc(d.message||"Done.")}</div>`
+          + (d.grant ? `<div class="why">Ask again and it will go through.</div>` : "");
       }catch(err){
         box.innerHTML=`<div class="q" style="color:var(--t-start)">${esc(err.message||err)}</div>`;
       }
@@ -2875,11 +2886,23 @@ address=0x80000000</code></pre>
     inp.value=""; bubble("me",msg); history.push({role:"user",content:msg});
     $("cmpSugg").innerHTML="";
     const send=$("cmpSend"); send.disabled=true;
-    const thinking=bubble("bot","…");
+    const thinking=bubble("bot","Thinking…");
+    // A tool-using turn can run for half a minute. Saying which tool is running
+    // is the difference between "slow" and "stuck".
+    const pid = "p" + Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36);
+    let poll = setInterval(async () => {
+      try{
+        const r = await fetch(BASE+"chat/progress?id="+encodeURIComponent(pid));
+        const p = await r.json();
+        if(p && p.detail) thinking.textContent = p.detail.charAt(0).toUpperCase()+p.detail.slice(1)+"…";
+      }catch(e){ /* progress is a nicety; never let it break the turn */ }
+    }, 700);
+    const stopPoll = () => { clearInterval(poll); poll = null; };
     try{
       const res=await fetch(BASE+"chat",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({message:msg, steps:pageSteps(), history,
-                             context:pageContext()})});
+                             context:pageContext(), ha_granted:haGranted,
+                             progress_id:pid})});
       const data=await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(data.detail||`HTTP ${res.status}`);
       // Same renderer the Diagnose page uses, so a table or a list from the
@@ -2921,7 +2944,8 @@ address=0x80000000</code></pre>
     }catch(err){
       thinking.textContent = String(err.message||err);
       loadCfg();
-    }finally{ send.disabled=false; $("cmpInput").focus(); body.scrollTop=body.scrollHeight; }
+    }finally{ stopPoll(); send.disabled=false; $("cmpInput").focus();
+      body.scrollTop=body.scrollHeight; }
   });
 
   loadCfg();   // so the dot reflects reality before the panel is ever opened

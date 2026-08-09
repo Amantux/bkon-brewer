@@ -264,6 +264,33 @@ async def query(request: Request,
     return {"response": clean_answer(result), "mode": mode}
 
 
+#: What each turn is doing right now, keyed by the id the browser sends. Small,
+#: in-memory and deliberately lossy: progress that outlives its turn is noise.
+_PROGRESS: dict = {}
+_PROGRESS_MAX = 32
+
+#: Plain-language names, so the user reads what is happening rather than a
+#: function name. Anything unlisted degrades to a readable version of its own id.
+_TOOL_SAYS = {
+    "build_recipe": "building the recipe",
+    "adjust_recipe": "tuning the recipe",
+    "lint_recipe": "checking it over",
+    "diagnose": "looking up the fault",
+    "score_recipe": "scoring the recipe",
+    "answer_docs": "reading the manuals",
+    "list_recipes": "fetching your recipes",
+    "open_recipe": "opening the recipe",
+    "save_recipe": "asking permission to save",
+    "brew_recipe": "asking permission to brew",
+}
+
+
+@app.get("/chat/progress")
+async def chat_progress(id: str = ""):
+    """What the turn with this id is doing. Polled while a reply is pending."""
+    return _PROGRESS.get(id) or {"state": "", "detail": ""}
+
+
 @app.post("/chat")
 async def chat_turn(request: Request):
     """One turn of the recipe-studio chat, with tool use.
@@ -285,6 +312,17 @@ async def chat_turn(request: Request):
     steps = body.get("steps") or []
     history = body.get("history") or []
     context = str(body.get("context") or "")[:2000]
+    pid = str(body.get("progress_id") or "")[:64]
+
+    def note(kind, name=""):
+        if not pid:
+            return
+        if len(_PROGRESS) > _PROGRESS_MAX:
+            _PROGRESS.clear()                        # bounded; it is only a hint
+        _PROGRESS[pid] = {
+            "state": kind,
+            "detail": _TOOL_SAYS.get(name, name.replace("_", " ")) if name else "thinking",
+        }
 
     async def answer_docs(args: dict, _steps):
         """The one tool that needs the running service: ask the manuals."""
@@ -314,7 +352,16 @@ async def chat_turn(request: Request):
     BKON_READS = {"list_recipes", "open_recipe"}
     BKON_WRITES = {"save_recipe", "brew_recipe"}
 
+    # Whether the assistant may reach Home Assistant at all is the user's call,
+    # made per session in the chat, not assumed because the token happens to
+    # exist. Granting is remembered for the session only.
+    granted = bool(body.get("ha_granted"))
+
     async def t_list_recipes(_args, _steps):
+        if not granted:
+            return {"awaiting_confirmation": True, "action": "list_recipes",
+                    "name": "your recipe library",
+                    "why": "reads the recipe list from Home Assistant"}, None
         try:
             recs = await ha.library()
         except ha.HaError as ex:
@@ -327,6 +374,10 @@ async def chat_turn(request: Request):
 
     async def t_open_recipe(args, _steps):
         name = str(args.get("name") or "").strip()
+        if not granted:
+            return {"awaiting_confirmation": True, "action": "open_recipe",
+                    "name": name or "a recipe",
+                    "why": "reads that recipe from Home Assistant"}, None
         try:
             recs = await ha.library()
         except ha.HaError as ex:
@@ -369,10 +420,11 @@ async def chat_turn(request: Request):
 
     try:
         turn = await run_chat(_provider, message, steps, tools,
-                              history=history, context=context)
+                              history=history, context=context, on_step=note)
     except Exception as ex:                           # noqa: BLE001
         _LOG.exception("chat failed")
         raise HTTPException(status_code=502, detail=f"chat failed: {ex}")
+    _PROGRESS.pop(pid, None)
     return {"reply": turn.reply, "steps": turn.steps,
             "actions": [{"tool": a.tool, "args": a.args, "result": a.result}
                         for a in turn.actions]}
@@ -571,7 +623,7 @@ async def save_recipe(request: Request):
 async def delete_recipe(request: Request):
     body = await request.json()
     name = (body.get("name") or "").strip()
-    if not name:
+    if not name and action not in ("list_recipes",):
         raise HTTPException(status_code=400, detail="name is required")
     try:
         await ha.call_service("delete_recipe", {"name": name})
@@ -585,7 +637,7 @@ async def brew_recipe(request: Request):
     """Brew a saved recipe. The one thing that genuinely needs the brewer."""
     body = await request.json()
     name = (body.get("name") or "").strip()
-    if not name:
+    if not name and action not in ("list_recipes",):
         raise HTTPException(status_code=400, detail="name is required")
     try:
         await ha.call_service("brew_saved", {"name": name})
@@ -602,15 +654,23 @@ async def chat_confirm(request: Request):
     from a tool call. The allow-list is the boundary: two actions, both on
     bkon_brewer, so a persuaded model cannot reach the rest of Home Assistant.
     """
-    ALLOWED = {"save_recipe", "brew_recipe"}
+    # The complete set of things the assistant may ever cause. Reads are here
+    # too: the point is that nothing reaches Home Assistant without the user
+    # having said so at least once this session.
+    ALLOWED = {"save_recipe", "brew_recipe", "list_recipes", "open_recipe"}
     body = await request.json()
     action = str(body.get("action") or "")
     name = str(body.get("name") or "").strip()
     if action not in ALLOWED:
         raise HTTPException(status_code=400, detail=f"not an allowed action: {action!r}")
-    if not name:
+    if not name and action not in ("list_recipes",):
         raise HTTPException(status_code=400, detail="name is required")
     try:
+        if action in ("list_recipes", "open_recipe"):
+            # Granting is all this does; the assistant re-runs the read itself
+            # on the next turn, now that permission is held.
+            return {"done": True, "action": action, "grant": True,
+                    "message": "The assistant can read your recipes for this session."}
         if action == "save_recipe":
             data = {"name": name, "steps": body.get("steps") or []}
             for k in ("rating", "notes"):

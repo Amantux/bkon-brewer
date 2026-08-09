@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.23.0 — it asks before it touches your machine
+- **Nothing reaches Home Assistant unasked — reads included.** The assistant
+  could already only *ask* to save or brew, but it listed and opened your
+  recipes freely. Now the first time it wants to look, you get a chip: *Let the
+  assistant read your recipe library?* Allowing lasts for that conversation and
+  is never written to storage, because a permission that outlives the
+  conversation it was granted in is one nobody remembers giving. The server
+  accepts exactly four actions, all `bkon_brewer`, so a model talked into
+  something cannot reach the rest of Home Assistant.
+- **The guard is enforced by a test, not by care.** The real risk was never
+  today's four tools — it was the fifth one, added later by someone who did not
+  know the rule. `tests/test_ha_permission.py` walks the source: any tool that
+  mentions `ha.` and does not consult the grant fails the build. Adding an
+  ungated tool now breaks CI rather than shipping quietly.
+- **It tells you what it is doing while it does it.** A tool-using turn can run
+  half a minute behind a motionless "…", which reads as *stuck* rather than
+  *slow*. The bubble now says *reading the manuals*, *tuning the recipe*,
+  *scoring it*. Purely cosmetic by construction: if the progress channel fails,
+  the turn carries on and only the wording is lost.
+
 ## 0.22.0 — the assistant grows up
 - **Replies are formatted.** The companion rendered raw text, so a list arrived
   as run-on prose and `**24 kPa**` showed its asterisks. It now uses the same

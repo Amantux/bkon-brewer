@@ -161,8 +161,13 @@ def _recipe_context(steps: list[dict] | None) -> str:
 
 async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict,
                    *, history: list[dict] | None = None, context: str = "",
-                   max_iters: int = MAX_ITERS) -> ChatTurn:
+                   on_step=None, max_iters: int = MAX_ITERS) -> ChatTurn:
     """One conversational turn with tool use.
+
+    `on_step(kind, name)` is called as the turn progresses -- "thinking" before
+    each model call, "tool" as each tool starts -- so a caller can show what is
+    happening instead of a silent wait. It must never raise; a progress reporter
+    that breaks a turn would be worse than no progress at all.
 
     `tools` maps a name to a callable ``fn(args, steps) -> (result_dict,
     new_steps_or_None)``. A tool that changes the recipe returns the new steps;
@@ -185,7 +190,16 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
         for h in history[-4:]:
             transcript.insert(0, f"{h.get('role', 'user')}: {h.get('content', '')}")
 
+    def report(kind, name=""):
+        if on_step is None:
+            return
+        try:
+            on_step(kind, name)
+        except Exception:                            # noqa: BLE001
+            pass                                     # never break a turn for this
+
     for _ in range(max_iters):
+        report("thinking")
         prompt = "\n".join(transcript) + "\nRespond with a single JSON object."
         raw = await provider.complete(prompt, system=system)
         obj = _extract_json(raw)
@@ -208,6 +222,7 @@ async def run_chat(provider, message: str, steps: list[dict] | None, tools: dict
             continue
 
         args = obj.get("args") or {}
+        report("tool", name)
         try:
             out = fn(args, steps)
             if inspect.isawaitable(out):             # answer_docs hits the RAG

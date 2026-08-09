@@ -68,6 +68,24 @@ works, but the chat will say it can't reach the service. It does **not** need
 diagnoses, and the add-on starts immediately with no embedding model to download.
 Only *"how do I descale?"*-style questions need the documents.
 
+## What the assistant may do
+
+The chat can reach the BKON integration in Home Assistant — but only after you
+say so, and only for the four things it needs:
+
+| It wants to | You see | Lasts |
+|---|---|---|
+| List your recipes, open one | *Let the assistant read your recipe library?* | the conversation |
+| Save a recipe | *Save "Morning Ethiopia"?* | that one save |
+| Start a brew | *Brew "Morning Ethiopia"?* | that one brew |
+
+Allowing reads is remembered until you close the chat and never written to
+storage. Saves and brews are asked every single time — the model can request
+one, but only your press performs it. The add-on refuses any other action, so a
+model talked into something by a document it read cannot reach the rest of your
+Home Assistant. If the add-on has no supervisor connection the tools are absent
+rather than broken, and the chat says so.
+
 ## Ports
 
 - **Ingress** serves the wiki, the recipe studio and the chat through Home
