@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.1
+- **A manual rinse**, `bkon_brewer.manual_rinse` — the app offers one and this
+  did not. It is sent the way the app sends it: as a whole three-step recipe
+  from the vendor's own source, not as a command like the purge.
+- Documented two `start` fields nobody had seen: `wp` (water port) and `dst`
+  (direct start). Both appear in the app's built-in rinse and **never reach the
+  wire** — its own send path discards them, and so does ours. Asserted in the
+  tests so a future "helpful" change cannot start transmitting them.
+
 ## 0.17.0 — one place for faults and manuals
 - **Recipes and Diagnose no longer open the wiki group.** They are top-level
   pages; the nav only knew about three of them, so the rest were treated as wiki

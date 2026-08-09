@@ -15,7 +15,7 @@ import homeassistant.helpers.config_validation as cv
 from .const import (
     SIGNAL_EVENT, CONF_ADDRESS, CONF_KB_PATH, CONF_SIMULATE, DEFAULT_KB_FILENAME, DOMAIN,
     SERVICE_ABORT, SERVICE_ASK, SERVICE_BREW, SERVICE_BREW_SAVED,
-    SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE,
+    SERVICE_CUSTOMIZE, SERVICE_DELETE_RECIPE, SERVICE_MANUAL_PURGE, SERVICE_MANUAL_RINSE,
     SERVICE_ADD_NOTE, SERVICE_EXPORT_BBP, SERVICE_RATE_RECIPE, SERVICE_RESPOND_DIALOG, SERVICE_SAVE_RECIPE, SERVICE_SEND_RAW,
     SERVICE_LINT, SERVICE_DIAGNOSE, SERVICE_BUILD,
     SERVICE_GET, SERVICE_EXPORT, SERVICE_IMPORT, SERVICE_DOWNLOAD,
@@ -140,6 +140,10 @@ def _register_services(hass: HomeAssistant) -> None:
                 time=call.data.get("time", 10),
                 detect=call.data.get("detect", False))
 
+    async def _manual_rinse(call: ServiceCall) -> None:
+        for c in _coordinators(hass, call):
+            await c.async_manual_rinse()
+
     async def _abort(call: ServiceCall) -> None:
         for c in _coordinators(hass, call):
             await c.async_abort()
@@ -166,6 +170,9 @@ def _register_services(hass: HomeAssistant) -> None:
             vol.Optional("time", default=10): vol.Coerce(int),
             vol.Optional("detect", default=False): cv.boolean,
         }))
+    hass.services.async_register(
+        DOMAIN, SERVICE_MANUAL_RINSE, _manual_rinse,
+        schema=vol.Schema({vol.Optional("address"): cv.string}))
     hass.services.async_register(
         DOMAIN, SERVICE_ABORT, _abort,
         schema=vol.Schema({vol.Optional("address"): cv.string}))

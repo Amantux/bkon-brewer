@@ -14,6 +14,7 @@ DEFAULT_KB_FILENAME = "bkon_brewer_kb.json"
 # Services
 SERVICE_BREW = "brew"
 SERVICE_MANUAL_PURGE = "manual_purge"
+SERVICE_MANUAL_RINSE = "manual_rinse"
 SERVICE_ABORT = "abort"
 SERVICE_RESPOND_DIALOG = "respond_dialog"
 SERVICE_SEND_RAW = "send_raw"

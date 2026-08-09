@@ -80,6 +80,19 @@ class BrewerCoordinator:
         await self._transport.async_send(R.frame(cmd))
         self._set_status(STATUS_BREWING)
 
+    async def async_manual_rinse(self) -> None:
+        """Run the machine's rinse cycle.
+
+        The app sends this as a *recipe*, not a command -- its manual rinse is a
+        three-step recipe it ships in its own source, while its manual purge is
+        a one-shot command. Reproduced the same way; sending a rinse as a
+        command would be a guess about a path the app never uses.
+        """
+        steps = [R.Step(R.StepType(s["type"]), dict(s["values"]))
+                 for s in R.RINSE_RECIPE]
+        await self._transport.async_send(R.frame(R.encode_wire(steps)))
+        self._set_status(STATUS_BREWING)
+
     async def async_abort(self) -> None:
         await self._transport.async_send(R.ABORT)
         self._set_status(STATUS_IDLE)

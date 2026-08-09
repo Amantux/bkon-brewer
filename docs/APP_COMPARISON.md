@@ -66,6 +66,34 @@ the firmware has always been sent, so `encode()` now drops them too. Matching th
 app's *actual output* beats matching its *intent*: fidelity to a real device is
 fidelity to its real inputs, bugs included.
 
+## Two more things the app has that we did not
+
+**A manual rinse.** The app offers two manual cycles, and they are sent by
+different mechanisms: a purge is a one-shot `sendCommand`, but a **rinse is a
+whole recipe** the app ships in its own source and passes to `sendRecipe`:
+
+```js
+rinseRec: [
+  {"type":"start","values":{"tmp":"180","wp":"5","dst":"0"}},
+  {"type":"fr","values":{"rwv":"250"}},
+  {"type":"pg","values":{"ps":"30","rwv":"0","dl":"0","tm":"20"}}
+]
+```
+
+Exposed now as `bkon_brewer.manual_rinse`, sent the same way — as a recipe. It
+is the only recipe the vendor ships in the client, which also makes it the one
+known-good example to check the encoder against.
+
+**Two start fields that never reach the wire.** That rinse sets `wp` and `dst`,
+and the app's source names them in a comment: `//wp = warterPort, dst =
+directStart`. Neither appears in any editor. They are also never transmitted —
+`prepRecipe` rebuilds a start step as `{tmp}` alone and discards them, which is
+exactly what `prepare()` does here. So they are part of the app's data model and
+not of the protocol, and a reimplementation that "helpfully" sent them would
+produce a start step unlike any the machine has ever received. Accepted by
+`start()` so stored recipes can round-trip faithfully; asserted in the tests to
+never reach the wire.
+
 ## Still unverified — leads, not conclusions
 
 **Dialog response framing.** The app calls `dialogResponse(n)`; the native layer

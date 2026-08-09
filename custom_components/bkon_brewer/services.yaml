@@ -43,6 +43,17 @@ manual_purge:
       default: false
       selector:
         boolean:
+manual_rinse:
+  name: Manual rinse
+  description: >-
+    Run the machine's rinse cycle — the same three-step recipe the vendor app
+    ships and sends when you tap rinse (180 °F, 250 ml rinse, then a purge).
+  fields:
+    address:
+      name: Brewer
+      required: false
+      selector:
+        text:
 abort:
   name: Abort
   description: Stop the current brew immediately.

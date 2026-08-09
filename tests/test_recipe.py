@@ -73,6 +73,27 @@ check("not duplicated when already present",
 check("and an explicit brew time is respected",
       r.prepare([r.start(205), r.brew_out(6)])[-1]["values"], {"bt": "6"})
 
+print("\nthe app's built-in rinse, and the two start fields nobody sees")
+# The app ships exactly one recipe in its own source: the manual rinse. It is
+# kept verbatim because it is the only known-good example of a start step
+# carrying wp and dst.
+check("the rinse is three steps", len(r.RINSE_RECIPE), 3)
+check("it starts at 180 F", r.RINSE_RECIPE[0]["values"]["tmp"], "180")
+check("and carries wp and dst",
+      ("wp" in r.RINSE_RECIPE[0]["values"], "dst" in r.RINSE_RECIPE[0]["values"]),
+      (True, True))
+# ...and the app discards both before sending: prepRecipe rebuilds start as
+# {tmp} alone. Reproducing that is the point -- a recipe that sends wp would
+# differ from every recipe the machine has ever been given.
+out = r.prepare([r.start(180, water_port=5, direct_start=False)])
+check("wp never reaches the wire", "wp" in out[0]["values"], False)
+check("dst never reaches the wire", "dst" in out[0]["values"], False)
+check("the temperature still does", out[0]["values"]["tmp"], "180")
+wire = r.encode_wire([r.Step(r.StepType(s["type"]), dict(s["values"]))
+                      for s in r.RINSE_RECIPE])
+check("the rinse encodes to the app's own form",
+      wire.startswith("<START><TMP>180</TMP></START><FR><RWV>250</RWV></FR>"), True)
+
 print("\nmanual stop never reaches the device")
 # The firmware has no manual-stop concept. The app fakes it with a dialog and
 # drops the flag. A reimplementation that passes manstop through would produce

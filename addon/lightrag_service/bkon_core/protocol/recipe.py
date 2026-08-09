@@ -77,7 +77,18 @@ def _is_zero(value: Any) -> bool:
 # rinse volume is "rwv". Every one of these keys is a two-or-three letter
 # abbreviation that is easy to transpose and impossible to notice transposed.
 
-def start(temperature_f: float) -> Step:
+#: The app's built-in manual rinse, lifted from its own source. Worth keeping
+#: verbatim: it is the only recipe the vendor ships in the client, so it is a
+#: known-good example of a start step carrying `wp` and `dst`.
+RINSE_RECIPE = [
+    {"type": "start", "values": {"tmp": "180", "wp": "5", "dst": "0"}},
+    {"type": "fr", "values": {"rwv": "250"}},
+    {"type": "pg", "values": {"ps": "30", "rwv": "0", "dl": "0", "tm": "20"}},
+]
+
+
+def start(temperature_f: float, water_port: int | None = None,
+          direct_start: bool | None = None) -> Step:
     """Heat to a temperature, in degrees Fahrenheit.
 
     Units confirmed from BKON/Franke's RAIN development guide: water is
@@ -87,8 +98,20 @@ def start(temperature_f: float) -> Step:
     keeping only a rounded temperature and discarding everything else, so we
     construct it the same way rather than passing other values through and
     hoping the firmware ignores them.
+
+    `water_port` (`wp`) and `direct_start` (`dst`) exist in the app's data model
+    -- its built-in rinse recipe sets both, and its source names them
+    "warterPort" and "directStart" -- but they NEVER REACH THE WIRE: prepRecipe
+    rebuilds a start step as `{tmp}` alone, discarding them, and `prepare()` does
+    the same. They are accepted here so a stored recipe can round-trip the app's
+    own data faithfully, not because the firmware will see them.
     """
-    return Step(StepType.START, {"tmp": str(round(temperature_f))})
+    values: dict[str, Any] = {"tmp": str(round(temperature_f))}
+    if water_port is not None:
+        values["wp"] = str(int(water_port))
+    if direct_start is not None:
+        values["dst"] = str(int(bool(direct_start)))
+    return Step(StepType.START, values)
 
 
 def fill(fill_volume_ml: int, rinse_volume_ml: int = 0,
