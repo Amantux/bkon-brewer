@@ -86,6 +86,36 @@ skipped and listed. They are stored under `/share/bkon_lightrag/originals` and
 served only through Home Assistant's authenticated ingress — delete that folder
 to undo it. Run with `--dry-run` first to see what would go.
 
+## Reading the pictures
+
+These documents are mostly pictures. Of 717 pages across the stored PDFs, **620
+carry a diagram, a screenshot or a photograph** — one page of the air/water flow
+deck has 226 characters of text and a full hydraulic schematic on it. Indexing
+only the text indexes the captions of a picture book.
+
+Two steps, once the originals are uploaded:
+
+```
+curl -X POST http://homeassistant.local:9621/documents/reindex
+```
+
+Extracts the text **per page** (so citations land on the right page) and renders
+every page carrying a picture. Fast and free — about a minute for the whole set.
+
+```
+curl -X POST 'http://homeassistant.local:9621/documents/caption?limit=25'
+```
+
+Describes those pages with the model, in the words a technician would search
+for. One model call per page and about 600 pages, so it works in batches and
+reports `remaining` — repeat until `done`. Needs a model that can see (gemma and
+qwen-vl families do; it will tell you if yours cannot). Run `reindex` once more
+afterwards to fold the descriptions into the search index.
+
+Once described, the pictures are searchable, they appear beside the answers that
+cite them, and the assistant can choose to send you one when a diagram is a
+better answer than a paragraph.
+
 ## What the assistant may do
 
 The chat can reach the BKON integration in Home Assistant — but only after you
