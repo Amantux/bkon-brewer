@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.18.0
+- **LightRAG's own "References" block is stripped.** It listed internal
+  retrieval artefacts — *(Knowledge Graph)*, *(Document Chunks 1‑8)* — that
+  nobody can open, directly above the real citations. The inline `[1]` markers
+  pointing at it go too. A section genuinely written about sources is left alone.
+- **Tables render as tables.** Troubleshooting matrices arrived as raw pipes;
+  they are now proper tables that scroll sideways on a phone instead of breaking
+  the page, with `<br>` inside cells honoured.
+- **Suggestions disappear once you ask something** — a way in, not a fixture
+  above the conversation.
+- **Read opens a real reader**: a full overlay, dismissible with Escape or a
+  click outside, that **lands on the page the citation came from** rather than
+  page one of thirty.
+
 ## 0.17.1
 - **A manual rinse**, `bkon_brewer.manual_rinse` — the app offers one and this
   did not. It is sent the way the app sends it: as a whole three-step recipe

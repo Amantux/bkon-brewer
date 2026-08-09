@@ -6,6 +6,8 @@ nothing installed. Everything here is a plain function over strings.
 """
 from __future__ import annotations
 
+import re
+
 
 def authorized(x_api_key: str | None, authorization: str | None,
                expected: str | None) -> bool:
@@ -42,11 +44,36 @@ def _ct_eq(a: str, b: str) -> bool:
     return diff == 0
 
 
+#: LightRAG closes an answer with its own reference list — "[1] Some Chunk
+#: (Document Chunks 1-8)", "(Knowledge Graph)" and so on. It names internal
+#: retrieval artefacts rather than anything a person can open, and the UI shows
+#: real, looked-up citations underneath already. So it is cut rather than shown
+#: twice, once uselessly.
+_REF_HEADING = re.compile(
+    r"\n\s*(?:-{3,}\s*\n\s*)?#{0,6}\s*"
+    r"(?:references?|sources?|citations?)\s*:?\s*\n(?:.|\n)*$",
+    re.IGNORECASE)
+
+
 def clean_answer(text: str) -> str:
-    """LightRAG sometimes prefixes an answer with its own boilerplate; trim the
-    obvious cases so the reply that reaches the user is just the answer."""
+    """Trim LightRAG's boilerplate so what reaches the user is just the answer."""
     text = (text or "").strip()
     for junk in ("Answer:", "Response:"):
         if text.startswith(junk):
             text = text[len(junk):].strip()
-    return text
+
+    # Only drop a trailing reference block when it really is one: a heading
+    # followed by lines that are all list items or blank. A section that happens
+    # to be called "Sources" and contains prose is left alone.
+    m = _REF_HEADING.search(text)
+    if m:
+        tail = m.group(0)
+        body = [ln.strip() for ln in tail.splitlines()[1:] if ln.strip()]
+        listish = [ln for ln in body
+                   if ln.startswith(("*", "-", "•")) or re.match(r"^\[?\d+[\].)]", ln)]
+        if body and len(listish) >= max(1, len(body) - 1):
+            text = text[:m.start()].rstrip()
+
+    # Inline "[1]" markers point at a list that is now gone.
+    text = re.sub(r"\s*\[\d+\](?=[\s.,;:)]|$)", "", text)
+    return text.strip()

@@ -358,6 +358,14 @@
   .md code{font-family:var(--mono);font-size:12px;background:var(--panel-2);
     padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
   .md strong{font-weight:650}
+  .md-tablewrap{overflow-x:auto;margin:0 0 11px;-webkit-overflow-scrolling:touch}
+  .md-table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:420px}
+  .md-table th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:700;padding:7px 10px;border-bottom:1px solid var(--line-2);
+    background:var(--panel-2);white-space:nowrap}
+  .md-table td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+  .md-table tr:last-child td{border-bottom:0}
+  .md-table td br{content:"";display:block;margin-bottom:3px}
   .dg-cites{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);
     display:flex;flex-direction:column;gap:7px}
   .dg-citehead{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
@@ -371,9 +379,19 @@
   .dg-cite button:hover{border-color:var(--accent)}
   .dg-excerpt{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:-2px 0 0 0;
     padding-left:2px;border-left:2px solid var(--line);padding-left:9px}
-  .dg-reader{background:var(--panel);border:1px solid var(--line-2);border-radius:13px;
-    box-shadow:var(--shadow);padding:16px 18px;margin-top:16px}
-  .dg-reader-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  /* The reader is an overlay, not a panel appended below the answer — opening a
+     document should obviously open something, not quietly grow the page. */
+  .rd-scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50}
+  .dg-reader{position:fixed;z-index:51;left:50%;transform:translateX(-50%);
+    top:4vh;bottom:4vh;width:min(760px,calc(100vw - 32px));display:flex;flex-direction:column;
+    background:var(--panel);border:1px solid var(--line-2);border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden}
+  .dg-reader-body{overflow-y:auto;padding:0 20px 20px;-webkit-overflow-scrolling:touch}
+  .rd-hit{background:color-mix(in srgb,var(--accent) 12%,transparent);
+    border-left:3px solid var(--accent);margin-left:-11px;padding-left:8px;border-radius:0 6px 6px 0}
+  @media (max-width:800px){.dg-reader{top:0;bottom:0;width:100vw;border-radius:0;transform:none;left:0}}
+  .dg-reader-head{display:flex;align-items:center;gap:10px;padding:15px 20px;
+    border-bottom:1px solid var(--line);background:var(--panel-2);flex:none}
   .dg-reader-head h2{margin:0;font-size:15px}
   .dg-page{border-top:1px solid var(--line);padding:10px 0}
   .dg-page .n{font-family:var(--mono);font-size:10px;color:var(--ink-faint);display:block;margin-bottom:3px}
@@ -410,6 +428,14 @@
   .md code{font-family:var(--mono);font-size:12px;background:var(--panel-2);
     padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
   .md strong{font-weight:650}
+  .md-tablewrap{overflow-x:auto;margin:0 0 11px;-webkit-overflow-scrolling:touch}
+  .md-table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:420px}
+  .md-table th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:700;padding:7px 10px;border-bottom:1px solid var(--line-2);
+    background:var(--panel-2);white-space:nowrap}
+  .md-table td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+  .md-table tr:last-child td{border-bottom:0}
+  .md-table td br{content:"";display:block;margin-bottom:3px}
   .dg-cites{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);
     display:flex;flex-direction:column;gap:7px}
   .dg-citehead{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
@@ -423,9 +449,19 @@
   .dg-cite button:hover{border-color:var(--accent)}
   .dg-excerpt{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:-2px 0 0 0;
     padding-left:2px;border-left:2px solid var(--line);padding-left:9px}
-  .dg-reader{background:var(--panel);border:1px solid var(--line-2);border-radius:13px;
-    box-shadow:var(--shadow);padding:16px 18px;margin-top:16px}
-  .dg-reader-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  /* The reader is an overlay, not a panel appended below the answer — opening a
+     document should obviously open something, not quietly grow the page. */
+  .rd-scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50}
+  .dg-reader{position:fixed;z-index:51;left:50%;transform:translateX(-50%);
+    top:4vh;bottom:4vh;width:min(760px,calc(100vw - 32px));display:flex;flex-direction:column;
+    background:var(--panel);border:1px solid var(--line-2);border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden}
+  .dg-reader-body{overflow-y:auto;padding:0 20px 20px;-webkit-overflow-scrolling:touch}
+  .rd-hit{background:color-mix(in srgb,var(--accent) 12%,transparent);
+    border-left:3px solid var(--accent);margin-left:-11px;padding-left:8px;border-radius:0 6px 6px 0}
+  @media (max-width:800px){.dg-reader{top:0;bottom:0;width:100vw;border-radius:0;transform:none;left:0}}
+  .dg-reader-head{display:flex;align-items:center;gap:10px;padding:15px 20px;
+    border-bottom:1px solid var(--line);background:var(--panel-2);flex:none}
   .dg-reader-head h2{margin:0;font-size:15px}
   .dg-page{border-top:1px solid var(--line);padding:10px 0}
   .dg-page .n{font-family:var(--mono);font-size:10px;color:var(--ink-faint);display:block;margin-bottom:3px}
@@ -534,7 +570,7 @@
       <div class="stat">
         <div><b>19</b><span>services</span></div>
         <div><b>6</b><span>entities</span></div>
-        <div><b>496</b><span>tests passing</span></div>
+        <div><b>508</b><span>tests passing</span></div>
         <div><b>0</b><span>cloud dependencies to brew</span></div>
       </div>
       <div class="grid2">
@@ -955,7 +991,7 @@ data:
           <tr><td>Pages per category</td><td>4</td></tr>
           <tr><td>Recipe buttons per page</td><td>8</td></tr>
           <tr><td><b>Recipes per category</b></td><td><b>32</b></td></tr>
-          <tr><td><b>Recipes per menu</b></td><td><b>496</b></td></tr>
+          <tr><td><b>Recipes per menu</b></td><td><b>508</b></td></tr>
         </tbody>
       </table>
       <p>The first page of a category is the easiest to reach at the machine, so the
@@ -977,7 +1013,7 @@ data:
   (Nordic UART    (local embeddings,   (generation)
    via a proxy)    graph retrieval)</code></pre>
       <p>The logic that matters — encoding, the advisor, retrieval, provider selection, the
-      recipe schema — is <b>pure and tested</b> (496 assertions, no dependencies). I/O layers
+      recipe schema — is <b>pure and tested</b> (508 assertions, no dependencies). I/O layers
       are thin and clearly marked where they're unverified against hardware.</p>
       <p>The HA host has no Bluetooth radio, so the brewer is reached through an ESPHome
       Bluetooth proxy — transparent to the integration.</p>
@@ -1281,7 +1317,7 @@ address=0x80000000</code></pre>
       is built locally and git-ignored; facts (units, error codes) are folded in from the
       owner's own archive.</p>
       <footer>BKON Brewer · a private, local-first Home Assistant integration ·
-      496 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
+      508 tests passing. This wiki is served through the add-on's Home Assistant ingress.</footer>
     </section>
   </main>
 </div>
@@ -2394,12 +2430,34 @@ address=0x80000000</code></pre>
     const inline = t => esc(t)
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>");
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      // the model writes <br> inside table cells; it is escaped above, so put
+      // the break back deliberately rather than trusting raw HTML through.
+      .replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+    const cells = row => row.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map(c=>c.trim());
+    const isSep = row => /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(row) && row.includes("-");
     const closeList = () => { if(list){ out.push(`</${list}>`); list = null; } };
-    for(let raw of lines){
-      const l = raw.trim();
+    for(let i = 0; i < lines.length; i++){
+      const l = lines[i].trim();
       if(!l){ closeList(); continue; }
       let m;
+      // A pipe table: a header row, a separator, then body rows. The model uses
+      // these for troubleshooting matrices, and raw pipes are unreadable.
+      if(l.startsWith("|") && isSep(lines[i+1]||"")){
+        closeList();
+        const head = cells(l);
+        const body = [];
+        let j = i + 2;
+        while(j < lines.length && lines[j].trim().startsWith("|")){ body.push(cells(lines[j].trim())); j++; }
+        out.push(`<div class="md-tablewrap"><table class="md-table"><thead><tr>`
+          + head.map(c=>`<th>${inline(c)}</th>`).join("")
+          + `</tr></thead><tbody>`
+          + body.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`).join("")
+          + `</tbody></table></div>`);
+        i = j - 1;
+        continue;
+      }
+      if(l === "---" || l === "***"){ closeList(); continue; }   // a rule adds nothing here
       if((m = l.match(/^#{1,6}\s+(.*)$/))){ closeList(); out.push(`<h3>${inline(m[1])}</h3>`); continue; }
       if((m = l.match(/^[-*•]\s+(.*)$/))){
         if(list !== "ul"){ closeList(); out.push("<ul>"); list = "ul"; }
@@ -2425,22 +2483,35 @@ address=0x80000000</code></pre>
     return wrap.querySelector(".dg-a");
   }
 
-  async function openDoc(doc){
+  // Open a cited document. It lands on the page the citation came from, so
+  // "Read" arrives at the passage rather than at page one of thirty.
+  async function openDoc(doc, page){
     const host=$("askReader");
     host.hidden=false;
-    host.innerHTML=`<div class="dg-reader"><p class="dg-thinking">Opening ${esc(doc)}…</p></div>`;
-    host.scrollIntoView({behavior:"smooth", block:"start"});
+    host.innerHTML=`<div class="rd-scrim"></div><div class="dg-reader">
+      <div class="dg-reader-head"><h2>${esc(doc)}</h2><span style="flex:1"></span>
+        <button class="btn" id="askReaderClose" type="button">Close</button></div>
+      <div class="dg-reader-body"><p class="dg-thinking" style="padding-top:14px">Opening…</p></div></div>`;
+    const close=()=>{ host.hidden=true; host.innerHTML=""; document.removeEventListener("keydown", onEsc); };
+    const onEsc=e=>{ if(e.key==="Escape") close(); };
+    document.addEventListener("keydown", onEsc);
+    host.querySelector(".rd-scrim").onclick=close;
+    host.querySelector("#askReaderClose").onclick=close;
     try{
       const d=await (await fetch(BASE+"documents/read?doc="+encodeURIComponent(doc))).json();
-      const pages=(d.pages||[]).map(pg=>
-        `<div class="dg-page"><span class="n">page ${pg.page||"—"}</span><p>${esc(pg.text)}</p></div>`).join("");
-      host.innerHTML = `<div class="dg-reader">
-        <div class="dg-reader-head"><h2>${esc(doc)}</h2><span class="sp" style="flex:1"></span>
-          <button class="btn" id="askReaderClose" type="button">Close</button></div>
-        ${pages || '<p class="stu-hint">Nothing indexed for this document.</p>'}</div>`;
-      document.getElementById("askReaderClose").onclick=()=>{host.hidden=true; host.innerHTML="";};
+      const pages=(d.pages||[]);
+      host.querySelector(".dg-reader-body").innerHTML = pages.length
+        ? pages.map(pg=>{
+            const hit = page && String(pg.page)===String(page);
+            return `<div class="dg-page${hit?" rd-hit":""}"${hit?' id="rdHit"':''}>`
+              + `<span class="n">page ${pg.page||"—"}</span><p>${esc(pg.text)}</p></div>`;
+          }).join("")
+        : '<p class="stu-hint" style="padding-top:14px">Nothing indexed for this document.</p>';
+      const hit=document.getElementById("rdHit");
+      if(hit) hit.scrollIntoView({block:"center"});
     }catch(e){
-      host.innerHTML=`<div class="dg-reader"><p class="stu-hint" style="color:var(--t-start)">Could not open it.</p></div>`;
+      host.querySelector(".dg-reader-body").innerHTML =
+        `<p class="stu-hint" style="color:var(--t-start);padding-top:14px">Could not open it.</p>`;
     }
   }
 
@@ -2448,13 +2519,13 @@ address=0x80000000</code></pre>
     const cites=(d.sources||[]).map((sx,i)=>
       `<div class="dg-cite"><span class="doc">${esc(sx.doc)}</span>`
       + `<span class="pg">${sx.page?("p."+sx.page):""}</span>`
-      + `<button type="button" data-doc="${esc(sx.doc)}">Read</button></div>`
+      + `<button type="button" data-doc="${esc(sx.doc)}" data-page="${esc(sx.page||"")}">Read</button></div>`
       + `<div class="dg-excerpt">${esc(sx.excerpt||"")}…</div>`).join("");
     box.innerHTML = `<div class="md">${md(d.answer||"No answer.")}</div>`
       + (cites ? `<div class="dg-cites"><div class="dg-citehead">Sources</div>${cites}</div>` : "")
       + (d.note ? `<p class="stu-hint" style="margin-top:9px">${esc(d.note)}</p>` : "");
     box.querySelectorAll("button[data-doc]").forEach(b=>
-      b.onclick=()=>openDoc(b.dataset.doc));
+      b.onclick=()=>openDoc(b.dataset.doc, b.dataset.page));
   }
 
   if($("askChips")){
@@ -2469,6 +2540,9 @@ address=0x80000000</code></pre>
     e.preventDefault();
     const q=$("askText").value.trim(); if(!q) return;
     $("askText").value="";
+    // The chips are a way in, not a permanent fixture — once there is a
+    // conversation they are just clutter above it.
+    const chips=$("askChips"); if(chips) chips.innerHTML="";
     const box=turn(q); const go=$("askGo"); go.disabled=true;
     try{
       const res=await fetch(BASE+"ask",{method:"POST",headers:{"Content-Type":"application/json"},
