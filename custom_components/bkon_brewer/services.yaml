@@ -110,6 +110,15 @@ save_recipe:
       required: true
       selector:
         object:
+    sizes:
+      name: Serving sizes
+      description: >-
+        Optional {small|medium|large: steps} for a recipe that serves more than
+        one size. Each is validated separately, so a large that cannot be
+        transmitted is refused at save time rather than at the counter.
+      required: false
+      selector:
+        object:
     rating:
       name: Rating
       description: Optional 1-5 star rating to store with the recipe (0 clears it).
@@ -230,7 +239,9 @@ delete_recipe:
         text:
 brew_saved:
   name: Brew a saved recipe
-  description: Brew a recipe from the library by name.
+  description: >-
+    Brew a recipe from the library by name. A recipe can carry three serving
+    sizes; leave the size blank for the standard one.
   fields:
     address:
       name: Brewer
@@ -242,6 +253,16 @@ brew_saved:
       required: true
       selector:
         text:
+    size:
+      name: Serving size
+      required: false
+      description: >-
+        small, medium or large. Only the water volume differs between them.
+        Asking for a size the recipe does not have is an error rather than a
+        silent substitution — you would be handed a different drink.
+      selector:
+        select:
+          options: [small, medium, large]
 ask:
   name: Ask the concierge
   description: >-

@@ -314,13 +314,18 @@ def _register_services(hass: HomeAssistant) -> None:
         import json as _json
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
         recipes = []
+        def _flat(steps):
+            return [{"type": str(s.type), "values": s.values} for s in steps]
+
         for r in library.list():
-            steps = library.get(r["id"])
+            have = library.sizes(r["id"])
+            if have:
+                portions = [(n, _flat(library.get(r["id"], n))) for n in have]
+            else:
+                portions = [(app_recipe.SINGLE_PORTION_NAME,
+                             _flat(library.get(r["id"])))]
             recipes.append(app_recipe.to_app_recipe(
-                r["name"], [(app_recipe.DEFAULT_PORTION,
-                             [{"type": str(s.type), "values": s.values}
-                              for s in steps])],
-                description=r.get("description", "")))
+                r["name"], portions, description=r.get("description", "")))
         menu = app_recipe.to_menu(
             call.data.get("menu_name", "Home Assistant Menu"), recipes)
         www = hass.config.path("www", "bkon")
@@ -353,13 +358,16 @@ def _register_services(hass: HomeAssistant) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
         recipes = []
         for r in library.list():
-            steps = library.get(r["id"])
             # prepare() is what makes these match a real menu: it appends the
             # brew-out, drops zero-valued sizes, rebuilds start and turns a
             # manual-stop purge into its dialog form. Exporting the raw stored
             # steps produced portions with no brew-out at all, which no device
             # file has.
-            portions = [(bbp.PORTIONS[0], R.prepare(steps))]
+            have = [n for n in library.sizes(r["id"]) if n in bbp.PORTIONS]
+            if have:
+                portions = [(n, R.prepare(library.get(r["id"], n))) for n in have]
+            else:
+                portions = [(bbp.PORTIONS[0], R.prepare(library.get(r["id"])))]
             recipes.append({"name": r["name"][:255],
                             "code": (r.get("notes") or "")[:60],
                             "portions": portions})
@@ -450,7 +458,8 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def _save_recipe(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
-        await library.async_put(call.data["name"], call.data["steps"])
+        await library.async_put(call.data["name"], call.data["steps"],
+                                sizes=call.data.get("sizes"))
         # A rating/notes may ride along with a save from the studio.
         if "rating" in call.data or "notes" in call.data:
             await library.async_rate(call.data["name"],
@@ -506,9 +515,17 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def _brew_saved(call: ServiceCall) -> None:
         library: RecipeLibrary = hass.data[DOMAIN]["library"]
-        steps = library.get(call.data["name"])
+        size = call.data.get("size")
+        steps = library.get(call.data["name"], size)
         if steps is None:
             raise vol.Invalid(f"No saved recipe named {call.data['name']!r}")
+        if size and size not in library.sizes(call.data["name"]):
+            # Brewing the default silently would hand someone a different drink
+            # from the one they asked for.
+            have = library.sizes(call.data["name"])
+            raise vol.Invalid(
+                f"{call.data['name']!r} has no {size!r} size"
+                + (f"; it has {', '.join(have)}" if have else " (it is one size)"))
         for c in _coordinators(hass, call):
             await c.async_brew(steps)
         # Only a named brew can be attributed to a recipe, so history is
@@ -523,6 +540,7 @@ def _register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({
             vol.Required("name"): cv.string,
             vol.Required("steps"): [_STEP_SCHEMA],
+            vol.Optional("sizes"): {vol.In(R.PORTION_NAMES): [_STEP_SCHEMA]},
             vol.Optional("rating"): vol.All(vol.Coerce(int), vol.Range(min=0, max=5)),
             vol.Optional("notes"): cv.string,
             vol.Optional("journal"): [dict],
@@ -553,6 +571,7 @@ def _register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({
             vol.Optional("address"): cv.string,
             vol.Required("name"): cv.string,
+            vol.Optional("size"): vol.In(R.PORTION_NAMES),
         }))
 
     hass.services.async_register(

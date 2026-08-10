@@ -285,6 +285,80 @@ ABORT = frame("<ABORT></ABORT>")
 CANCEL = frame("<CANCEL></CANCEL>")
 
 
+# -- serving sizes -----------------------------------------------------------
+# A recipe is not one drink. The machine's own model carries three portions per
+# recipe -- the app's editors are laid out as serving 1 / 2 / 3 -- each with a
+# full step list, and brewing sends only the chosen one.
+
+#: The names the .bbp format and the app both use, smallest first.
+PORTION_NAMES = ("small", "medium", "large")
+
+#: The size that is "the recipe" when no size is asked for.
+DEFAULT_PORTION = "medium"
+
+#: How the vendor's own recipes differ between sizes. Every shipped default
+#: scales the FILL VOLUME and nothing else -- Classic Pour Over is 181/241/301
+#: ml, both tea menus are 188/250/312 -- which is medium +/-25% in each case,
+#: to within a millilitre. Temperature, vacuum depth and steep times are
+#: identical across the three, which makes sense of the documented dial-in
+#: convention: vacuum sets concentration and steep sets intensity, so changing
+#: them between sizes would make the large a different drink rather than more
+#: of the same one.
+SIZE_FACTORS = {"small": 0.75, "medium": 1.0, "large": 1.25}
+
+
+def scale_portion(steps: list[Step], factor: float) -> list[Step]:
+    """The same recipe, scaled to another serving size.
+
+    Only water volumes move. This is not a simplification -- it is what the
+    vendor's own recipes do, and doing more would change the drink instead of
+    its size.
+    """
+    out: list[Step] = []
+    for step in steps:
+        values = dict(step.values)
+        for key in ("fwv", "rwv"):
+            if key in values and _is_number(values[key]):
+                scaled = round(float(values[key]) * factor)
+                # A rinse of 30 ml must not scale to 22 and then to 0 on a
+                # second pass; anything that was set stays set.
+                values[key] = max(1, scaled) if float(values[key]) else 0
+        out.append(Step(step.type, values))
+    return out
+
+
+def _is_number(value: Any) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def sizes_from(steps: list[Step], base: str = DEFAULT_PORTION
+               ) -> dict[str, list[Step]]:
+    """All three sizes, derived from the one you built.
+
+    `base` says which size the given steps already are, so building a small and
+    asking for the set scales up rather than down.
+
+    Every size is derived from a notional medium rather than from `base`
+    directly. Scaling small straight to large chains two roundings and lands on
+    302 ml where the vendor's own recipe says 301 -- harmless in the cup, but it
+    means the set you get depends on which size you happened to author, and
+    these numbers are meant to be the same recipe. The base size itself is
+    passed through untouched, so what you built is what you keep.
+    """
+    if base not in SIZE_FACTORS:
+        raise ValueError(f"unknown size {base!r}; expected one of "
+                         f"{', '.join(PORTION_NAMES)}")
+    unit = SIZE_FACTORS[base]
+    middle = steps if unit == 1.0 else scale_portion(steps, 1.0 / unit)
+    return {name: (list(steps) if name == base
+                   else scale_portion(middle, SIZE_FACTORS[name]))
+            for name in PORTION_NAMES}
+
+
 # -- validation --------------------------------------------------------------
 
 class RecipeTooLarge(ValueError):

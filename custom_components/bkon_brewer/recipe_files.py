@@ -47,7 +47,8 @@ def write_recipes(directory: str, records: list[dict], *,
         # itself produces -- a single "standard" portion from our flat steps,
         # with the metadata fields the app carries.
         obj = app_recipe.to_app_recipe(
-            name, [(app_recipe.DEFAULT_PORTION, rec.get("steps", []))],
+            name, ([(n, st) for n, st in (rec.get("sizes") or {}).items()]
+                   or [(app_recipe.SINGLE_PORTION_NAME, rec.get("steps", []))]),
             description=rec.get("description", ""))
         payload = json.dumps(obj, indent=2, sort_keys=True,
                              ensure_ascii=False) + "\n"

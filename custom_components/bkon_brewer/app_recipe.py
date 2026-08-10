@@ -31,7 +31,11 @@ from typing import Any
 _STORAGE_TO_WIRE = {"purgedet": "det", "purgecontr": "contr"}
 _WIRE_TO_STORAGE = {v: k for k, v in _STORAGE_TO_WIRE.items()}
 
-DEFAULT_PORTION = "standard"
+#: What to call the single portion when a recipe has only one size. Distinct
+#: from recipe.DEFAULT_PORTION, which is which *size* is meant when none is
+#: asked for -- these were both called DEFAULT_PORTION in the same package,
+#: with different values, which is a trap rather than a convenience.
+SINGLE_PORTION_NAME = "standard"
 
 
 def _to_wire(values: dict) -> dict:
@@ -66,6 +70,23 @@ def from_app_recipe(recipe: dict, portion: str | None = None
     steps = [{"type": s.get("type"), "values": _to_wire(s.get("values", {}))}
              for s in chosen.get("sequences", [])]
     return name, steps
+
+
+def all_portions(recipe: dict) -> list[tuple[str, list[dict]]]:
+    """Every serving size on an app recipe, in order, as (name, wire steps).
+
+    The counterpart to from_app_recipe, which takes one. Reading only the first
+    portion silently threw away the other two sizes of every recipe the vendor
+    ships -- the machine's model is three servings per recipe, and collapsing it
+    to one is a decision this integration should not be making quietly.
+    """
+    out: list[tuple[str, list[dict]]] = []
+    for p in recipe.get("sequences", {}).get("portions", []):
+        steps = [{"type": s.get("type"), "values": _to_wire(s.get("values", {}))}
+                 for s in p.get("sequences", [])]
+        if steps:
+            out.append((p.get("name") or SINGLE_PORTION_NAME, steps))
+    return out
 
 
 def to_app_recipe(name: str, portions: list[tuple[str, list[dict]]], *,

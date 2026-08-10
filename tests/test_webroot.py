@@ -162,5 +162,30 @@ for cls in ("stu-val", "stu-read", "stu-flow"):
     ok(f".{cls} has a rule", f".{cls}{{" in s or f".{cls} " in s)
 ok("the slider itself is styled", "input[type=range]" in s)
 
+print("\none recipe, three sizes")
+# The machine carries three portions per recipe. The builder edits one, and the
+# other two are generated -- the vendor's own recipes differ by fill volume
+# alone, so building three by hand would be three chances to make them differ
+# in a way the machine never does.
+ok("the size controls exist", 'id="stuSizes"' in s and 'id="stuSizesOn"' in s)
+ok("and a way back to one size", 'id="stuSizesOff"' in s)
+ok("the factors are the documented ones",
+   "small: 0.75" in s and "large: 1.25" in s)
+ok("sizes are derived, not typed", "function sizesFrom(" in s)
+# Through a notional medium: small -> large directly chains two roundings and
+# lands on 302 where the vendor's recipe says 301.
+ok("derived through the middle size", "unit === 1 ? list : scaleSteps(list, 1/unit)" in s)
+ok("a volume that was set never rounds away", "Math.max(1, Math.round(" in s)
+ok("each size shows what it pours", "function fillOf(" in s)
+ok("the chosen size is announced to assistive tech", 'aria-pressed' in s)
+
+# Saving must send every size, or the two sizes you never opened are lost.
+ok("save carries the sizes", "sizes: sizes || undefined" in s)
+ok("and so does the call to Home Assistant", "sizes:rec.sizes" in s)
+
+print("\nsize controls are styled")
+for cls in ("stu-sizes", "stu-sizerow", "stu-size"):
+    ok(f".{cls} has a rule", f".{cls}{{" in s)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

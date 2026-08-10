@@ -121,6 +121,23 @@
   .stu-flow{font-size:var(--fs-md);color:var(--ink-soft);line-height:1.5;
     margin:10px 12px 0;padding-top:9px;border-top:1px dashed var(--line)}
   .stu-flow b{color:var(--ink);font-weight:650}
+  /* Serving sizes. Three buttons, each showing what it actually pours, because
+     "large" means nothing until you see it is 301 ml. */
+  .stu-sizes{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .stu-sizes-label{font-family:var(--mono);font-size:var(--fs-xs);letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-faint)}
+  .stu-sizerow{display:flex;gap:6px;flex:1;min-width:0}
+  .stu-size{flex:1;display:flex;flex-direction:column;gap:1px;align-items:center;
+    font-family:var(--sans);border:1px solid var(--line);background:var(--panel-2);
+    border-radius:var(--r-control);padding:5px 6px;cursor:pointer;color:var(--ink-soft)}
+  .stu-size .n{font-size:var(--fs-md);font-weight:600;text-transform:capitalize}
+  .stu-size .ml{font-family:var(--mono);font-size:var(--fs-xs);
+    font-variant-numeric:tabular-nums;color:var(--ink-faint)}
+  .stu-size:hover{border-color:var(--accent)}
+  .stu-size.on{border-color:var(--accent);color:var(--ink);
+    background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  .stu-size.on .ml{color:var(--accent)}
+  .btn.tiny{font-size:var(--fs-sm);padding:4px 9px;margin-top:9px}
   .stu-easy{display:flex;align-items:center;gap:6px;font-size:var(--fs-md);
     color:var(--ink-soft);cursor:pointer;white-space:nowrap}
   .stu-easy input{width:16px;height:16px;accent-color:var(--accent)}
@@ -948,6 +965,15 @@
             <div class="stu-note" id="stuNote"></div>
             <div id="stuLint" class="stu-lint"></div>
             <input class="stu-name" id="stuName" value="Morning Pour Over" spellcheck="false" aria-label="Recipe name" />
+            <!-- One recipe is three drinks. The machine carries three portions
+                 and brewing picks one; the vendor's own recipes differ only in
+                 fill volume, so the sizes are generated rather than built. -->
+            <div class="stu-sizes" id="stuSizes" hidden>
+              <span class="stu-sizes-label">Serves</span>
+              <div class="stu-sizerow" role="group" aria-label="Serving sizes"></div>
+              <button class="btn tiny" id="stuSizesOff" type="button">One size only</button>
+            </div>
+            <button class="btn tiny" id="stuSizesOn" type="button">Make three sizes</button>
             <div class="stu-rate">
               <span class="stu-rate-label">Your rating</span>
               <div class="stu-stars" id="stuStars" role="radiogroup" aria-label="Your rating"></div>
@@ -1941,10 +1967,95 @@ address=0x80000000</code></pre>
   async function libSaveRemote(rec){
     const res = await fetch(BASE_URL+"recipes",{method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({name:rec.name, steps:rec.steps, rating:rec.rating,
-                           notes:rec.notes, journal:rec.journal})});
+      body:JSON.stringify({name:rec.name, steps:rec.steps, sizes:rec.sizes,
+                           rating:rec.rating, notes:rec.notes,
+                           journal:rec.journal})});
     if(!res.ok){ const d=await res.json().catch(()=>({})); throw new Error(d.detail||`HTTP ${res.status}`); }
   }
+
+  // ---- serving sizes -------------------------------------------------------
+  // The machine holds three portions per recipe and brews one. Every recipe the
+  // vendor ships differs between sizes by FILL VOLUME alone -- 181/241/301 ml,
+  // 188/250/312 -- which is medium +/-25%. Temperature, vacuum and steep are
+  // identical across the three, and that follows from the dial-in convention:
+  // vacuum sets concentration and steep sets intensity, so moving them between
+  // sizes would serve a different drink rather than more of the same one.
+  const SIZE_NAMES = ["small", "medium", "large"];
+  const SIZE_FACTORS = {small: 0.75, medium: 1.0, large: 1.25};
+  let sizesOn = false;
+  let sizeEditing = "medium";        // which size the builder is showing
+
+  function scaleSteps(list, factor){
+    return list.map(st => {
+      const v = Object.assign({}, st.values);
+      ["fwv","rwv"].forEach(k => {
+        if(v[k] === undefined) return;
+        const n = Number(v[k]) || 0;
+        // A volume that was set must not round away to nothing; 0 means
+        // "absent" to the firmware, so a step would quietly stop rinsing.
+        v[k] = n ? Math.max(1, Math.round(n * factor)) : 0;
+      });
+      return {type: st.type, values: v};
+    });
+  }
+
+  // Derived through a notional medium rather than size-to-size: scaling a small
+  // straight to a large chains two roundings and lands on 302 where the
+  // vendor's own recipe says 301.
+  function sizesFrom(list, base){
+    const unit = SIZE_FACTORS[base] || 1;
+    const middle = unit === 1 ? list : scaleSteps(list, 1/unit);
+    const out = {};
+    SIZE_NAMES.forEach(n => {
+      out[n] = n === base ? JSON.parse(JSON.stringify(list))
+                          : scaleSteps(middle, SIZE_FACTORS[n]);
+    });
+    return out;
+  }
+
+  function fillOf(list){
+    const f = list.find(st => st.type === "fr" && Number(st.values.fwv));
+    return f ? Number(f.values.fwv) : 0;
+  }
+
+  function sizesRender(){
+    const box = $("stuSizes"), on = $("stuSizesOn");
+    if(!box || !on) return;
+    box.hidden = !sizesOn; on.hidden = sizesOn;
+    if(!sizesOn) return;
+    const row = box.querySelector(".stu-sizerow");
+    const preview = sizesFrom(steps, sizeEditing);
+    row.innerHTML = "";
+    SIZE_NAMES.forEach(n => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "stu-size" + (n === sizeEditing ? " on" : "");
+      b.setAttribute("aria-pressed", n === sizeEditing ? "true" : "false");
+      const ml = fillOf(preview[n]);
+      b.innerHTML = `<span class="n">${n}</span>`
+        + (ml ? `<span class="ml">${ml} ml</span>` : `<span class="ml">—</span>`);
+      b.onclick = () => {
+        if(n === sizeEditing) return;
+        // Switching size rewrites the builder to that size's water volumes.
+        // Everything else is shared, so editing a vacuum on the large edits it
+        // for all three -- which is what makes them one recipe.
+        steps = sizesFrom(steps, sizeEditing)[n];
+        sizeEditing = n;
+        render(); sizesRender();
+        flash(`Editing the ${n}`);
+      };
+      row.appendChild(b);
+    });
+  }
+
+  $("stuSizesOn") && ($("stuSizesOn").onclick = () => {
+    sizesOn = true; sizeEditing = "medium"; sizesRender();
+    flash("Three sizes — the small and large follow the fill volume");
+  });
+  $("stuSizesOff") && ($("stuSizesOff").onclick = () => {
+    sizesOn = false; sizesRender();
+    flash("One size — only what is on screen will be saved");
+  });
 
   function libSave(){
     const name = ($("stuName").value || "Untitled").trim();
@@ -1964,7 +2075,9 @@ address=0x80000000</code></pre>
                       changes, rating: userRating||0, taste: notes});
       }
     }
+    const sizes = sizesOn ? sizesFrom(steps, sizeEditing) : null;
     library[id] = {name, steps: JSON.parse(JSON.stringify(steps)),
+                   sizes: sizes || undefined,
                    rating: userRating || 0, notes,
                    journal, derived_from: derivedFrom || undefined,
                    saved: new Date().toISOString().slice(0,10)};
@@ -2311,6 +2424,14 @@ address=0x80000000</code></pre>
   }
 
   $("stuLibSave") && ($("stuLibSave").onclick = libSave);
+  // Loading a recipe that has sizes should show that it does, rather than
+  // silently editing one of them as though it were the whole recipe.
+  window.bkonShowSizes = (rec) => {
+    sizesOn = !!(rec && rec.sizes && Object.keys(rec.sizes).length > 1);
+    sizeEditing = "medium";
+    sizesRender();
+  };
+  sizesRender();
 
   // ---- your rating + notes (persisted via the copied service call) ----
   let userRating = 0;

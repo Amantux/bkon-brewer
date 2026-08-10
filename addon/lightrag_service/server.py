@@ -722,6 +722,11 @@ async def save_recipe(request: Request):
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
     data = {"name": name, "steps": body.get("steps") or []}
+    # Every serving size, when the recipe has them. Passed straight through:
+    # the service validates each size can actually be transmitted, which is
+    # where that check belongs.
+    if isinstance(body.get("sizes"), dict) and body["sizes"]:
+        data["sizes"] = body["sizes"]
     for k in ("rating", "notes", "journal"):
         if body.get(k) not in (None, "", []):
             data[k] = body[k]
@@ -752,8 +757,10 @@ async def brew_recipe(request: Request):
     name = (body.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
+    size = (body.get("size") or "").strip()
     try:
-        await ha.call_service("brew_saved", {"name": name})
+        await ha.call_service("brew_saved",
+                              {"name": name, **({"size": size} if size else {})})
     except ha.HaError as ex:
         raise HTTPException(status_code=502, detail=str(ex))
     return {"brewing": True, "name": name}

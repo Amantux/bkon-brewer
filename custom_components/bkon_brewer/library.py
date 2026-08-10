@@ -102,28 +102,55 @@ class RecipeLibrary:
             return None
         return {"id": _slug(rec.get("name", id_or_name)),
                 "name": rec.get("name"), "steps": rec.get("steps", []),
+                "sizes": rec.get("sizes") or {},
                 "description": rec.get("description", ""),
                 "rating": rec.get("rating"), "notes": rec.get("notes", ""),
                 "journal": rec.get("journal", []),
                 "brews": rec.get("brews", []),
                 "brew_count": rec.get("brew_count", 0)}
 
-    def get(self, id_or_name: str) -> list[R.Step] | None:
+    def get(self, id_or_name: str, size: str | None = None
+            ) -> list[R.Step] | None:
+        """One recipe's steps, at a serving size.
+
+        An unknown or absent size gives the default, rather than failing: a
+        recipe saved before sizes existed has one, and asking for a large of a
+        single-size recipe should brew it, not error.
+        """
         rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
         if rec is None:
             return None
+        sizes = rec.get("sizes") or {}
+        if size and size in sizes:
+            return _to_steps(sizes[size])
         return _to_steps(rec["steps"])
 
+    def sizes(self, id_or_name: str) -> list[str]:
+        """The serving sizes this recipe has, smallest first."""
+        rec = self._recipes.get(id_or_name) or self._recipes.get(_slug(id_or_name))
+        if rec is None:
+            return []
+        return [n for n in R.PORTION_NAMES if n in (rec.get("sizes") or {})]
+
     async def async_put(self, name: str, steps: list[dict[str, Any]],
-                        description: str = "") -> str:
+                        description: str = "",
+                        sizes: dict[str, list[dict[str, Any]]] | None = None
+                        ) -> str:
         """Create or overwrite a recipe. Validated before it is stored.
 
         A recipe that cannot encode is rejected at save time, so the library
         never contains something that will only fail when you try to brew it.
         """
         R.validate(_to_steps(steps))              # raises before persisting
+        for sname, ssteps in (sizes or {}).items():
+            # Every size has to fit on its own -- a large that cannot be
+            # transmitted is a recipe that fails only for the person who orders
+            # the large.
+            R.validate(_to_steps(ssteps))
         rid = _slug(name)
         rec = {"name": name, "steps": steps}
+        if sizes:
+            _set_sizes(rec, sizes)
         if description:
             rec["description"] = description
         # A save is about the steps; a rating and notes are the user's own
@@ -327,18 +354,50 @@ def record_from_any(obj: dict) -> dict[str, Any] | None:
     be either, and a hand-authored app recipe imports the same as a flat one."""
     from . import app_recipe
     if app_recipe.is_app_recipe(obj):
-        name, steps = app_recipe.from_app_recipe(obj)
-        rec = {"name": name, "steps": steps}
+        portions = app_recipe.all_portions(obj)
+        name = obj.get("dsp_name") or obj.get("name") or "Recipe"
+        if not portions:
+            return None
+        rec = {"name": name}
+        _set_sizes(rec, {n: st for n, st in portions})
         if obj.get("description"):
             rec["description"] = obj["description"]
         return rec
     name = obj.get("name")
     if name and isinstance(obj.get("steps"), list):
         rec = {"name": name, "steps": obj["steps"]}
+        if isinstance(obj.get("sizes"), dict) and obj["sizes"]:
+            _set_sizes(rec, obj["sizes"])
         if obj.get("description"):
             rec["description"] = obj["description"]
         return rec
     return None
+
+
+def _set_sizes(rec: dict[str, Any], portions: dict[str, list[dict]]) -> None:
+    """Store a recipe's portions, and keep `steps` agreeing with them.
+
+    `steps` stays the default size so every existing reader -- the coordinator,
+    the encoder, the byte gauge -- keeps working untouched. `sizes` is the
+    truth when it is there. Writing both through one function is what stops
+    them drifting apart, which is the usual fate of a mirrored field.
+
+    A portion named something other than small/medium/large is still a recipe.
+    An earlier version of this returned early when it recognised no size names,
+    which left the record with no `steps` at all -- so a single-portion app
+    recipe, the shape this project's own export writes, imported as nothing.
+    """
+    kept = {n: st for n, st in portions.items() if st}
+    if not kept:
+        return
+    named = {n: kept[n] for n in R.PORTION_NAMES if n in kept}
+    # Only a recipe with real serving sizes gets a `sizes` map; one unnamed
+    # portion is a single-size recipe, not a size called "standard".
+    if len(named) > 1:
+        rec["sizes"] = named
+    rec["steps"] = (named.get(R.DEFAULT_PORTION)
+                    or (next(iter(named.values())) if named
+                        else next(iter(kept.values()))))
 
 
 _EXAMPLE: dict[str, Any] = {
