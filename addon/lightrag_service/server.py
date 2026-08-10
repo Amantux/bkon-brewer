@@ -410,24 +410,10 @@ async def chat_turn(request: Request):
         q = str(args.get("query", "")).strip()
         if not q:
             return {"error": "look up what?"}, None
-        data = _facts()
-        needle = q.lower().replace(" ", "")
-        hits: list[dict] = []
-        for kind, key in (("codes", "code"), ("parts", "number"),
-                          ("labels", "label")):
-            for row in data[kind].values():
-                ident = str(row.get(key, "")).lower().replace(" ", "")
-                blob = " ".join(str(v) for k, v in row.items()
-                                if k != "seen").lower()
-                if ident and (needle in ident or ident in needle) or needle in blob:
-                    where = (row.get("seen") or [{}])[0]
-                    hits.append({"kind": kind[:-1],
-                                 **{k: v for k, v in row.items() if k != "seen"},
-                                 "doc": where.get("doc"), "page": where.get("page"),
-                                 "figure": where.get("figure")})
+        hits = _match_facts(_facts(), q)
         if not hits:
             return {"found": [], "note": f"nothing recorded for {q!r}"}, None
-        return {"found": hits[:6], "total": len(hits)}, None
+        return {"found": hits, "total": len(hits)}, None
 
     async def score_tool(_args: dict, cur_steps):
         """Score the current recipe. Needs the provider, so it is a closure."""
@@ -1371,6 +1357,41 @@ def _seq_brief(fid: str, seqs: dict | None = None) -> dict:
             ("name", "named", "index", "total", "prev", "next")}
 
 
+def _match_facts(data: dict, query: str, limit: int = 6) -> list[dict]:
+    """Rows matching a query, identifiers first.
+
+    Ranked rather than filtered, because these are identifiers and a loose
+    match is actively misleading: searching "V5" once returned a Siemens power
+    supply, whose description contains "208/230V50-60Hz". An exact identifier
+    beats a partial one, and a partial one beats a word found in a description
+    -- and descriptions are only consulted when no identifier matched at all.
+    """
+    import re
+    needle = re.sub(r"[^a-z0-9]", "", query.lower())
+    if not needle:
+        return []
+    exact, partial, textual = [], [], []
+    for kind, key in (("codes", "code"), ("parts", "number"), ("labels", "label")):
+        for row in data[kind].values():
+            ident = re.sub(r"[^a-z0-9]", "", str(row.get(key, "")).lower())
+            hit = {"kind": kind[:-1],
+                   **{k: v for k, v in row.items() if k != "seen"}}
+            where = (row.get("seen") or [{}])[0]
+            hit |= {"doc": where.get("doc"), "page": where.get("page"),
+                    "figure": where.get("figure")}
+            if ident and ident == needle:
+                exact.append(hit)
+            elif ident and len(needle) >= 3 and needle in ident:
+                partial.append(hit)
+            elif len(needle) >= 4 and re.search(
+                    r"\b" + re.escape(query.strip().lower()),
+                    " ".join(str(v) for k, v in row.items()
+                             if k not in ("seen", "variants")).lower()):
+                textual.append(hit)
+    ranked = exact + partial + (textual if not (exact or partial) else [])
+    return ranked[:limit]
+
+
 def _facts() -> dict:
     """Everything read out of the pictures, gathered and de-duplicated.
 
@@ -1409,9 +1430,15 @@ def _facts() -> dict:
             entry["seen"].append(where)
         for row in facts.get("parts") or []:
             entry = parts.setdefault(row["number"], {**row, "seen": []})
+            # One page lists a number with no description; another names it.
+            # Whichever was read first should not win by being first.
+            if not entry.get("name") and row.get("name"):
+                entry["name"] = row["name"]
             entry["seen"].append(where)
         for row in facts.get("labels") or []:
             entry = labels.setdefault(row["label"].upper(), {**row, "seen": []})
+            if not entry.get("name") and row.get("name"):
+                entry["name"] = row["name"]
             entry["seen"].append(where)
     return {"codes": codes, "parts": parts, "labels": labels}
 
@@ -1423,15 +1450,12 @@ async def facts(kind: str = "", q: str = "", limit: int = 200):
     if kind and kind not in data:
         raise HTTPException(status_code=400,
                             detail=f"kind must be one of {', '.join(data)}")
-    needle = q.strip().lower()
+    ranked = _match_facts(data, q, limit=500) if q.strip() else None
 
     def rows(name):
-        out = list(data[name].values())
-        if needle:
-            out = [r for r in out
-                   if any(needle in str(v).lower()
-                          for k, v in r.items() if k != "seen")]
-        return out[:max(1, min(limit, 500))]
+        if ranked is not None:
+            return [r for r in ranked if r["kind"] == name[:-1]][:limit]
+        return list(data[name].values())[:max(1, min(limit, 500))]
 
     wanted = [kind] if kind else list(data)
     return {name: rows(name) for name in wanted} | {

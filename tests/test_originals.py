@@ -307,5 +307,43 @@ chat_src = (ROOT / "addon" / "lightrag_service" / "chat.py").read_text()
 ok("and the assistant is told to report the disagreement",
    "variants" in chat_src and "disagree" in chat_src)
 
+print("\nan identifier lookup that matches anything is not an identifier lookup")
+# Searching "V5" returned a Siemens power supply, because its description reads
+# "208/230V50-60Hz". Matches are ranked: an exact identifier, then a partial
+# one, and a word in a description only when no identifier matched at all.
+mf = top("_match_facts")
+ok("matching lives in one place", mf is not None)
+env4 = {}
+exec(compile(ast.Module(body=[mf], type_ignores=[]), "<m>", "exec"), env4)
+match = env4["_match_facts"]
+data = {
+  "codes": {"C3M5": {"code": "C:3 M:5", "title": "Chamber Not Sealed",
+                     "seen": [{"doc": "E", "page": 10}]}},
+  "parts": {"19006211": {"number": "19006211", "name": "Pump, Vacuum 24VDC",
+                         "seen": [{"doc": "S", "page": 3}]},
+            "19006325": {"number": "19006325",
+                         "name": "Power Supply, Siemens 208/230V50-60Hz",
+                         "seen": [{"doc": "S", "page": 5}]}},
+  "labels": {"V5": {"label": "V5", "name": "Proportional Valve",
+                    "seen": [{"doc": "A", "page": 4}]}},
+}
+def ids(q): return [h.get("number") or h.get("code") or h.get("label")
+                    for h in match(data, q)]
+check("V5 is the valve, not a power supply spec", ids("V5"), ["V5"])
+check("a part number finds its part", ids("19006211"), ["19006211"])
+check("a code is found however it is punctuated", ids("c3m5"), ["C:3 M:5"])
+check("and in the form the document writes it", ids("C:3 M:5"), ["C:3 M:5"])
+# Descriptions are still searchable, just ranked below identifiers.
+check("a word in a description still finds it", ids("siemens"), ["19006325"])
+check("nothing matching returns nothing", ids("zzzzz"), [])
+# Two characters is not enough to identify anything; it would match half the table.
+check("a fragment does not match everything", ids("19"), [])
+
+print("\na blank name does not win by being read first")
+facts_src2 = ast.unparse(top("_facts"))
+ok("parts fill in a missing name from a later page",
+   "entry['name'] = row['name']" in facts_src2 or
+   'entry["name"] = row["name"]' in facts_src2)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
