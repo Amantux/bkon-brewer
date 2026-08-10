@@ -390,10 +390,19 @@
   .md-table td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
   .md-table tr:last-child td{border-bottom:0}
   .md-table td br{content:"";display:block;margin-bottom:3px}
-  .dg-cites{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);
-    display:flex;flex-direction:column;gap:7px}
+  .dg-cites{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  /* Open, this is exactly the list it always was. */
+  .dg-citelist{display:flex;flex-direction:column;gap:7px;margin-top:9px}
   .dg-citehead{font-family:var(--mono);font-size:var(--fs-xs);letter-spacing:.12em;
-    text-transform:uppercase;color:var(--ink-faint)}
+    text-transform:uppercase;color:var(--ink-faint);cursor:pointer;list-style:none;
+    display:inline-flex;align-items:center;gap:6px}
+  .dg-citehead::-webkit-details-marker{display:none}
+  .dg-citehead::before{content:"▸";letter-spacing:0;transition:transform .12s ease}
+  .dg-cites[open] .dg-citehead::before{transform:rotate(90deg)}
+  .dg-citehead:hover{color:var(--ink-soft)}
+  .dg-citehead:focus-visible{outline:2px solid var(--accent);outline-offset:3px;
+    border-radius:var(--r-chip)}
+  @media (prefers-reduced-motion:reduce){ .dg-citehead::before{transition:none} }
   .dg-cite{display:flex;gap:9px;align-items:baseline;font-size:var(--fs-md)}
   .dg-cite .doc{font-weight:650;flex:1;min-width:0}
   .dg-cite .pg{font-family:var(--mono);font-size:var(--fs-xs);color:var(--ink-faint)}
@@ -2845,7 +2854,13 @@ address=0x80000000</code></pre>
     const shown=(d.figures||[]).map(f=>figureHtml(f)).join("");
     box.innerHTML = `<div class="md">${md(d.answer||"No answer.")}</div>`
       + (shown ? `<div class="dg-figs">${shown}</div>` : "")
-      + (cites ? `<div class="dg-cites"><div class="dg-citehead">Sources</div>${cites}</div>` : "")
+      // Folded away by default. An answer with four cited pages, each with its
+      // own figure, was taller than the answer -- and the sources are for
+      // checking a claim, which is a thing you do sometimes, not every time.
+      // Opening it shows exactly what it always showed.
+      + (cites ? `<details class="dg-cites"><summary class="dg-citehead">`
+               + `Sources · ${(d.sources||[]).length}</summary>`
+               + `<div class="dg-citelist">${cites}</div></details>` : "")
       + (d.note ? `<p class="stu-hint" style="margin-top:9px">${esc(d.note)}</p>` : "");
     box.querySelectorAll("button[data-doc]").forEach(b=>
       b.onclick=()=>openDoc(b.dataset.doc, b.dataset.page));

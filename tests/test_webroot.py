@@ -114,5 +114,29 @@ for cls in ("cmp-trace", "cmp-step", "cmp-tick", "cmp-work", "cmp-worklist", "cm
 ok("the pulse respects reduced motion",
    "prefers-reduced-motion" in s and "cmp-pulse" in s)
 
+print("\nsources are folded away, and unchanged when opened")
+# An answer citing four pages, each carrying its own figure, was taller than
+# the answer itself. Sources are for checking a claim -- something you do
+# sometimes, not every time -- so they start closed.
+ok("sources are a disclosure", "<details class=\"dg-cites\">" in s)
+ok("the summary counts them", "Sources \u00b7 ${(d.sources||[]).length}" in s)
+ok("it does not start open", 'class="dg-cites" open' not in s)
+# Opening must show exactly what it always showed: the same citation markup,
+# same excerpts, same figures.
+ok("the citations themselves are untouched", "${cites}" in s)
+ok("and keep their own list styling", ".dg-citelist{" in s)
+
+# The buttons inside a closed <details> are still in the DOM, so they are still
+# bound; a citation that only worked once opened would be a trap.
+ok("citation buttons are bound regardless", 'querySelectorAll("button[data-doc]")' in s)
+
+print("\nthe disclosure is operable without a mouse")
+ok("the marker is replaced, not left doubled", "::-webkit-details-marker{display:none}" in s)
+ok("keyboard focus is visible", ".dg-citehead:focus-visible{" in s)
+ok("and the rotation respects reduced motion",
+   "prefers-reduced-motion" in s and ".dg-citehead::before{transition:none}" in s)
+# Images inside a closed disclosure must not be fetched until it opens.
+ok("figures load lazily", 'loading="lazy"' in s)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
