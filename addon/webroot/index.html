@@ -112,6 +112,15 @@
   .stu-add:hover{border-color:var(--dot);background:var(--panel-2)}
   .stu-add .sw{width:10px;height:10px;border-radius:var(--r-chip);background:var(--dot);flex:none}
   .stu-add .pl{color:var(--ink-faint);font-weight:700}
+  /* Easy mode: a slider you can feel the range on, the number beside its label,
+     and a plain reading of what the position means. */
+  .stu-f.easy input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0 0}
+  .stu-f .stu-val{margin-left:auto;font-family:var(--mono);font-size:var(--fs-md);
+    font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stu-read{font-size:var(--fs-sm);color:var(--ink-soft);margin-top:2px;line-height:1.4}
+  .stu-flow{font-size:var(--fs-md);color:var(--ink-soft);line-height:1.5;
+    margin:10px 12px 0;padding-top:9px;border-top:1px dashed var(--line)}
+  .stu-flow b{color:var(--ink);font-weight:650}
   .stu-easy{display:flex;align-items:center;gap:6px;font-size:var(--fs-md);
     color:var(--ink-soft);cursor:pointer;white-space:nowrap}
   .stu-easy input{width:16px;height:16px;accent-color:var(--accent)}
@@ -1627,6 +1636,8 @@ address=0x80000000</code></pre>
       const del = ic("✕","Remove",()=>{steps.splice(i,1);render();});
       head.append(up, dn, del); card.appendChild(head);
       const fields = document.createElement("div"); fields.className = "stu-fields";
+      // Declared before the fields because each one updates it as it changes.
+      let flow = null;
       T.fields.forEach(f => {
         if (f.type === "bool") {
           const wrap = document.createElement("label"); wrap.className = "stu-tog";
@@ -1642,16 +1653,43 @@ address=0x80000000</code></pre>
           const lab = document.createElement("label");
           lab.innerHTML = `<span>${f.label}</span>${f.unit?`<span class="u">${f.unit}</span>`:""}`;
           const inp = document.createElement("input");
-          inp.type=f.type; inp.value = st.values[f.k] ?? f.def; inp.spellcheck=false;
+          // Easy mode turns the numbers into sliders. "24 kPa" tells you
+          // nothing without a feel for the range; a slider shows you where in
+          // the range you are, and the reading underneath says what that means.
+          const slider = easy && f.type === "number";
+          inp.type = slider ? "range" : f.type;
+          inp.value = st.values[f.k] ?? f.def; inp.spellcheck=false;
           if (f.type==="number"){ inp.min=f.min; inp.max=f.max; }
+          let out = null, read = null;
+          if (slider) {
+            cell.classList.add("easy");
+            out = document.createElement("span"); out.className = "stu-val";
+            out.textContent = inp.value;
+            lab.appendChild(out);
+            read = document.createElement("div"); read.className = "stu-read";
+            read.textContent = readingFor(st.type, f.k, inp.value);
+          }
           inp.oninput = () => {
             st.values[f.k] = f.type==="number" ? (inp.value===""?0:Number(inp.value)) : inp.value;
+            if (out) out.textContent = inp.value;
+            if (read) read.textContent = readingFor(st.type, f.k, inp.value);
+            if (flow) flow.innerHTML = flowText(st);
             gauge();
           };
-          cell.append(lab, inp); fields.appendChild(cell);
+          cell.append(lab, inp);
+          if (read) cell.appendChild(read);
+          fields.appendChild(cell);
         }
       });
-      card.appendChild(fields); host.appendChild(card);
+      card.appendChild(fields);
+      // ...and a plain sentence for the whole step, so the sequence reads as a
+      // procedure rather than as a form to fill in.
+      if (easy) {
+        flow = document.createElement("div"); flow.className = "stu-flow";
+        flow.innerHTML = flowText(st);
+        card.appendChild(flow);
+      }
+      host.appendChild(card);
     });
     gauge();
   }

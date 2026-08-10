@@ -138,5 +138,29 @@ ok("and the rotation respects reduced motion",
 # Images inside a closed disclosure must not be fetched until it opens.
 ok("figures load lazily", 'loading="lazy"' in s)
 
+print("\neasy mode is actually wired to the renderer")
+# It broke by being disconnected, not by being deleted: the checkbox still set
+# a flag, saved it and re-rendered, and flowText() still existed -- but render()
+# never consulted either, so the toggle did nothing visible. Dead-but-present
+# code is invisible to a test that only asks whether the code is there.
+ok("the toggle exists", 'id="stuEasy"' in s)
+ok("the plain-language helpers exist", "function flowText(" in s and "const READ = {" in s)
+# The part that was missing. Each helper must be *called*, not merely defined.
+ok("flowText is called, not just defined", s.count("flowText(") >= 2)
+ok("readingFor is called, not just defined", s.count("readingFor(") >= 2)
+ok("the renderer branches on the flag", "easy && f.type" in s)
+ok("numbers become sliders", 'inp.type = slider ? "range"' in s)
+ok("and every step gets its sentence", 'className = "stu-flow"' in s)
+
+# Changing a slider must update the reading and the sentence, or they say
+# something that was true a moment ago.
+ok("the reading follows the slider", "read.textContent = readingFor(" in s)
+ok("the sentence follows it too", "flow.innerHTML = flowText(st)" in s)
+
+print("\nevery class easy mode renders is styled")
+for cls in ("stu-val", "stu-read", "stu-flow"):
+    ok(f".{cls} has a rule", f".{cls}{{" in s or f".{cls} " in s)
+ok("the slider itself is styled", "input[type=range]" in s)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)
