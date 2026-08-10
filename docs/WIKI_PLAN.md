@@ -1,5 +1,10 @@
 # Wiki plan — reorganising around the machine, not the software
 
+> **Status: a proposal, not a description.** Written August 2026, never applied.
+> It describes what the interface *could* be, not what it is — so do not read it
+> as documentation of the current build. Kept because the reasoning is still
+> useful; delete it once it has been acted on or rejected.
+
 A proposal for the add-on wiki (`addon/webroot/index.html`). Nothing here has been
 applied; this is the argument and the drafted copy, so the edit is mechanical when
 it happens.

@@ -38,10 +38,13 @@ whatever you need.
 
 | I want to… | Read |
 |---|---|
+| **Understand how the code is arranged** | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Understand the wire protocol | [PROTOCOL.md](PROTOCOL.md) |
 | Understand the recipe format | [RECIPE_SCHEMA.md](RECIPE_SCHEMA.md) |
 | Know the confirmed units & error codes | [INTEL.md](INTEL.md) |
 | Set up semantic Q&A (LightRAG + a model) | [RAG.md](RAG.md) |
+| Feed it the documents, diagrams included | [DOCUMENTS.md](DOCUMENTS.md) |
+| Match the visual style | [DESIGN.md](DESIGN.md) |
 | Make recipes longer than Bluetooth allows | [LONGER_RECIPES.md](LONGER_RECIPES.md) |
 | Understand the `.bbp` menu-file format | [BBP_FORMAT.md](BBP_FORMAT.md) |
 | See how faithful this is to the app | [APP_COMPARISON.md](APP_COMPARISON.md) |
@@ -65,12 +68,13 @@ Set up in Home Assistant under one **BKON Brewer** device.
 
 ## Services
 
-**Brewing** — `brew`, `brew_saved`, `manual_purge`, `abort`, `respond_dialog`,
-`send_raw` (developer escape hatch).
+**Brewing** — `brew`, `brew_saved` (with an optional serving `size`),
+`manual_purge`, `abort`, `respond_dialog`, `send_raw` (developer escape hatch).
 
-**Recipes (CRUD)** — `save_recipe`, `get_recipe`, `delete_recipe`,
-`build_recipe`, `customize_recipe`, `rate_recipe` (your own 1–5 rating and notes,
-also acceptable as optional fields on `save_recipe`).
+**Recipes (CRUD)** — `save_recipe` (optionally with all three `sizes`),
+`get_recipe`, `delete_recipe`, `build_recipe`, `customize_recipe`, `rate_recipe`
+(your own 1–5 rating and notes, also acceptable as optional fields on
+`save_recipe`).
 
 **Files & git** — `export_recipes` / `import_recipes` (one JSON per recipe),
 `download_recipes` (a readable .txt), `export_menu` (a machine menu file, for
@@ -90,6 +94,12 @@ Ask in plain language, by voice through Assist or the `ask` service:
 - *"what does C:3 M:5 mean?"* → cause and fix
   ([diagnostics](../custom_components/bkon_brewer/diagnostics.py)).
 
+With the add-on running, the studio's assistant also builds and tunes recipes,
+scores them, sends you a **diagram** when a picture is the better answer, and
+looks up exact identifiers — a part number, an error code, a valve label. Every
+path that reaches Home Assistant asks first; see
+[ARCHITECTURE.md](ARCHITECTURE.md#anything-touching-home-assistant-asks-first).
+
 The routing that tells those apart lives in
 [concierge.py](../custom_components/bkon_brewer/concierge.py).
 
@@ -104,10 +114,18 @@ archive of the service portal. **No vendor application source or document text
 is in this repository** — the document index is built locally and git-ignored.
 See [APP_COMPARISON.md](APP_COMPARISON.md) for a fidelity audit.
 
+## Serving sizes
+
+One recipe carries up to three portions, as the machine's own model does. The
+vendor's recipes differ between sizes by fill volume alone — 181/241/301 ml,
+188/250/312 — so the studio derives the other two from the one you build. Saving,
+brewing and both exports carry all three. Details in
+[RECIPE_SCHEMA.md](RECIPE_SCHEMA.md#serving-sizes).
+
 ## Testing
 
 ```
-./tests/run_all.sh          # 508 assertions, no dependencies
+./tests/run_all.sh          # 858 assertions, no dependencies, no network
 ```
 
 The logic that matters — encoding, the advisor, retrieval, provider selection,

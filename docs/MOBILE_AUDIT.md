@@ -1,5 +1,10 @@
 # Mobile & accessibility audit — `addon/webroot/index.html`
 
+> **Status: a point-in-time audit, partly acted on.** Taken August 2026 against
+> a much earlier build. Several findings have since been fixed and several
+> sections describe markup that no longer exists, so check anything here against
+> the current file before acting on it.
+
 Read-only audit of the add-on's single-file UI as it renders inside Home Assistant's
 ingress iframe. This was a **static** audit — nothing was rendered; items that
 genuinely need a browser are listed at the end under

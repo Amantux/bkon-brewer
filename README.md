@@ -154,11 +154,13 @@ where they are unverified against hardware.
 ## Docs
 
 - **[Project wiki](docs/README.md)** — start here
+- [How it is built](docs/ARCHITECTURE.md) — the developer's map
 - [Dashboard card](dashboard/lovelace-card.yaml) — paste-in Lovelace card
 - [Protocol](docs/PROTOCOL.md) · [Recipe schema](docs/RECIPE_SCHEMA.md) ·
   [Confirmed intel](docs/INTEL.md)
 - [Semantic Q&A](docs/RAG.md) · [Longer recipes](docs/LONGER_RECIPES.md) ·
   [`.bbp` menu format](docs/BBP_FORMAT.md) · [Fidelity audit](docs/APP_COMPARISON.md)
+- [Documents & diagrams](docs/DOCUMENTS.md) · [Visual design](docs/DESIGN.md)
 - [Add-on setup](addon/DOCS.md)
 
 ## Provenance & licence

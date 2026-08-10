@@ -80,6 +80,26 @@ in taste — a defensible place to start, tuned from there with the advisor:
 
 Each ships with three portions (small / medium / large) scaled by fill volume.
 
+## Serving sizes
+
+The scaling is exact and worth stating: **medium ±25% of the fill volume, and
+nothing else**. Classic Pour Over is 181/241/301 ml, both tea menus are
+188/250/312. Temperature, vacuum depth and steep times are identical across the
+three — which follows from the documented dial-in convention, since vacuum sets
+concentration and steep sets intensity, so moving them between sizes would serve
+a different drink rather than more of the same one.
+
+This integration carries all three end to end. `R.sizes_from()` derives them
+from whichever size you built, through a notional medium rather than
+size-to-size (scaling small straight to large chains two roundings and gives 302
+where the vendor says 301). `save_recipe` takes a `sizes` map and validates each
+separately; `brew_saved` takes a `size` and **refuses one the recipe does not
+have** rather than substituting the default, because the failure there is
+handing someone a different drink.
+
+Before this, `library.py` took the first portion and dropped the rest, so every
+recipe the vendor ships arrived as a single size.
+
 ## Unverified
 
 `purgecontr` (purge control) appears in every stored purge as `1`, but its
