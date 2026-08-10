@@ -292,5 +292,20 @@ ok("and no field is enumerated to keep",
 # The bug that made this matter: extraction output lives under `facts`.
 ok("so extracted facts survive", "facts" not in re_src2.split("index[fid] =")[1][:200])
 
+print("\none fault, however the document punctuates it")
+# The corpus writes the same fault as "C:3 M:5" and "C3:M5". Keyed on the raw
+# string they became two entries with different remedies -- and the assistant
+# would answer with whichever it happened to find.
+facts_src = ast.unparse(top("_facts"))
+ok("the code key keeps only what identifies the fault",
+   "[^A-Z0-9]" in facts_src)
+# A vision model misread a service phone number on one page: 1-855-353-7378
+# became 1-800-553-7876. Keeping the first sighting silently would have hidden
+# that, and a wrong number to call is a real cost.
+ok("fields that disagree are recorded, not smoothed over", "variants" in facts_src)
+chat_src = (ROOT / "addon" / "lightrag_service" / "chat.py").read_text()
+ok("and the assistant is told to report the disagreement",
+   "variants" in chat_src and "disagree" in chat_src)
+
 print(f"\n{_pass} passed, {_fail} failed")
 sys.exit(1 if _fail else 0)

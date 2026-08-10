@@ -1379,6 +1379,7 @@ def _facts() -> dict:
     error code appears on several pages, and one entry citing three pages is
     more useful than three entries.
     """
+    import re
     codes: dict[str, dict] = {}
     parts: dict[str, dict] = {}
     labels: dict[str, dict] = {}
@@ -1386,12 +1387,25 @@ def _facts() -> dict:
         facts = v.get("facts") or {}
         where = {"figure": fid, "doc": v.get("doc"), "page": v.get("page")}
         for row in facts.get("codes") or []:
-            key = row["code"].upper().replace(" ", "")
-            entry = codes.setdefault(key, {**row, "seen": []})
-            # A later sighting can fill a gap the first one left blank.
+            # Documents write the same fault as "C:3 M:5" and "C3:M5", so the
+            # key keeps only what identifies it. Punctuation made one fault
+            # into two entries with different remedies.
+            key = re.sub(r"[^A-Z0-9]", "", row["code"].upper())
+            entry = codes.setdefault(key, {**row, "seen": [], "variants": {}})
             for f in ("title", "cause", "remedy", "message"):
-                if not entry.get(f) and row.get(f):
-                    entry[f] = row[f]
+                value = (row.get(f) or "").strip()
+                if not value:
+                    continue
+                if not entry.get(f):
+                    entry[f] = value            # a later page fills a gap
+                elif value != entry[f]:
+                    # Sources disagreeing is worth knowing about, not
+                    # smoothing over: a vision model misread a service phone
+                    # number on one page, and silently keeping whichever was
+                    # seen first would have hidden that entirely.
+                    entry["variants"].setdefault(f, [])
+                    if value not in entry["variants"][f]:
+                        entry["variants"][f].append(value)
             entry["seen"].append(where)
         for row in facts.get("parts") or []:
             entry = parts.setdefault(row["number"], {**row, "seen": []})

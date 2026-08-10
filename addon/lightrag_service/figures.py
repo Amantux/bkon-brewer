@@ -28,10 +28,19 @@ import io
 import re
 from dataclasses import dataclass, field
 
-#: Below this, an image on the page is furniture -- a logo, a rule, a bullet.
-#: Measured against the corpus: the real diagrams and screenshots are all
-#: comfortably larger, and the repeated brand marks are all smaller.
-_MIN_IMAGE_PX = 220
+#: What separates a picture from furniture. The first rule was "at least 220px
+#: in BOTH dimensions", which quietly excluded the entire spare parts catalogue:
+#: its photographs are about 300x145 -- wide enough, less than half as tall --
+#: so eight of nine pages of part numbers were never rendered and never read.
+#: Area with a floor on the shorter side keeps the logos out and lets a catalogue
+#: photograph in.
+_MIN_IMAGE_AREA = 30_000          # ~300x100; a brand mark is far smaller
+_MIN_IMAGE_SIDE = 100             # but not a hairline rule of any length
+
+#: A page can also earn its place by having many modest pictures rather than one
+#: big one -- a table of twelve part photographs is a picture of a parts table.
+_MIN_TOTAL_AREA = 120_000
+_MIN_TILE_SIDE = 60               # below this it is an icon, not a photograph
 
 #: A page with this many vector drawing operations is a diagram even if it has
 #: no raster image on it at all -- the air/water flow schematics are drawn, not
@@ -81,15 +90,31 @@ def extract(doc: str, pdf_bytes: bytes, *, render: bool = True,
     with pymupdf.open(stream=io.BytesIO(pdf_bytes), filetype="pdf") as pdf:
         for i, page in enumerate(pdf, start=1):
             text = (page.get_text("text") or "").strip()
-            big = [im for im in page.get_images(full=True)
-                   if im[2] >= _MIN_IMAGE_PX and im[3] >= _MIN_IMAGE_PX]
-            visual = bool(big) or len(page.get_drawings()) > _MIN_DRAWINGS
+            visual = _is_visual(page)
             p = Page(number=i, text=text, visual=visual)
             if visual and render:
                 p.png = page.get_pixmap(dpi=dpi).tobytes("png")
                 p.digest = hashlib.sha1(p.png).hexdigest()
             out.pages.append(p)
     return out
+
+
+def _is_visual(page) -> bool:
+    """Does this page carry a picture worth rendering and describing?
+
+    Three ways to qualify: one substantial image, several modest ones adding up,
+    or enough vector drawing to be a schematic. The middle case exists because
+    of the parts catalogue -- no single photograph on those pages is large, and
+    the page is nothing but photographs.
+    """
+    sizes = [(im[2], im[3]) for im in page.get_images(full=True)]
+    if any(w * h >= _MIN_IMAGE_AREA and min(w, h) >= _MIN_IMAGE_SIDE
+           for w, h in sizes):
+        return True
+    total = sum(w * h for w, h in sizes if min(w, h) >= _MIN_TILE_SIDE)
+    if total >= _MIN_TOTAL_AREA:
+        return True
+    return len(page.get_drawings()) > _MIN_DRAWINGS
 
 
 #: What to ask about a page. Written for retrieval rather than for a reader: the

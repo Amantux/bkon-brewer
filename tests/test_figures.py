@@ -60,7 +60,18 @@ check("it is marked as a picture", p["kind"], "figure")
 check("and carries the id to fetch it by", p["figure"], "service-manual-p12")
 
 print("\nthe thresholds are stated, not scattered")
-ok("a minimum image size", F._MIN_IMAGE_PX >= 100)
+# The first rule demanded 220px in *both* dimensions and so excluded the whole
+# spare-parts catalogue, whose photographs are about 300x145. Area with a floor
+# on the shorter side is what lets a wide, short catalogue photo count.
+ok("a minimum image area", F._MIN_IMAGE_AREA >= 10_000)
+ok("with a floor on the shorter side", 60 <= F._MIN_IMAGE_SIDE <= 150)
+ok("and a way for many small pictures to count together",
+   F._MIN_TOTAL_AREA > F._MIN_IMAGE_AREA)
+# A 300x145 catalogue photo must qualify; a 120x40 logo must not.
+ok("a catalogue photo qualifies on area",
+   300 * 145 >= F._MIN_IMAGE_AREA and min(300, 145) >= F._MIN_IMAGE_SIDE)
+ok("a brand mark does not",
+   not (120 * 40 >= F._MIN_IMAGE_AREA and min(120, 40) >= F._MIN_IMAGE_SIDE))
 ok("a minimum drawing count for vector diagrams", F._MIN_DRAWINGS > 0)
 ok("a render resolution that can show UI text", F.RENDER_DPI >= 100)
 # Big enough to read a screenshot, small enough not to store megabytes a page.
